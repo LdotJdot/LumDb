@@ -33,7 +33,7 @@ We welcome contributions to LumDb. If you find any issues or have feature reques
 
 ## License
 
-LumDb is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.
+LumDb is licensed under the MIT License. See the [LICENSE.txt](LICENSE) file for more information.
 
 ---
 
