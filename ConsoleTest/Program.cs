@@ -9,6 +9,10 @@ namespace ConsoleTest
 {
     internal class Program
     {
+        /// <summary>
+        /// test start
+        /// </summary>
+        /// <param name="args"></param>
         private static void Main(string[] args)
         {
             //Inserts500000Mem();
