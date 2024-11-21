@@ -78,12 +78,7 @@ namespace LumDbEngine.Element.Structure.Page
         public abstract void Read(BinaryReader br);
 
         protected void BasePageWrite(BinaryWriter bw)
-        {
-            var pos = DbHeader.HEADER_SIZE + (long)PageId * PAGE_SIZE;
-            var endPos = pos + PAGE_SIZE;
-            if (bw.BaseStream.Length < endPos) bw.BaseStream.SetLength(endPos);
-
-            bw.BaseStream.Seek(pos, SeekOrigin.Begin);
+        {           
             bw.Write((byte)Type);
             bw.Write(PageId);
             bw.Write(NextPageId);
@@ -93,6 +88,15 @@ namespace LumDbEngine.Element.Structure.Page
         protected void MoveToPageHeaderSizeOffset(Stream stream, int headerSize)
         {
             var pos = DbHeader.HEADER_SIZE + (long)PageId * PAGE_SIZE + headerSize;
+            stream.Seek(pos, SeekOrigin.Begin);
+        }
+             
+        protected void MoveToPageStart(Stream stream)
+        {
+            var pos = DbHeader.HEADER_SIZE + (long)PageId * PAGE_SIZE;
+            var endPos = pos + PAGE_SIZE;
+            if (stream.Length < endPos) stream.SetLength(endPos);
+
             stream.Seek(pos, SeekOrigin.Begin);
         }
 
