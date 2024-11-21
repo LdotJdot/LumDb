@@ -1,4 +1,6 @@
-﻿namespace LumDbEngine.Element.Structure.Page.Data
+﻿using LumDbEngine.Utils.ByteUtils;
+
+namespace LumDbEngine.Element.Structure.Page.Data
 {
     internal class DataPage : BasePage
     {
@@ -36,22 +38,30 @@
             return this;
         }
 
-        public override void Write(BinaryWriter bw)
+        public unsafe override void Write(BinaryWriter bw)
         {
             lock (bw.BaseStream)
             {
-                BasePageWrite(bw);
-                bw.Write(MaxDataCount);
-                bw.Write(AvailableNodeIndex);
-                bw.Write(CurrentDataCount);
-                bw.Write(DataLenthPerNode);
-
-                MoveToPageHeaderSizeOffset(bw.BaseStream, HEADER_SIZE);
-
-                for (int i = 0; i < MaxDataCount; i++)
+                var pageBytes = stackalloc byte[PAGE_SIZE];
+                using var ms = new FixedStackallocMemoryStream(pageBytes, PAGE_SIZE);
+                using var tmpBw = new BinaryWriter(ms);
                 {
-                    DataNodes[i].Write(bw);
+                    BasePageWrite(tmpBw);
+                    tmpBw.Write(MaxDataCount);
+                    tmpBw.Write(AvailableNodeIndex);
+                    tmpBw.Write(CurrentDataCount);
+                    tmpBw.Write(DataLenthPerNode);
+
+                    tmpBw.BaseStream.Seek(HEADER_SIZE, SeekOrigin.Begin);
+
+                    for (int i = 0; i < MaxDataCount; i++)
+                    {
+                        DataNodes[i].Write(tmpBw);
+                    }
                 }
+
+                MoveToPageStart(bw.BaseStream);
+                bw.Write(new Span<byte>(pageBytes, PAGE_SIZE));
             }
         }
 

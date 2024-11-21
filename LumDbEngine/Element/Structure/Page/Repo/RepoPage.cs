@@ -1,4 +1,6 @@
-﻿namespace LumDbEngine.Element.Structure.Page.Repo
+﻿using LumDbEngine.Utils.ByteUtils;
+
+namespace LumDbEngine.Element.Structure.Page.Repo
 {
     /// <summary>
     /// respository page
@@ -41,18 +43,27 @@
             return AvailableNodeIndex < NODES_PER_PAGE;
         }
 
-        public override void Write(BinaryWriter bw)
+        public unsafe override void Write(BinaryWriter bw)
         {
             lock (bw.BaseStream)
             {
-                BasePageWrite(bw);
-                bw.Write(AvailableNodeIndex);
-                MoveToPageHeaderSizeOffset(bw.BaseStream, HEADER_SIZE);
-
-                for (int i = 0; i < NODES_PER_PAGE; i++)
+                var pageBytes = stackalloc byte[PAGE_SIZE];
+                using var ms = new FixedStackallocMemoryStream(pageBytes, PAGE_SIZE);
+                using var tmpBw = new BinaryWriter(ms);
                 {
-                    Nodes[i].Write(bw);
+                    BasePageWrite(tmpBw);
+                    tmpBw.Write(AvailableNodeIndex);
+
+                    tmpBw.BaseStream.Seek(HEADER_SIZE, SeekOrigin.Begin);
+
+                    for (int i = 0; i < NODES_PER_PAGE; i++)
+                    {
+                        Nodes[i].Write(tmpBw);
+                    }
                 }
+
+                MoveToPageStart(bw.BaseStream);
+                bw.Write(new Span<byte>(pageBytes, PAGE_SIZE));
             }
         }
 
