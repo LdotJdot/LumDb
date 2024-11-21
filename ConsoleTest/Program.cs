@@ -210,7 +210,7 @@ namespace ConsoleTest
                 return [uid, username];
             }
 
-            public void SetId(uint id)
+            public void GetId(uint id)
             {
                 this.id = id;
             }
@@ -242,7 +242,7 @@ namespace ConsoleTest
             return [uid, username, content];
         }
 
-        void IDbEntity.SetId(uint id)
+        void IDbEntity.GetId(uint id)
         {
             this.id = id;
         }
@@ -275,7 +275,7 @@ namespace ConsoleTest
             return [uid, username, dec, time];
         }
 
-        void IDbEntity.SetId(uint id)
+        void IDbEntity.GetId(uint id)
         {
             this.id = id;
         }

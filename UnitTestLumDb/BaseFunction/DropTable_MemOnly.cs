@@ -157,7 +157,7 @@ namespace UnitTestLumDb.BaseFunction
                 return [uid, username];
             }
 
-            public void SetId(uint id)
+            public void GetId(uint id)
             {
                 this.id = id;
             }

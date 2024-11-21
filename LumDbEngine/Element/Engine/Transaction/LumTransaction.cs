@@ -48,21 +48,6 @@ namespace LumDbEngine.Element.Engine.Transaction
             LumException.ThrowIfTrue(disposed, "the current transaction is disposed");
         }
 
-        public void Commit()
-        {
-            CheckTransactionState();
-            try
-            {
-                using var lk = LockTransaction.StartWrite(rwLock);
-                db.SaveChanges();
-            }
-            catch
-            {
-                Discard();
-                throw;
-            }
-        }
-
         public void SaveChanges()
         {
             CheckTransactionState();
