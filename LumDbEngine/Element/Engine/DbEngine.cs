@@ -6,25 +6,35 @@ using LumDbEngine.IO;
 
 namespace LumDbEngine.Element.Engine
 {
+    /// <summary>
+    /// The main db engine
+    /// </summary>
     public class DbEngine : IDisposable
     {
+        /// <summary>
+        /// Version of LumDb
+        /// </summary>
         public uint Version => DbHeader.VERSION;
         private string path = "";
         private IOFactory? iof = null;
+
+        /// <summary>
+        /// Database file path.
+        /// </summary>
         public string Path { get => path; }
 
         /// <summary>
-        /// Run in memory only
+        /// Create a memory based db engine.
         /// </summary>
         public DbEngine()
         {
         }
 
         /// <summary>
-        /// Run based on file
+        /// Create a file exclusive db engine.
         /// </summary>
-        /// <param name="path"></param>
-        /// <param name="createIfNotExists"></param>
+        /// <param name="path">db file path</param>
+        /// <param name="createIfNotExists">create a new db file if the path does not exist</param>
         public DbEngine(string path, bool createIfNotExists = true)
         {
             this.path = path;
@@ -49,7 +59,7 @@ namespace LumDbEngine.Element.Engine
 
         private readonly AutoResetEvent autoResetEvent = new AutoResetEvent(true); // make sure serializable
 
-        public void InitializeNew(string path)
+        internal void InitializeNew(string path)
         {
             autoResetEvent.WaitOne();
             using var ts = new LumTransaction(null, autoResetEvent, DbCache.DEFAULT_CACHE_PAGES, true);
@@ -58,10 +68,10 @@ namespace LumDbEngine.Element.Engine
         }
 
         /// <summary>
-        /// Start a new transaction
+        /// Start a new transaction to execute commands. A started transaction must be disposed when action is done, and should better used with "using" in case of lacking diosposing. 
         /// </summary>
-        /// <param name="initialCachePages">Minimal page shoud be large than 128</param>
-        /// <param name="dynamicCache"></param>
+        /// <param name="initialCachePages">Initial cache page size. The minimal page shoud be large than 128</param>
+        /// <param name="dynamicCache">System manage the cache page automatically</param>
         /// <returns></returns>
         public ITransaction StartTransaction(int initialCachePages = DbCache.DEFAULT_CACHE_PAGES, bool dynamicCache = true)
         {
@@ -72,6 +82,9 @@ namespace LumDbEngine.Element.Engine
 
         private bool disposed;
 
+        /// <summary>
+        /// Dispose the current engine and free the db file usage (if have).
+        /// </summary>
         public void Dispose()
         {
             if (disposed == false)
@@ -84,7 +97,7 @@ namespace LumDbEngine.Element.Engine
         }
 
         /// <summary>
-        /// Delete the current db file on disk
+        /// Physically delete the current db file on disk
         /// </summary>
         public void Destory()
         {

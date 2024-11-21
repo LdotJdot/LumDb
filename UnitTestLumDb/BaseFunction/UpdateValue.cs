@@ -481,7 +481,7 @@ namespace UnitTestLumDb.BaseFunction
                 return [uid, username, content];
             }
 
-            void IDbEntity.SetId(uint id)
+            void IDbEntity.GetId(uint id)
             {
                 this.id = id;
             }

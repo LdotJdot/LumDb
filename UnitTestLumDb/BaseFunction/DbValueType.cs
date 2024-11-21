@@ -71,7 +71,7 @@ namespace UnitTestLumDb.BaseFunction
                 return [uid, username, dec, time];
             }
 
-            void IDbEntity.SetId(uint id)
+            void IDbEntity.GetId(uint id)
             {
                 this.id = id;
             }
