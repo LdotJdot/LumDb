@@ -84,34 +84,34 @@ namespace LumDbEngine.Element.Manager
             }
         }
 
-        public IDbResult Insert(DbCache db, string tableName, TableValue[] values)
+        public IDbValue<uint> Insert(DbCache db, string tableName, TableValue[] values)
         {
             var tablePage = TableRepoManager.GetTablePage(db, tableName);
 
             if (tablePage == null)
             {
-                return DbResults.TableNotFound;
+                return new DbValue<uint>(DbResults.TableNotFound);
             }
 
-            TableManager.InsertData(db, tablePage, values);
+            var id=TableManager.InsertData(db, tablePage, values);
 
-            return DbResults.Success;
+            return new DbValue<uint>(id ?? 0);
         }
 
-        public IDbResult Insert<T>(DbCache db, string tableName, T t) where T : IDbEntity, new()
+        public IDbValue<uint> Insert<T>(DbCache db, string tableName, T t) where T : IDbEntity, new()
         {
             var tablePage = TableRepoManager.GetTablePage(db, tableName);
 
             if (tablePage == null)
             {
-                return DbResults.TableNotFound;
+                return new DbValue<uint>(DbResults.TableNotFound);
             }
 
             var vls = t.Boxing();
 
             if (vls.Length != tablePage.PageHeader.ColumnCount)
             {
-                return DbResults.DataNumberNotMatchTableColumns;
+                return new DbValue<uint>(DbResults.DataNumberNotMatchTableColumns);
             }
 
             var tbd = new TableValue[tablePage.PageHeader.ColumnCount];
@@ -120,9 +120,9 @@ namespace LumDbEngine.Element.Manager
                 tbd[i] = (tablePage.ColumnHeaders[i].Name.TransformToToString(), vls[i]);
             }
 
-            TableManager.InsertData(db, tablePage, tbd);
+            var id = TableManager.InsertData(db, tablePage, tbd);
 
-            return DbResults.Success;
+            return new DbValue<uint>(id ?? 0);
         }
 
         public IDbValues<T> Find<T>(DbCache db, string tableName, Func<IEnumerable<T>, IEnumerable<T>> condition) where T : IDbEntity, new()

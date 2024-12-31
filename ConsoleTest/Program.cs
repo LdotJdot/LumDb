@@ -126,7 +126,7 @@ namespace ConsoleTest
                     {
                         // using MemTest.MemChecker memChecker = new MemTest.MemChecker(i.ToString());
 
-                        ts.Insert(TABLENAME, [("a", i), ("b", (long)i * i), ("c", "thirteen thousand one hundred fifty three")]);
+                       var ds= ts.Insert(TABLENAME, [("a", i), ("b", (long)i * i), ("c", "thirteen thousand one hundred fifty three")]);
                         //ts.Insert(TABLENAME, [("a", i), ("b", (long)i * i), ("c", "thirteen thousand one")]);
                         // Console.WriteLine(i);
                         if (i % size == 0)

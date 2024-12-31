@@ -37,7 +37,7 @@ namespace LumDbEngine.Element.Manager.Specific
             page.SetDataLength(dataSize);
         }
 
-        public static void InsertData(DbCache db, TablePage tablePage, in TableValue[] values)
+        public static uint? InsertData(DbCache db, TablePage tablePage, in TableValue[] values)
         {
             LumException.ThrowIfTrue(values.Length > tablePage.PageHeader.ColumnCount, "To much input values");
 
@@ -51,6 +51,7 @@ namespace LumDbEngine.Element.Manager.Specific
             IndexManager.InsertMainIndex(db, tablePage, dataNode);
 
             IndexManager.InsertSubIndices(db, tablePage, dataNode, values);
+            return dataNode?.Id;
         }
 
         public static DbValues Traversal(DbCache db, TablePage tablePage, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition)

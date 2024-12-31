@@ -25,8 +25,8 @@ namespace LumDbEngine.Element.Engine.Transaction
         /// <param name="tableName">target table name</param>
         /// <param name="values">A tuple array to describe the line data. <br/>
         /// Each tuple should has the column name and the insert value </param>
-        /// <returns>The action is executed only when the 'IsSuccess' is 'true'</returns>
-        public IDbResult Insert(string tableName, (string columnName, object value)[] values);
+        /// <returns>The id of the inserted data. The action is executed only when the 'IsSuccess' is 'true'</returns>
+        public IDbValue<uint> Insert(string tableName, (string columnName, object value)[] values);
 
         /// <summary>
         /// Insert values to a table
@@ -34,8 +34,8 @@ namespace LumDbEngine.Element.Engine.Transaction
         /// <typeparam name="T">A class implement IDbEntity interface corresponding to the table header structure.</typeparam>
         /// <param name="tableName">target table name</param>
         /// <param name="t">target instance of the IDbEntity</param>
-        /// <returns>The action is executed only when the 'IsSuccess' is 'true'</returns>
-        public IDbResult Insert<T>(string tableName, T t) where T : IDbEntity, new();
+        /// <returns>The id of the inserted data. The action is executed only when the 'IsSuccess' is 'true'</returns>
+        public IDbValue<uint> Insert<T>(string tableName, T t) where T : IDbEntity, new();
 
         /// <summary>
         /// Search the results in table
