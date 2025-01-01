@@ -1,4 +1,4 @@
-# LumDb V1.0.0
+# LumDb V1.0.2
 
 LumDb is a single-file database program based on C# for .NET 8. It boasts excellent performance, is 100% written in C#, has no dependencies on external component libraries, and supports AOT (Ahead-of-Time compilation) perfectly.
 
