@@ -54,21 +54,21 @@ namespace LumDbEngine.Element.Manager.Specific
             return dataNode?.Id;
         }
 
-        public static DbValues Traversal(DbCache db, TablePage tablePage, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition)
+        public static DbValues Traversal(DbCache db, TablePage tablePage, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition, bool isBackward)
         {
             if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
             {
                 return new DbValues();
             }
             var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
-            var values = condition(DataManager.GetValues(db, tablePage.ColumnHeaders, rootPage!).Select(o => o.data));
+            var values =isBackward? condition(DataManager.GetValues_Backward(db, tablePage.ColumnHeaders, rootPage!).Select(o => o.data)) : condition(DataManager.GetValues(db, tablePage.ColumnHeaders, rootPage!).Select(o => o.data));
             return new DbValues(tablePage.PageHeader.ColumnCount, tablePage.ColumnHeaders.ToDictionary(o => o.Name.TransformToToString(), o => o.ValueType), values);
         }
 
-        public static IDbValues<T> Traversal<T>(DbCache db, TablePage tablePage, Func<IEnumerable<T>, IEnumerable<T>> condition) where T : IDbEntity, new()
+        public static IDbValues<T> Traversal<T>(DbCache db, TablePage tablePage, Func<IEnumerable<T>, IEnumerable<T>> condition, bool isBackward) where T : IDbEntity, new()
         {
             var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
-            var values = DataManager.GetValuesWithId(db, tablePage.ColumnHeaders, rootPage!);
+            var values =isBackward? DataManager.GetValuesWithId_Backward(db, tablePage.ColumnHeaders, rootPage!) : DataManager.GetValuesWithId(db, tablePage.ColumnHeaders, rootPage!);
             return new DbValues<T>(condition(values.Select(o => (T)(new T()).UnboxingWithId(o.id, o.obj))));
         }
 

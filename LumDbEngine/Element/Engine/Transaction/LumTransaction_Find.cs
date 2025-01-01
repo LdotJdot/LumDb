@@ -36,13 +36,13 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
         }
 
-        public IDbValues Find(string tableName, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition)
+        public IDbValues Find(string tableName, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition, bool isBackward)
         {
             CheckTransactionState();
             try
             {
                 using var lk = LockTransaction.StartRead(rwLock);
-                return dbManager.Find(db, tableName, condition);
+                return dbManager.Find(db, tableName, condition, isBackward);
             }
             catch
             {
@@ -51,13 +51,13 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
         }
 
-        public IDbValues<T> Find<T>(string tableName, Func<IEnumerable<T>, IEnumerable<T>> condition) where T : IDbEntity, new()
+        public IDbValues<T> Find<T>(string tableName, Func<IEnumerable<T>, IEnumerable<T>> condition, bool isBackward) where T : IDbEntity, new()
         {
             CheckTransactionState();
             try
             {
                 using var lk = LockTransaction.StartRead(rwLock);
-                return dbManager.Find(db, tableName, condition);
+                return dbManager.Find(db, tableName, condition, isBackward);
             }
             catch
             {

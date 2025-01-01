@@ -18,7 +18,7 @@ namespace ConsoleTest
             //Inserts500000Mem();
 
             ////
-            Inserts500000();
+            Inserts50();
 
             //Find500000();
             //Appends900000();
@@ -26,6 +26,44 @@ namespace ConsoleTest
             Console.ReadLine();
         }
 
+        private static void Inserts50()
+        {
+            const string TABLENAME = "tableFirst";
+              
+                using DbEngine eng = new DbEngine("d:\\tmp143701.db");
+
+                using (var ts = eng.StartTransaction(0, false))
+                {
+                    ts.Create(TABLENAME, [("a", DbValueType.Int, true), ("b", DbValueType.Long, false), ("c", DbValueType.StrVar, false)]);
+                }
+
+                {
+                    using ITransaction ts = eng.StartTransaction();
+
+                    for (int i = 0; i < 500; i++)
+                    {
+                        // using MemTest.MemChecker memChecker = new MemTest.MemChecker(i.ToString());
+
+                        var ds = ts.Insert(TABLENAME, [("a", i), ("b", (long)i * i), ("c", "thirteen thousand one hundred fifty three")]);
+                        //ts.Insert(TABLENAME, [("a", i), ("b", (long)i * i), ("c", "thirteen thousand one")]);
+                        // Console.WriteLine(i);
+                    }
+                }
+
+            {
+                using ITransaction ts = eng.StartTransaction();
+
+                var res = ts.Find(TABLENAME, o => o,true);
+
+                foreach(var r in res.Values)
+                {
+                    Console.WriteLine(r[0]);
+                }
+            }
+
+            eng.Destory();
+            
+        }
         private static void Find500000()
         {
             const string TABLENAME = "tableFirst";

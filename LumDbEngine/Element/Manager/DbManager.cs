@@ -70,7 +70,7 @@ namespace LumDbEngine.Element.Manager
             return DbResults.Success;
         }
 
-        public IDbValues Find(DbCache db, string tableName, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition)
+        public IDbValues Find(DbCache db, string tableName, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition, bool isBackward)
         {
             var tablePage = TableRepoManager.GetTablePage(db, tableName);
 
@@ -80,7 +80,7 @@ namespace LumDbEngine.Element.Manager
             }
             else
             {
-                return TableManager.Traversal(db, tablePage, condition);
+                return TableManager.Traversal(db, tablePage, condition,isBackward);
             }
         }
 
@@ -125,7 +125,7 @@ namespace LumDbEngine.Element.Manager
             return new DbValue<uint>(id ?? 0);
         }
 
-        public IDbValues<T> Find<T>(DbCache db, string tableName, Func<IEnumerable<T>, IEnumerable<T>> condition) where T : IDbEntity, new()
+        public IDbValues<T> Find<T>(DbCache db, string tableName, Func<IEnumerable<T>, IEnumerable<T>> condition, bool isBackward) where T : IDbEntity, new()
         {
             var tablePage = TableRepoManager.GetTablePage(db, tableName);
 
@@ -134,7 +134,7 @@ namespace LumDbEngine.Element.Manager
                 return new DbValues<T>(DbResults.TableNotFound);
             }
 
-            return TableManager.Traversal<T>(db, tablePage, condition);
+            return TableManager.Traversal<T>(db, tablePage, condition,isBackward);
         }
 
         public IDbValue Find(DbCache db, string tableName, string keyName, object keyValue)

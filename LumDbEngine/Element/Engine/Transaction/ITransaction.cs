@@ -42,8 +42,9 @@ namespace LumDbEngine.Element.Engine.Transaction
         /// </summary>
         /// <param name="tableName">target table name</param>
         /// <param name="condition">the match condition of the iterate search</param>
+        /// <param name="isBackward">execute backward or forward search</param>
         /// <returns>DbValues, The value is present only when the 'IsSuccess' is 'true'</returns>
-        public IDbValues Find(string tableName, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition);
+        public IDbValues Find(string tableName, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition, bool isBackward = false);
 
         /// <summary>
         /// Search a result in table by key name and key value
@@ -68,10 +69,11 @@ namespace LumDbEngine.Element.Engine.Transaction
         /// </summary>
         /// <typeparam name="T">A class implement IDbEntity interface corresponding to the table header structure.</typeparam>
         /// <param name="tableName">target table name</param>
-        /// <param name="condition">the match condition of the iterate search.<br/>
+        /// <param name="condition">the match condition of the iterate search.</param>
+        /// <param name="isBackward">execute backward or forward search</param>
         /// e.g. o=>o.Where(l=>foo(l.name))</param>
         /// <returns>DbValues of T. The value is present only when the 'IsSuccess' is 'true'</returns>
-        public IDbValues<T> Find<T>(string tableName, Func<IEnumerable<T>, IEnumerable<T>> condition) where T : IDbEntity, new();
+        public IDbValues<T> Find<T>(string tableName, Func<IEnumerable<T>, IEnumerable<T>> condition, bool isBackward = false) where T : IDbEntity, new();
 
         /// <summary>
         /// Search a result in table by key name and key value
