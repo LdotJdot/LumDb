@@ -248,10 +248,16 @@ namespace LumDbEngine.Element.Manager.Specific
         
         internal static IEnumerable<(DataNode node, object[] data)> GetValues_Backward(DbCache db, ColumnHeader[] headers, DataPage? page)
         {
-            while (db.IsValidPage(page.NextPageId))
+            uint initPageId = page?.PageId ?? uint.MaxValue;
+            uint nextId = page?.NextPageId ?? uint.MaxValue;
+
+            while (db.IsValidPage(nextId))
             {
-                page = PageManager.GetPage<DataPage>(db, page.NextPageId);
+                initPageId = nextId;
+                nextId = GetNextPageId(db, PageType.Data, initPageId);
             }
+
+            page = PageManager.GetPage<DataPage>(db, initPageId);
 
             while (page != null)
             {
@@ -303,10 +309,16 @@ namespace LumDbEngine.Element.Manager.Specific
 
         internal static IEnumerable<(uint id, object[] obj)> GetValuesWithId_Backward(DbCache db, ColumnHeader[] headers, DataPage? page)
         {
-            while (db.IsValidPage(page.NextPageId))
+            uint initPageId = page?.PageId ?? uint.MaxValue;
+            uint nextId = page?.NextPageId ?? uint.MaxValue;
+
+            while (db.IsValidPage(nextId))
             {
-                page = PageManager.GetPage<DataPage>(db, page.NextPageId);
+                initPageId = nextId;
+                nextId = GetNextPageId(db, PageType.Data, initPageId);
             }
+
+            page = PageManager.GetPage<DataPage>(db, initPageId);
 
             while (page != null)
             {
@@ -331,7 +343,13 @@ namespace LumDbEngine.Element.Manager.Specific
             }
         }
 
-        internal static object[] GetValue(DbCache db, ColumnHeader[] headers, Span<byte> value)
+        private static uint GetNextPageId(DbCache db, PageType pageType, uint pageId)
+        {
+            using var reader = db.iof.RentReader();
+            return BasePage.ReadPageInfo(pageId,pageType, reader).nextPageId;
+        }
+
+internal static object[] GetValue(DbCache db, ColumnHeader[] headers, Span<byte> value)
         {
             var objects = new object[headers.Length];
 

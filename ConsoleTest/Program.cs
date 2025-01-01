@@ -53,7 +53,7 @@ namespace ConsoleTest
             {
                 using ITransaction ts = eng.StartTransaction();
 
-                var res = ts.Find(TABLENAME, o => o,true);
+                var res = ts.Find(TABLENAME, o => o);
 
                 foreach(var r in res.Values)
                 {

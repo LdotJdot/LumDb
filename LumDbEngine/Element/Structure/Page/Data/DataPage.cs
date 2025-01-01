@@ -64,7 +64,7 @@ namespace LumDbEngine.Element.Structure.Page.Data
                 bw.Write(new Span<byte>(pageBytes, PAGE_SIZE));
             }
         }
-
+           
         public override void Read(BinaryReader br)
         {
             lock (br.BaseStream)
