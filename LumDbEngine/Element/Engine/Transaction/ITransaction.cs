@@ -28,6 +28,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         /// <returns>The id of the inserted data. The action is executed only when the 'IsSuccess' is 'true'</returns>
         public IDbValue<uint> Insert(string tableName, (string columnName, object value)[] values);
 
+
         /// <summary>
         /// Insert values to a table
         /// </summary>
