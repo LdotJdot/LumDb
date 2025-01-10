@@ -13,7 +13,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         private static IDbManager dbManager = new DbManager();
         private DbCache db;
         private ReaderWriterLockSlim rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
-        private readonly AutoResetEvent autoResetEvent;
+        private readonly AutoResetEvent autoResetEvent; // make sure the singularity of transaction
 
         internal int PagesCount => db.pages.Count;
 
