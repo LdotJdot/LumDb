@@ -17,7 +17,7 @@
 
         private static readonly byte[] FileID = [76, 117, 109, 68, 66, 83];        // 6 bytes "LumDBS"
 
-        public const uint VERSION = 1_000_002;
+        public const uint VERSION = 1_000_003;
 
         public uint FileVersion { get; set; }           // 4 bytes
         public byte[] DbID { get; set; }
