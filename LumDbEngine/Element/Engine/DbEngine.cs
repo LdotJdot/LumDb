@@ -61,11 +61,12 @@ namespace LumDbEngine.Element.Engine
 
         internal void InitializeNew(string path)
         {
-            autoResetEvent.WaitOne();
-            using var ts = new LumTransaction(null, autoResetEvent, DbCache.DEFAULT_CACHE_PAGES, true);
+            var ck = new LumTransaction.Checker(autoResetEvent);
+            using var ts = new LumTransaction(null, ck, DbCache.DEFAULT_CACHE_PAGES, true);
             ts.SaveAs(path);
             ts.Discard();
         }
+
 
         /// <summary>
         /// Start a new transaction to execute commands. A started transaction must be disposed when action is done, and should better used with "using" in case of lacking diosposing. 
@@ -75,9 +76,8 @@ namespace LumDbEngine.Element.Engine
         /// <returns></returns>
         public ITransaction StartTransaction(int initialCachePages = DbCache.DEFAULT_CACHE_PAGES, bool dynamicCache = true)
         {
-            LumException.ThrowIfTrue(disposed, "Can not access a disposed transaction.");
-            autoResetEvent.WaitOne();
-            return new LumTransaction(iof, autoResetEvent, initialCachePages, dynamicCache);
+            var ck = new LumTransaction.Checker(autoResetEvent);
+            return new LumTransaction(iof, ck, initialCachePages, dynamicCache);
         }
 
         private bool disposed;

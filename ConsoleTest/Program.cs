@@ -41,14 +41,20 @@ namespace ConsoleTest
 
             using var ts = eng.StartTransaction();
             var res = ts.Find(TABLENAME, 1);
-
-            // The following code would be block due to the singularity of transaction. And should be not called in same thread.
             using var ts3 = eng.StartTransaction();
-            ts3.Insert(TABLENAME, [("a", 55), ("b", (long)233), ("c", "thirteen thousand one hundred fifty three")]);
-            var res3 = ts.Find(TABLENAME, 2);
+
+            var t =Task.Factory.StartNew(() =>
+            {
+                // The following code would be block due to the singularity of transaction. And should be not called in same thread.
+                using var ts3 = eng.StartTransaction();
+                ts3.Insert(TABLENAME, [("a", 55), ("b", (long)233), ("c", "thirteen thousand one hundred fifty three")]);
+                var res3 = ts3.Find(TABLENAME, 2);
+                Console.WriteLine("r3"+res3.Value[0].ToString());
+            });
             ts.Dispose();
+
+            t.Wait();
             Console.WriteLine(res.Value[0]);
-            Console.WriteLine(res3.Value[0]);
         }
         private static void Inserts50()
         {
