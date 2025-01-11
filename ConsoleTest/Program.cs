@@ -29,11 +29,13 @@ namespace ConsoleTest
         private static void readWriteLock()
         {
             using DbEngine eng = new DbEngine("d:\\tmp143701.db");
+            using DbEngine en2 = new DbEngine("d:\\tmp143702.db");
             const string TABLENAME = "tableFirst";
 
 
             using (var ts2 = eng.StartTransaction(0, false))
             {
+                using var tt6=en2.StartTransaction();
                 //ts2.Create(TABLENAME, [("a", DbValueType.Int, true), ("b", DbValueType.Long, false), ("c", DbValueType.StrVar, false)]);
                // var ds = ts2.Insert(TABLENAME, [("a", 22), ("b", (long)233), ("c", "thirteen thousand one hundred fifty three")]);
             }
@@ -41,7 +43,7 @@ namespace ConsoleTest
 
             using var ts = eng.StartTransaction();
             var res = ts.Find(TABLENAME, 1);
-            using var ts3 = eng.StartTransaction();
+            //using var ts3 = eng.StartTransaction();
 
             var t =Task.Factory.StartNew(() =>
             {

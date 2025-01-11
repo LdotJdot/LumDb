@@ -1,4 +1,5 @@
 ﻿using LumDbEngine.Element.Engine.Cache;
+using LumDbEngine.Element.Engine.Checker;
 using LumDbEngine.Element.Engine.Transaction;
 using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Structure;
@@ -17,6 +18,7 @@ namespace LumDbEngine.Element.Engine
         public uint Version => DbHeader.VERSION;
         private string path = "";
         private IOFactory? iof = null;
+        private readonly ThreadLocal<int> callCount = new ThreadLocal<int>(() => 0);
 
         /// <summary>
         /// Database file path.
@@ -61,7 +63,7 @@ namespace LumDbEngine.Element.Engine
 
         internal void InitializeNew(string path)
         {
-            var ck = new LumTransaction.Checker(autoResetEvent);
+            var ck = new STChecker(autoResetEvent, callCount);
             using var ts = new LumTransaction(null, ck, DbCache.DEFAULT_CACHE_PAGES, true);
             ts.SaveAs(path);
             ts.Discard();
@@ -76,7 +78,7 @@ namespace LumDbEngine.Element.Engine
         /// <returns></returns>
         public ITransaction StartTransaction(int initialCachePages = DbCache.DEFAULT_CACHE_PAGES, bool dynamicCache = true)
         {
-            var ck = new LumTransaction.Checker(autoResetEvent);
+            var ck = new STChecker( autoResetEvent,callCount);
             return new LumTransaction(iof, ck, initialCachePages, dynamicCache);
         }
 

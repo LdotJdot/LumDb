@@ -1,4 +1,5 @@
 ﻿using LumDbEngine.Element.Engine.Cache;
+using LumDbEngine.Element.Engine.Checker;
 using LumDbEngine.Element.Engine.Lock;
 using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Manager;
@@ -13,7 +14,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         private static IDbManager dbManager = new DbManager();
         private DbCache db;
         private ReaderWriterLockSlim rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
-        private readonly Checker checker;
+        private readonly STChecker checker;
         internal int PagesCount => db.pages.Count;
 
         internal string DbState()
@@ -33,7 +34,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         private readonly long cachePages;
         private readonly bool dynamicCache;
 
-        internal LumTransaction(IOFactory? iof, in Checker check, long cachePages, bool dynamicCache)
+        internal LumTransaction(IOFactory? iof, STChecker check, long cachePages, bool dynamicCache)
         {
             this.checker=check;
             db = new DbCache(iof, cachePages, dynamicCache);
@@ -95,31 +96,6 @@ namespace LumDbEngine.Element.Engine.Transaction
                 {
                     checker.Dispose();
                 }
-            }
-        }
-
-        internal class Checker:IDisposable
-        {
-            private readonly static ThreadLocal<int> callCount = new ThreadLocal<int>(() => 0);
-            private readonly AutoResetEvent autoResetEvent; // make sure the singularity of transaction
-
-            public Checker(AutoResetEvent autoResetEvent)
-            {                
-                if (callCount.Value != 0)
-                {
-                    LumException.Throw("In a single thread, the previous transaction should be disposed before starting another one.");
-
-                }
-
-                callCount.Value++;
-                this.autoResetEvent = autoResetEvent;
-                autoResetEvent.WaitOne();
-            }
-
-            public void Dispose()
-            {
-                callCount.Value--;
-                if (!autoResetEvent.SafeWaitHandle.IsClosed) autoResetEvent.Set();
             }
         }
     }
