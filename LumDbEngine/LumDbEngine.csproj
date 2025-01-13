@@ -21,7 +21,7 @@
 	<Description>A single file database (Aot support)</Description>
 	<PackageTags>database;single file;storage;aot;thread safe</PackageTags>
 	<PackageReleaseNotes>Comments were added for public methods.</PackageReleaseNotes>
-	<Version>1.0.1</Version>
+	<Version>1.0.5</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
