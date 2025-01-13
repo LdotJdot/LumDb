@@ -8,6 +8,54 @@ using System.Diagnostics;
 
 namespace ConsoleTest
 {
+    public class DbProjAuthority : IDbEntity
+    {
+        public uint id { get; set; }
+        public byte[] authority { get; set; }
+        public uint userid { get; set; }
+        public uint projid { get; set; }
+        public int role { get; set; }
+        public DbProjAuthority()
+        {
+
+        }
+
+        public DbProjAuthority(uint userid, uint projid, int pur)
+        {
+            authority = GetKey(userid, projid);
+            this.userid = userid;
+            this.projid = projid;
+            role = (int)pur;
+        }
+
+        internal byte[] Key => GetKey(userid, projid);
+        internal static byte[] GetKey(uint userid, uint projid)
+        {
+            var bt = new byte[8];
+            BitConverter.TryWriteBytes(bt.AsSpan(0, 4), userid);
+            BitConverter.TryWriteBytes(bt.AsSpan(4, 4), projid);
+            return bt;
+        }
+
+        public IDbEntity Unboxing(object[] obj)
+        {
+            authority = (byte[])obj[0];
+            userid = (uint)obj[1];
+            projid = (uint)obj[2];
+            role = (int)obj[3];
+            return this;
+        }
+
+        public void GetId(uint id)
+        {
+            this.id = id;
+        }
+
+        public object[] Boxing()
+        {
+            return [authority, userid, projid, role];
+        }
+    }
     internal class Program
     {
         /// <summary>
@@ -19,13 +67,37 @@ namespace ConsoleTest
             //Inserts500000Mem();
 
             ////
-            readWriteLock();
+            Debug();
+            //readWriteLock();
 
 
             Console.WriteLine("All done.");
             Console.ReadLine();
         }
+            
+                    public const string TableName = "projAuthority";
+        private static void Debug()
+        {
+            using DbEngine eng = new DbEngine(@"D:\Data\个人\FAV\MyCoreProj\WorkInProcess\ProjectNexus\PNWebHost\PNWebHost\bin\x64\Debug\net8.0\DbProjs\PNNexus.db");
+            using var ts = eng.StartTransaction();
 
+        var res = ts.Find(TableName, o=>o);
+        
+            ;
+
+            var bt = new byte[8];
+            BitConverter.TryWriteBytes(bt.AsSpan(0, 4), 3);
+            BitConverter.TryWriteBytes(bt.AsSpan(4, 4), 1);
+
+            var ss = ts.Find(TableName, "authority", bt);
+            ;
+            //var res3 = ts.Find(TableName, o => o.Where(o => (int)o[2] == 1));
+            var res3 = ts.Find<DbProjAuthority>(TableName, o => o.Where(p => p.projid == 1));
+
+            ;
+
+
+        }
         private static void readWriteLock()
         {
             using DbEngine eng = new DbEngine("d:\\tmp143701.db");

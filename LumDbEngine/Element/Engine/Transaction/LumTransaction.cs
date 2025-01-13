@@ -13,7 +13,7 @@ namespace LumDbEngine.Element.Engine.Transaction
     {
         private static IDbManager dbManager = new DbManager();
         private DbCache db;
-        private ReaderWriterLockSlim rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
+        private ReaderWriterLockSlim rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private readonly STChecker checker;
         internal int PagesCount => db.pages.Count;
 
@@ -63,9 +63,13 @@ namespace LumDbEngine.Element.Engine.Transaction
             db.SaveChanges(path);
         }
 
+        
         public void Discard()
         {
             CheckTransactionState();
+
+            // TODO /// 为何抛异常时重新进写锁？ 
+
             using (var lk = LockTransaction.StartWrite(rwLock))
             {
                 db = new DbCache(iof, cachePages, dynamicCache);
