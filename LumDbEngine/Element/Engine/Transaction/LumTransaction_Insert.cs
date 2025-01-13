@@ -6,7 +6,7 @@ namespace LumDbEngine.Element.Engine.Transaction
 {
     internal partial class LumTransaction
     {
-        public IDbResult Insert(string tableName, (string columnName, object value)[] values)
+        public IDbValue<uint> Insert(string tableName, (string columnName, object value)[] values)
         {
             // todo
             CheckTransactionState();
@@ -23,7 +23,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
         }
 
-        public IDbResult Insert<T>(string tableName, T t) where T : IDbEntity, new()
+        public IDbValue<uint> Insert<T>(string tableName, T t) where T : IDbEntity, new()
         {
             CheckTransactionState();
             try

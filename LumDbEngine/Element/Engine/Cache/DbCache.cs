@@ -96,6 +96,9 @@ namespace LumDbEngine.Element.Engine.Cache
                 {
                     LumException.ThrowIfTrue(File.Exists(path), "File already existed");
 
+                    var dir = Path.GetDirectoryName(path);
+                    if (!Directory.Exists(dir))
+                        Directory.CreateDirectory(dir);
                     using var fs = File.Create(path);
                     using BinaryWriter bw = new BinaryWriter(fs);
                     {

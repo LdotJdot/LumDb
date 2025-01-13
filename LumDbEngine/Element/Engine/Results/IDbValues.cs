@@ -4,11 +4,7 @@ namespace LumDbEngine.Element.Engine.Results
 {
     public interface IDbValues : IDbResult
     {
-        public int ColumnCount { get; }
-
-        public DbValueType[] GetValueTypes();
-
-        public DbValueType GetValueType(string index);
+        public int ColumnCount { get; }         
 
         public IReadOnlyList<object[]> Values { get; }
     }

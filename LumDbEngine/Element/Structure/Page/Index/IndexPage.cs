@@ -1,4 +1,5 @@
 ﻿using LumDbEngine.Element.Exceptions;
+using LumDbEngine.Utils.ByteUtils;
 using System.Diagnostics;
 
 namespace LumDbEngine.Element.Structure.Page.KeyIndex
@@ -47,19 +48,27 @@ namespace LumDbEngine.Element.Structure.Page.KeyIndex
             return AvailableNodeIndex < NODES_PER_PAGE;
         }
 
-        public override void Write(BinaryWriter bw)
+        public unsafe override void Write(BinaryWriter bw)
         {
             lock (bw.BaseStream)
             {
-                BasePageWrite(bw);
-                bw.Write(AvailableNodeIndex);
-
-                MoveToPageHeaderSizeOffset(bw.BaseStream, HEADER_SIZE);
-                for (int i = 0; i < NODES_PER_PAGE; i++)
+                var pageBytes = stackalloc byte[PAGE_SIZE];
+                using var ms = new FixedStackallocMemoryStream(pageBytes, PAGE_SIZE);
+                using var tmpBw = new BinaryWriter(ms);
                 {
-                    LumException.ThrowIfNotTrue(Nodes[i].NodeIndex == i, "page error");
-                    Nodes[i].Write(bw);
+                    BasePageWrite(tmpBw);
+                    tmpBw.Write(AvailableNodeIndex);
+
+                    tmpBw.BaseStream.Seek(HEADER_SIZE, SeekOrigin.Begin);
+
+                    for (int i = 0; i < NODES_PER_PAGE; i++)
+                    {
+                        LumException.ThrowIfNotTrue(Nodes[i].NodeIndex == i, "page error");
+                        Nodes[i].Write(tmpBw);
+                    }
                 }
+                MoveToPageStart(bw.BaseStream);
+                bw.Write(new Span<byte>(pageBytes, PAGE_SIZE));
             }
         }
 

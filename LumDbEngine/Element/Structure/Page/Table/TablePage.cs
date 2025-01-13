@@ -1,5 +1,6 @@
 ﻿using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Structure.Page.Table;
+using LumDbEngine.Utils.ByteUtils;
 using LumDbEngine.Utils.StringUtils;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -126,18 +127,35 @@ namespace LumDbEngine.Element.Structure.Page.Key
 
         private Dictionary<string, int> headerMap = new();
 
-        public override void Write(BinaryWriter bw)
+        public unsafe override void Write(BinaryWriter bw)
         {
             lock (bw.BaseStream)
             {
-                BasePageWrite(bw);
-                PageHeader.Write(bw);
-                bw.Write(ColumnCount);
-                MoveToPageHeaderSizeOffset(bw.BaseStream, HEADER_SIZE);
-                for (int i = 0; i < ColumnCount; i++)
+                var pageBytes = stackalloc byte[PAGE_SIZE];
+                using var ms = new FixedStackallocMemoryStream(pageBytes, PAGE_SIZE);
+                using var tmpBw = new BinaryWriter(ms);
                 {
-                    ColumnHeaders[i].Write(bw);
+                    BasePageWrite(tmpBw);
+
+                    PageHeader.Write(tmpBw);
+
+                    tmpBw.Write(ColumnCount);
+
+                    tmpBw.BaseStream.Seek(HEADER_SIZE, SeekOrigin.Begin);
+
+                    for (int i = 0; i < ColumnCount; i++)
+                    {
+                        ColumnHeaders[i].Write(tmpBw);
+                    }
+
+                    var pos = DbHeader.HEADER_SIZE + (long)PageId * PAGE_SIZE;
+                    var endPos = pos + PAGE_SIZE;
+                    if (bw.BaseStream.Length < endPos) bw.BaseStream.SetLength(endPos);
+
                 }
+                
+                MoveToPageStart(bw.BaseStream);
+                bw.Write(new Span<byte>(pageBytes, PAGE_SIZE));
             }
         }
 

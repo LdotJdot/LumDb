@@ -7,13 +7,13 @@ namespace LumDbEngine.Element.Manager
 {
     internal interface IDbManager
     {
-        public IDbResult Insert(DbCache db, string tableName, (string columnName, object value)[] values);
+        public IDbValue<uint> Insert(DbCache db, string tableName, (string columnName, object value)[] values);
 
-        public IDbResult Insert<T>(DbCache db, string tableName, T t) where T : IDbEntity, new();
+        public IDbValue<uint> Insert<T>(DbCache db, string tableName, T t) where T : IDbEntity, new();
 
-        public IDbValues Find(DbCache db, string tableName, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition);
+        public IDbValues Find(DbCache db, string tableName, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition, bool isBackward);
 
-        public IDbValues<T> Find<T>(DbCache db, string tableName, Func<IEnumerable<T>, IEnumerable<T>> condition) where T : IDbEntity, new();
+        public IDbValues<T> Find<T>(DbCache db, string tableName, Func<IEnumerable<T>, IEnumerable<T>> condition, bool isBackward) where T : IDbEntity, new();
 
         public IDbValue Find(DbCache db, string tableName, string keyName, object keyValue);
 

@@ -7,12 +7,10 @@ namespace LumDbEngine.Element.Engine.Results
 {
     internal class DbValue : DbResult, IDbValue
     {
-        private Dictionary<string, DbValueType> types = null;
         public object[] Value { get; } = null;
 
-        public DbValue(Dictionary<string, DbValueType> types, object[] value)
+        public DbValue(object[] value)
         {
-            this.types = types;
             Value = value.ToArray();
         }
 
@@ -27,17 +25,7 @@ namespace LumDbEngine.Element.Engine.Results
 
         public DbValue(LumException ex) : base(ex)
         {
-        }
-
-        public DbValueType[] GetValueTypes()
-        {
-            return types?.Values.ToArray() ?? [];
-        }
-
-        public DbValueType GetValueType(string index)
-        {
-            return types?[index] ?? DbValueType.Unknow;
-        }
+        }       
     }
 
     internal class DbValue<T> : DbResult, IDbValue<T>

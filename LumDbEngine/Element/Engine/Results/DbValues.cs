@@ -34,12 +34,9 @@ namespace LumDbEngine.Element.Engine.Results
 
         public int ColumnCount { get; set; } = -1;
 
-        private Dictionary<string, DbValueType> types = null;
-
-        public DbValues(int count, Dictionary<string, DbValueType> types, IEnumerable<object[]> values)
+        public DbValues(int count, IEnumerable<object[]> values)
         {
             ColumnCount = count;
-            this.types = types;
             Values = values.ToArray();
         }
 
@@ -54,15 +51,6 @@ namespace LumDbEngine.Element.Engine.Results
         public DbValues(DbResult res) : base(res.Exception)
         {
         }
-
-        public DbValueType[] GetValueTypes()
-        {
-            return types?.Values.ToArray() ?? [];
-        }
-
-        public DbValueType GetValueType(string index)
-        {
-            return types?[index] ?? DbValueType.Unknow;
-        }
+              
     }
 }

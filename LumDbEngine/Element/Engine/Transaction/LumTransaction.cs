@@ -1,4 +1,5 @@
 ﻿using LumDbEngine.Element.Engine.Cache;
+using LumDbEngine.Element.Engine.Checker;
 using LumDbEngine.Element.Engine.Lock;
 using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Manager;
@@ -12,9 +13,8 @@ namespace LumDbEngine.Element.Engine.Transaction
     {
         private static IDbManager dbManager = new DbManager();
         private DbCache db;
-        private ReaderWriterLockSlim rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
-        private readonly AutoResetEvent autoResetEvent;
-
+        private ReaderWriterLockSlim rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
+        private readonly STChecker checker;
         internal int PagesCount => db.pages.Count;
 
         internal string DbState()
@@ -34,12 +34,11 @@ namespace LumDbEngine.Element.Engine.Transaction
         private readonly long cachePages;
         private readonly bool dynamicCache;
 
-        internal LumTransaction(IOFactory? iof, in AutoResetEvent autoResetEvent, long cachePages, bool dynamicCache)
+        internal LumTransaction(IOFactory? iof, STChecker check, long cachePages, bool dynamicCache)
         {
-            this.autoResetEvent = autoResetEvent;
+            this.checker=check;
             db = new DbCache(iof, cachePages, dynamicCache);
             this.iof = iof;
-            this.autoResetEvent = autoResetEvent;
             this.dynamicCache = dynamicCache;
         }
 
@@ -64,9 +63,13 @@ namespace LumDbEngine.Element.Engine.Transaction
             db.SaveChanges(path);
         }
 
+        
         public void Discard()
         {
             CheckTransactionState();
+
+            // TODO /// 为何抛异常时重新进写锁？ 
+
             using (var lk = LockTransaction.StartWrite(rwLock))
             {
                 db = new DbCache(iof, cachePages, dynamicCache);
@@ -95,7 +98,7 @@ namespace LumDbEngine.Element.Engine.Transaction
                 }
                 finally
                 {
-                    if (!autoResetEvent.SafeWaitHandle.IsClosed) autoResetEvent.Set();
+                    checker.Dispose();
                 }
             }
         }

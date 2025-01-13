@@ -37,7 +37,7 @@ namespace LumDbEngine.Element.Manager.Specific
             page.SetDataLength(dataSize);
         }
 
-        public static void InsertData(DbCache db, TablePage tablePage, in TableValue[] values)
+        public static uint? InsertData(DbCache db, TablePage tablePage, in TableValue[] values)
         {
             LumException.ThrowIfTrue(values.Length > tablePage.PageHeader.ColumnCount, "To much input values");
 
@@ -51,28 +51,39 @@ namespace LumDbEngine.Element.Manager.Specific
             IndexManager.InsertMainIndex(db, tablePage, dataNode);
 
             IndexManager.InsertSubIndices(db, tablePage, dataNode, values);
+            return dataNode?.Id;
         }
 
-        public static DbValues Traversal(DbCache db, TablePage tablePage, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition)
+        public static IDbValues Traversal(DbCache db, TablePage tablePage, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition, bool isBackward)
         {
             if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
             {
-                return new DbValues();
+                return new DbValues(0,[]);
             }
             var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
-            var values = condition(DataManager.GetValues(db, tablePage.ColumnHeaders, rootPage!).Select(o => o.data));
-            return new DbValues(tablePage.PageHeader.ColumnCount, tablePage.ColumnHeaders.ToDictionary(o => o.Name.TransformToToString(), o => o.ValueType), values);
+            var values =isBackward? condition(DataManager.GetValues_Backward(db, tablePage.ColumnHeaders, rootPage!).Select(o => o.data)) : condition(DataManager.GetValues(db, tablePage.ColumnHeaders, rootPage!).Select(o => o.data));
+            return new DbValues(tablePage.PageHeader.ColumnCount, values);
         }
 
-        public static IDbValues<T> Traversal<T>(DbCache db, TablePage tablePage, Func<IEnumerable<T>, IEnumerable<T>> condition) where T : IDbEntity, new()
+        public static IDbValues<T> Traversal<T>(DbCache db, TablePage tablePage, Func<IEnumerable<T>, IEnumerable<T>> condition, bool isBackward) where T : IDbEntity, new()
         {
+            if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
+            {
+                return new DbValues<T>([]);
+            }
+
             var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
-            var values = DataManager.GetValuesWithId(db, tablePage.ColumnHeaders, rootPage!);
+            var values =isBackward? DataManager.GetValuesWithId_Backward(db, tablePage.ColumnHeaders, rootPage!) : DataManager.GetValuesWithId(db, tablePage.ColumnHeaders, rootPage!);
             return new DbValues<T>(condition(values.Select(o => (T)(new T()).UnboxingWithId(o.id, o.obj))));
         }
 
         public static DataNode? FirstOrDefaultNode<T>(DbCache db, TablePage tablePage, Func<T, bool> condition) where T : IDbEntity, new()
         {
+            if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
+            {
+                return null;
+            }
+
             var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
             var values = DataManager.GetValues(db, tablePage.ColumnHeaders, rootPage!);
             var t = new T();
@@ -171,7 +182,7 @@ namespace LumDbEngine.Element.Manager.Specific
             }
             else
             {
-                return new DbValue(tablePage.ColumnHeaders.ToDictionary(o => o.Name.TransformToToString(), o => o.ValueType), DataManager.GetValue(db, tablePage.ColumnHeaders, node.Data));
+                return new DbValue(DataManager.GetValue(db, tablePage.ColumnHeaders, node.Data));
             }
         }
 
@@ -201,7 +212,7 @@ namespace LumDbEngine.Element.Manager.Specific
             }
             else
             {
-                return new DbValue(tablePage.ColumnHeaders.ToDictionary(o => o.Name.TransformToToString(), o => o.ValueType), DataManager.GetValue(db, tablePage.ColumnHeaders, node.Data));
+                return new DbValue(DataManager.GetValue(db, tablePage.ColumnHeaders, node.Data));
             }
         }
 
@@ -213,7 +224,7 @@ namespace LumDbEngine.Element.Manager.Specific
             }
             else
             {
-                var dbResult = new DbValue(tablePage.ColumnHeaders.ToDictionary(o => o.Name.TransformToToString(), o => o.ValueType), DataManager.GetValue(db, tablePage.ColumnHeaders, dataNode.Data));
+                var dbResult = new DbValue(DataManager.GetValue(db, tablePage.ColumnHeaders, dataNode.Data));
                 {
                     DataManager.DeleteDataNodeByIndex(db, tablePage, dataNode);
                     IndexManager.DeleteMainIndex(db, tablePage, dataNode);
@@ -287,6 +298,11 @@ namespace LumDbEngine.Element.Manager.Specific
 
         internal static void Drop(DbCache db, TablePage tablePage)
         {
+            if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
+            {
+                return;
+            }
+
             var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
             rootPage.MarkDirty();
 

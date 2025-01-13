@@ -25,6 +25,22 @@ namespace LumDbEngine.Element.Manager.Specific
             Mem: 279160kb, (1000000) insert done elapse ms: 13423
        */
 
+        /*
+            cache size: 2048
+            cache size: 4096
+            Mem: 53424kb, (5000) insert done elapse ms: 38572
+            cache size: 2048
+            cache size: 4096
+            cache size: 8192
+            Mem: 103548kb, (10000) insert done elapse ms: 18905
+            cache size: 2048
+            cache size: 4096
+            cache size: 8192
+            Mem: 101240kb, (100000) insert done elapse ms: 9420
+            Mem: 257128kb, (1000000) insert done elapse ms: 6347
+            All done.
+         */
+
         public static IndexNode BinarySearchAndInsertIndexNode(DbCache db, TablePage tablePage, in LumHash id, IndexNode? node)
         {
             IndexNode? newNode = null;
