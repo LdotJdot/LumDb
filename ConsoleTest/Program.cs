@@ -1,13 +1,14 @@
-﻿using LumDbEngine.Element.Engine;
+using LumDbEngine.Element.Engine;
 using LumDbEngine.Element.Engine.Transaction;
 using LumDbEngine.Element.Structure;
+using LumDbEngine.Element.Structure.Page.Key;
 using LumDbEngine.Element.Value;
 using LumDbEngine.Utils.Test;
 using System.Diagnostics;
 
 namespace ConsoleTest
 {
-    internal class Program
+       internal class Program
     {
         /// <summary>
         /// test start from here
@@ -17,14 +18,78 @@ namespace ConsoleTest
         {
             //Inserts500000Mem();
 
-            ////
+           
+            Debug();
+            //readWriteLock();
 
-            Inserts50();
+            //Inserts50();
 
-            //Find500000();
-            //Appends900000();
+
             Console.WriteLine("All done.");
             Console.ReadLine();
+        }
+            
+        private static void Debug()
+        {
+            using DbEngine eng = new DbEngine("d:\\tmp143704.db");
+            using var ts=eng.StartTransaction();
+            string tb1 = "projAuthority";
+            string tb2 = "projAuthority2";
+
+            //ts.Create(tb1, [("a", DbValueType.Int, true)]);
+            //ts.Create(tb2, [("a", DbValueType.Int, true)]);
+
+            //for (int i = 0; i < 10; i++)
+            //{
+            //    ts.Insert(tb1, [("a", i)]);
+            //}
+            //for (int i = 0; i < 5; i++)
+            //{
+            //    ts.Insert(tb2, [("a", i)]);
+            //}
+
+            var rr=ts.Find(tb2, o => o).Values;
+            var res = ts.Find(tb1, o => o.Where(
+                v => ts.Find(tb2, o => o.Where(l => (int)l[2]>0)).Values.Select(p => p[0]).Contains(v[0])
+                ));
+
+            foreach(var v in res.Values)
+            {
+                Console.WriteLine(v[0]);
+            }
+
+        }
+        private static void readWriteLock()
+        {
+            using DbEngine eng = new DbEngine("d:\\tmp143701.db");
+            using DbEngine en2 = new DbEngine("d:\\tmp143702.db");
+            const string TABLENAME = "tableFirst";
+
+
+            using (var ts2 = eng.StartTransaction(0, false))
+            {
+                using var tt6=en2.StartTransaction();
+                //ts2.Create(TABLENAME, [("a", DbValueType.Int, true), ("b", DbValueType.Long, false), ("c", DbValueType.StrVar, false)]);
+               // var ds = ts2.Insert(TABLENAME, [("a", 22), ("b", (long)233), ("c", "thirteen thousand one hundred fifty three")]);
+            }
+
+
+            using var ts = eng.StartTransaction();
+            var res = ts.Find(TABLENAME, 1);
+            //using var ts3 = eng.StartTransaction();
+
+            var t =Task.Factory.StartNew(() =>
+            {
+                // The following code would be block due to the singularity of transaction. And should be not called in same thread.
+                using var ts3 = eng.StartTransaction();
+                ts3.Insert(TABLENAME, [("a", 55), ("b", (long)233), ("c", "thirteen thousand one hundred fifty three")]);
+                var res3 = ts3.Find(TABLENAME, 2);
+                Console.WriteLine("r3"+res3.Value[0].ToString());
+            });
+            ts.Dispose();
+
+            t.Wait();
+            Console.WriteLine(res.Value[0]);
         }
 
         private static void Inserts50()

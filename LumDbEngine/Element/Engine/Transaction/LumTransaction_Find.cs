@@ -16,7 +16,6 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch
             {
-                Discard();
                 throw;
             }
         }
@@ -31,7 +30,6 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch
             {
-                Discard();
                 throw;
             }
         }
@@ -46,7 +44,6 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch
             {
-                Discard();
                 throw;
             }
         }
@@ -61,7 +58,6 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch
             {
-                Discard();
                 throw;
             }
         }
@@ -76,7 +72,6 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch
             {
-                Discard();
                 throw;
             }
         }
@@ -91,7 +86,6 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch
             {
-                Discard();
                 throw;
             }
         }

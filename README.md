@@ -1,4 +1,11 @@
-# LumDb V1.0.0
+# LumDb V1.0.6 2025.01.13
+- ** Exception for multi transactions start in single thread has been added to avoid a deadlock.
+- ** The recursive transaction was added to support some data find situation, e.g. called in linq loop search of data.
+- ** Removed the types map in value result, which improved the efficiency.
+- ** Find data in empty table will not cause a exception, but return empty array.
+- ** Detail comments were added.
+
+# LumDb V1.0.2
 
 LumDb is a single-file database program based on C# for .NET 8. It boasts excellent performance, is 100% written in C#, has no dependencies on external component libraries, and supports AOT (Ahead-of-Time compilation) perfectly.
 
