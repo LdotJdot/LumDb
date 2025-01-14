@@ -67,12 +67,16 @@ namespace LumDbEngine.Element.Engine.Transaction
         public void Discard()
         {
             CheckTransactionState();
-
-            // TODO /// 为何抛异常时重新进写锁？ 
-
-            using (var lk = LockTransaction.StartWrite(rwLock))
+            try
             {
-                db = new DbCache(iof, cachePages, dynamicCache);
+
+                using (var lk = LockTransaction.StartWrite(rwLock))
+                {
+                    db = new DbCache(iof, cachePages, dynamicCache);
+                }
+            }
+            catch (Exception ex)
+            {
             }
         }
 
