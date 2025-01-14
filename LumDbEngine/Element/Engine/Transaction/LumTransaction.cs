@@ -77,6 +77,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch (Exception ex)
             {
+                throw;
             }
         }
 

@@ -47,8 +47,9 @@ namespace ConsoleTest
             //}
 
             var rr=ts.Find(tb2, o => o).Values;
+           
             var res = ts.Find(tb1, o => o.Where(
-                v => ts.Find(tb2, o => o.Where(l => (int)l[2]>0)).Values.Select(p => p[0]).Contains(v[0])
+                v => ts.Find(tb2, o => o.Where(k => (int)k[2]>=0)).Values.Select(p => p[0]).Contains(v[0])
                 ));
 
             foreach(var v in res.Values)
@@ -74,13 +75,13 @@ namespace ConsoleTest
 
             using var ts = eng.StartTransaction();
             var res = ts.Find(TABLENAME, 1);
-            //using var ts3 = eng.StartTransaction();
+            using var ts3 = eng.StartTransaction();
 
             var t =Task.Factory.StartNew(() =>
             {
                 // The following code would be block due to the singularity of transaction. And should be not called in same thread.
                 using var ts3 = eng.StartTransaction();
-                ts3.Insert(TABLENAME, [("a", 55), ("b", (long)233), ("c", "thirteen thousand one hundred fifty three")]);
+               // ts3.Insert(TABLENAME, [("a", 55), ("b", (long)233), ("c", "thirteen thousand one hundred fifty three")]);
                 var res3 = ts3.Find(TABLENAME, 2);
                 Console.WriteLine("r3"+res3.Value[0].ToString());
             });
