@@ -1,4 +1,4 @@
-# LumDb V1.0.5 2025.01.13
+# LumDb V1.0.6 2025.01.13
 - ** Exception for multi transactions start in single thread has been added to avoid a deadlock.
 - ** The recursive transaction was added to support some data find situation, e.g. called in linq loop search of data.
 - ** Removed the types map in value result, which improved the efficiency.
