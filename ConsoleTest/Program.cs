@@ -19,8 +19,8 @@ namespace ConsoleTest
             //Inserts500000Mem();
 
             ////
-            Debug();
-            //readWriteLock();
+            //Debug();
+            readWriteLock();
 
 
             Console.WriteLine("All done.");
@@ -31,6 +31,7 @@ namespace ConsoleTest
         {
             using DbEngine eng = new DbEngine("d:\\tmp143704.db");
             using var ts=eng.StartTransaction();
+            using var ts2=eng.StartTransaction();
             string tb1 = "projAuthority";
             string tb2 = "projAuthority2";
 
@@ -67,7 +68,6 @@ namespace ConsoleTest
 
             using (var ts2 = eng.StartTransaction(0, false))
             {
-                using var tt6=en2.StartTransaction();
                 //ts2.Create(TABLENAME, [("a", DbValueType.Int, true), ("b", DbValueType.Long, false), ("c", DbValueType.StrVar, false)]);
                // var ds = ts2.Insert(TABLENAME, [("a", 22), ("b", (long)233), ("c", "thirteen thousand one hundred fifty three")]);
             }
@@ -75,16 +75,18 @@ namespace ConsoleTest
 
             using var ts = eng.StartTransaction();
             var res = ts.Find(TABLENAME, 1);
-            using var ts3 = eng.StartTransaction();
 
             var t =Task.Factory.StartNew(() =>
             {
                 // The following code would be block due to the singularity of transaction. And should be not called in same thread.
-                using var ts3 = eng.StartTransaction();
+                using var ts3 = eng.StartTransaction(millisecondsTimeout:1000);
                // ts3.Insert(TABLENAME, [("a", 55), ("b", (long)233), ("c", "thirteen thousand one hundred fifty three")]);
                 var res3 = ts3.Find(TABLENAME, 2);
                 Console.WriteLine("r3"+res3.Value[0].ToString());
             });
+
+            Thread.Sleep(6000);
+            Console.WriteLine("ts.done");
             ts.Dispose();
 
             t.Wait();

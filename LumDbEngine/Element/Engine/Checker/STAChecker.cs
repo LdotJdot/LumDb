@@ -12,18 +12,21 @@ namespace LumDbEngine.Element.Engine.Checker
         private readonly ThreadLocal<int> callCount;
         private readonly AutoResetEvent autoResetEvent; // make sure the singularity of transaction
 
-        public STChecker(AutoResetEvent autoResetEvent, ThreadLocal<int> callCount)
+        public STChecker(AutoResetEvent autoResetEvent, ThreadLocal<int> callCount,int millisecondsTimeout)
         {
             this.callCount = callCount;
             if (callCount.Value != 0)
             {
-                LumException.Throw("In a single thread, the previous transaction should be disposed before starting another one.");
+                LumException.Throw(LumExceptionMessage.SingleThreadMultiTransaction);
 
             }
 
             callCount.Value++;
             this.autoResetEvent = autoResetEvent;
-            autoResetEvent.WaitOne();
+            if (autoResetEvent.WaitOne(millisecondsTimeout)==false)
+            {
+                LumException.Throw(LumExceptionMessage.TransactionTimeout);
+            }
         }
 
         public void Dispose()

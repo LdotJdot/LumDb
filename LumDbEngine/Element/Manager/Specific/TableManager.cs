@@ -26,7 +26,7 @@ namespace LumDbEngine.Element.Manager.Specific
                 tableHeader.ValueType = inputHeader.type;
                 if (tableHeader.IsKey)
                 {
-                    LumException.ThrowIfNotTrue(tableHeader.ValueType.IsValidFix32(), $"The value type of the key is not supported: {tableHeader.ValueType}");
+                    LumException.ThrowIfNotTrue(tableHeader.ValueType.IsValidFix32(), $"{LumExceptionMessage.DataTypeNotSupport}: {tableHeader.ValueType}");
                 }
                 new Span<byte>(inputHeader.keyName, ColumnHeader.NameLength).CopyTo(tableHeader.Name);
                 columnHeaders[colId] = tableHeader;
@@ -39,7 +39,7 @@ namespace LumDbEngine.Element.Manager.Specific
 
         public static uint? InsertData(DbCache db, TablePage tablePage, in TableValue[] values)
         {
-            LumException.ThrowIfTrue(values.Length > tablePage.PageHeader.ColumnCount, "To much input values");
+            LumException.ThrowIfTrue(values.Length > tablePage.PageHeader.ColumnCount, LumExceptionMessage.TooMuchValuesForColumns);
 
             var dataPage = DataManager.RequestAvailableDataPage(db, tablePage);
             dataPage.MarkDirty();
@@ -132,7 +132,7 @@ namespace LumDbEngine.Element.Manager.Specific
 
             if (node == null)
             {
-                return new DbValue<T>(LumException.Raise($"Key not found, id: {id}"));
+                return new DbValue<T>(LumException.Raise($"{LumExceptionMessage.KeyNoFound}, id: {id}"));
             }
             else
             {
@@ -147,12 +147,12 @@ namespace LumDbEngine.Element.Manager.Specific
 
             if (columnHeader.IsKey == false)
             {
-                return new DbValue<T>(LumException.Raise($"{keyName} is not a key"));
+                return new DbValue<T>(LumException.Raise($"{keyName} {LumExceptionMessage.NotKey}"));
             }
 
             if (!columnHeader.ValueType.CheckType(keyValue) || !columnHeader.ValueType.IsValidFix32())
             {
-                return new DbValue<T>(LumException.Raise($"The value type of the key is not supported: {columnHeader.ValueType}"));
+                return new DbValue<T>(LumException.Raise($"{LumExceptionMessage.DataTypeNotSupport}: {columnHeader.ValueType}"));
             }
 
             var len = columnHeader.ValueType.GetLength();
@@ -162,7 +162,7 @@ namespace LumDbEngine.Element.Manager.Specific
 
             if (node == null)
             {
-                return new DbValue<T>(LumException.Raise($"Key not found, {keyName}: {keyValue}"));
+                return new DbValue<T>(LumException.Raise($"{LumExceptionMessage.KeyNoFound}, {keyName}: {keyValue}"));
             }
             else
             {
@@ -178,7 +178,7 @@ namespace LumDbEngine.Element.Manager.Specific
 
             if (node == null)
             {
-                return new DbValue(LumException.Raise($"Key not found, id: {id}"));
+                return new DbValue(LumException.Raise($"{LumExceptionMessage.KeyNoFound}, id: {id}"));
             }
             else
             {
@@ -193,12 +193,12 @@ namespace LumDbEngine.Element.Manager.Specific
 
             if (columnHeader.IsKey == false)
             {
-                return new DbValue(LumException.Raise($"{keyName} is not a key"));
+                return new DbValue(LumException.Raise($"{keyName} {LumExceptionMessage.NotKey}"));
             }
 
             if (!columnHeader.ValueType.CheckType(keyValue) || !columnHeader.ValueType.IsValidFix32())
             {
-                return new DbValue(LumException.Raise($"The value type of the key is not supported: {columnHeader.ValueType}"));
+                return new DbValue(LumException.Raise($"{LumExceptionMessage.DataTypeNotSupport}: {columnHeader.ValueType}"));
             }
 
             var len = columnHeader.ValueType.GetLength();
@@ -208,7 +208,7 @@ namespace LumDbEngine.Element.Manager.Specific
 
             if (node == null)
             {
-                return new DbValue(LumException.Raise($"Key not found, {keyName}: {keyValue}"));
+                return new DbValue(LumException.Raise($"{LumExceptionMessage.KeyNoFound}, {keyName}: {keyValue}"));
             }
             else
             {
@@ -220,7 +220,7 @@ namespace LumDbEngine.Element.Manager.Specific
         {
             if (dataNode == null)
             {
-                return new DbValue(LumException.Raise($"Data not found"));
+                return new DbValue(LumException.Raise(LumExceptionMessage.DataNoFound));
             }
             else
             {
