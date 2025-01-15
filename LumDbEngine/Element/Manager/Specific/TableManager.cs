@@ -55,6 +55,7 @@ namespace LumDbEngine.Element.Manager.Specific
         }
 
         public static IDbValues Traversal(DbCache db, TablePage tablePage, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition, bool isBackward)
+
         {
             if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
             {
@@ -62,7 +63,9 @@ namespace LumDbEngine.Element.Manager.Specific
             }
             var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
             var values =isBackward? condition(DataManager.GetValues_Backward(db, tablePage.ColumnHeaders, rootPage!).Select(o => o.data)) : condition(DataManager.GetValues(db, tablePage.ColumnHeaders, rootPage!).Select(o => o.data));
+
             return new DbValues(tablePage.PageHeader.ColumnCount, values);
+
         }
 
         public static IDbValues<T> Traversal<T>(DbCache db, TablePage tablePage, Func<IEnumerable<T>, IEnumerable<T>> condition, bool isBackward) where T : IDbEntity, new()

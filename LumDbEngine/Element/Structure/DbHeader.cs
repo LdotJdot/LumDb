@@ -19,6 +19,7 @@
 
         public const uint VERSION = 1_000_008;
 
+
         public uint FileVersion { get; set; }           // 4 bytes
         public byte[] DbID { get; set; }
 

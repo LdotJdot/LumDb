@@ -1,4 +1,4 @@
-﻿using LumDbEngine.Element.Engine;
+using LumDbEngine.Element.Engine;
 using LumDbEngine.Element.Engine.Transaction;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Structure.Page.Key;
@@ -21,6 +21,8 @@ namespace ConsoleTest
             ////
             //Debug();
             readWriteLock();
+
+            //Inserts50();
 
 
             Console.WriteLine("All done.");
@@ -92,6 +94,7 @@ namespace ConsoleTest
             t.Wait();
             Console.WriteLine(res.Value[0]);
         }
+
         private static void Inserts50()
         {
             const string TABLENAME = "tableFirst";
