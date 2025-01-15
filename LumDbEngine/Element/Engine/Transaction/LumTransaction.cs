@@ -12,7 +12,7 @@ namespace LumDbEngine.Element.Engine.Transaction
     internal partial class LumTransaction : ITransaction
     {
         private static IDbManager dbManager = new DbManager();
-        private DbCache db;
+        private DbCache db; // Unique for every single transaction.
         private ReaderWriterLockSlim rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private readonly STChecker checker;
         internal int PagesCount => db.pages.Count;
