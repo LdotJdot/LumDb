@@ -1,9 +1,12 @@
+# LumDb V1.0.8
+- Timeout parameter was added in start a transaction during waiting.
+
 # LumDb V1.0.6 2025.01.13
-- ** Exception for multi transactions start in single thread has been added to avoid a deadlock.
-- ** The recursive transaction was added to support some data find situation, e.g. called in linq loop search of data.
-- ** Removed the types map in value result, which improved the efficiency.
-- ** Find data in empty table will not cause a exception, but return empty array.
-- ** Detail comments were added.
+- Exception for multi transactions start in single thread has been added to avoid a deadlock.
+- The recursive transaction was added to support some data find situation, e.g. called in linq loop search of data.
+- Removed the types map in value result, which improved the efficiency.
+- Find data in empty table will not cause a exception, but return empty array.
+- Detail comments were added.
 
 # LumDb V1.0.2
 
