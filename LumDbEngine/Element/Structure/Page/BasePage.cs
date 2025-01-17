@@ -34,7 +34,6 @@ namespace LumDbEngine.Element.Structure.Page
         //static long pageCount = 0;
         internal BasePage()
         {
-            //Console.WriteLine($"Total {Interlocked.Increment(ref pageCount)} ");
         }
 
         internal virtual BasePage Initialize(uint pageId)

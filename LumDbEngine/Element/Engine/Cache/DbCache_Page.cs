@@ -39,7 +39,6 @@ namespace LumDbEngine.Element.Engine.Cache
                             if (isDynamicCachePages && pages.Count > max_cache_pages)
                             {
                                 max_cache_pages *= 2;
-                                Console.WriteLine("cache size: " + max_cache_pages);
                             }
 
                             using var reader = iof.RentReader();

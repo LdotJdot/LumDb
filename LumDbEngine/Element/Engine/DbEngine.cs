@@ -142,7 +142,6 @@ namespace LumDbEngine.Element.Engine
             {
                 if (DisposeMillisecondsTimeout > 0)
                 {
-                    Console.WriteLine(DisposeMillisecondsTimeout);
                     autoResetEvent.WaitOne(DisposeMillisecondsTimeout);
                     if (transactionsPool.Count > 0)
                     {
@@ -162,7 +161,6 @@ namespace LumDbEngine.Element.Engine
                         File.Delete(path);
                     }
                 }
-                Console.WriteLine("disposed");
             }
         }
 
