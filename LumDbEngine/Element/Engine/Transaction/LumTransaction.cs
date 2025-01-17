@@ -35,16 +35,16 @@ namespace LumDbEngine.Element.Engine.Transaction
         private readonly IOFactory? iof;
         private readonly long cachePages;
         private readonly bool dynamicCache;
-        private readonly ConcurrentDictionary<Guid,ITransaction> transPool;
-        internal LumTransaction(IOFactory? iof, STChecker check, long cachePages, bool dynamicCache, ConcurrentDictionary<Guid, ITransaction> transPool)
+        private readonly DbEngine dbEngine;
+        internal LumTransaction(IOFactory? iof, STChecker check, long cachePages, bool dynamicCache, DbEngine dbEngine)
         {
             this.checker=check;
             db = new DbCache(iof, cachePages, dynamicCache);
             this.iof = iof;
             this.dynamicCache = dynamicCache;
             Id = Guid.NewGuid();
-            this.transPool = transPool;
-            transPool.TryAdd(Id, this);
+            this.dbEngine = dbEngine;
+            this.dbEngine.transactionsPool.TryAdd(Id, this);
         }
 
         private void CheckTransactionState()
@@ -95,21 +95,32 @@ namespace LumDbEngine.Element.Engine.Transaction
                 disposed = true;
                 try
                 {
-                    using (var lk = LockTransaction.StartWrite(rwLock))
+                    lock (dbEngine)
                     {
-                        db?.Dispose();
-                        db = null;
+                        if (dbEngine.disposed)
+                        {
+                            LumException.Throw($"{LumExceptionMessage.DbEngDisposedEarly}:{Id.ToString()}");
+                        }
+
+                        using (var lk = LockTransaction.StartWrite(rwLock))
+                        {
+                            db?.Dispose();
+                            db = null;
+                        }
+                        rwLock.Dispose();
+                        dbEngine.transactionsPool.TryRemove(Id, out _);
                     }
-                    rwLock.Dispose();
-                    transPool.TryRemove(Id, out _);
                 }
                 catch (Exception ex)
                 {
-                    throw LumException.Raise(ex.Message);
+                    throw;
                 }
                 finally
                 {
-                    checker.Dispose();
+                    if (checker?.disposed == false)
+                    {
+                        checker?.Dispose();
+                    }
                 }
             }
         }

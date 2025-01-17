@@ -15,6 +15,7 @@ namespace LumDbEngine.Element.Exceptions
         internal const string DataNoFound = "Data not found,";
         internal const string DuplicateColumnHeader = "Duplicate column headers found";
         internal const string NotKey = "is not key";
-        internal const string DbEngEarlyDisposed = "Transactions should be disposed before disposing DbEngine.";
+        internal const string DbEngDisposedTimeOut = "Transactions waiting timeout when tried to dispose DbEngine.";
+        internal const string DbEngDisposedEarly = "DbEngine was disposed before the transaction.";
     }
 }

@@ -34,13 +34,21 @@ namespace ConsoleTest
 
         private static void destory()
         {
-            using DbEngine eng = new DbEngine("d:\\tmp14370xxx4.db");
+            using DbEngine eng = new DbEngine("d:\\xxxx123.db");
             Task.Run(() =>
             {
-                var ts = eng.StartTransaction();
-                Thread.Sleep(10000);
+                try
+                {               
+                    using var ts = eng.StartTransaction();
+                    Thread.Sleep(1000);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.ToString());
+                }
             });
-            Thread.Sleep(10);
+            Thread.Sleep(500);
+            eng.DisposeMillisecondsTimeout = 0;
             eng.SetDestoryOnDisposed();
             eng.Dispose();
         }

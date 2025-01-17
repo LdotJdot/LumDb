@@ -30,8 +30,10 @@ namespace LumDbEngine.Element.Engine.Checker
             }
         }
 
+        internal bool disposed = false;
         public void Dispose()
         {
+            disposed = true;
             callCount.Value--;
             if (!autoResetEvent.SafeWaitHandle.IsClosed) autoResetEvent.Set();
         }

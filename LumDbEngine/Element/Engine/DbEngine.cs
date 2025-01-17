@@ -68,7 +68,7 @@ namespace LumDbEngine.Element.Engine
             try
             {
                 var ck = new STChecker(autoResetEvent, callCount, -1);
-                using var ts = new LumTransaction(null, ck, DbCache.DEFAULT_CACHE_PAGES, true, transactionsPool);
+                using var ts = new LumTransaction(null, ck, DbCache.DEFAULT_CACHE_PAGES, true, this);
                 ts.SaveAs(path);
                 ts.Discard();
             }
@@ -99,22 +99,22 @@ namespace LumDbEngine.Element.Engine
             {
 
                 var ck = new STChecker(autoResetEvent, callCount, millisecondsTimeout);
-                return new LumTransaction(iof, ck, initialCachePages, dynamicCache, transactionsPool);
+                return new LumTransaction(iof, ck, initialCachePages, dynamicCache, this);
             }
             catch (Exception ex)
             {
-                if(ex.Message== LumExceptionMessage.SingleThreadMultiTransaction || ex.Message==LumExceptionMessage.TransactionTimeout)
+                if (ex.Message == LumExceptionMessage.SingleThreadMultiTransaction || ex.Message == LumExceptionMessage.TransactionTimeout)
                 {
                     throw;
                 }
                 else
                 {
-                   throw LumException.Raise("Transaction start failed, since DbEngine might be disposed.");
+                    throw LumException.Raise("Transaction start failed, since DbEngine might be disposed.");
                 }
             }
         }
 
-        ConcurrentDictionary<Guid, ITransaction> transactionsPool = new();
+        internal ConcurrentDictionary<Guid, ITransaction> transactionsPool = new();
 
         /// <summary>
         /// Get transaction id.
@@ -124,11 +124,15 @@ namespace LumDbEngine.Element.Engine
         /// <returns></returns>
         public bool GetById(Guid id, out ITransaction ts)
         {
-            return transactionsPool.TryGetValue(id,out ts);
+            return transactionsPool.TryGetValue(id, out ts);
         }
 
-        private bool disposed;
+        internal bool disposed;
 
+        /// <summary>
+        /// The milliseconds timeout when the dbEngine dispose waiting for the transaction end. Default value is 0, which means not waiting.
+        /// </summary>
+        public int DisposeMillisecondsTimeout { get; set; } = 0;
         /// <summary>
         /// Dispose the current engine and free the db file usage (if have).
         /// </summary>
@@ -136,25 +140,29 @@ namespace LumDbEngine.Element.Engine
         {
             if (disposed == false)
             {
-
+                if (DisposeMillisecondsTimeout > 0)
+                {
+                    Console.WriteLine(DisposeMillisecondsTimeout);
+                    autoResetEvent.WaitOne(DisposeMillisecondsTimeout);
                     if (transactionsPool.Count > 0)
                     {
-                        LumException.Throw($"{LumExceptionMessage.DbEngEarlyDisposed} Living transactions: " +
+                        LumException.Throw($"{LumExceptionMessage.DbEngDisposedTimeOut} Living transactions: " +
                             $"{string.Join(';', transactionsPool.Values.Select(o => o.Id.ToString()).ToArray())}");
                     }
+                }
 
-                    iof?.Dispose();
-                    iof = null;
-                    autoResetEvent?.Dispose();
-                    disposed = true;
-                    if (DesrotyOnDispose)
+                iof?.Dispose();
+                iof = null;
+                autoResetEvent?.Dispose();
+                disposed = true;
+                if (DesrotyOnDispose)
+                {
+                    if (File.Exists(path))
                     {
-                        if (File.Exists(path))
-                        {
-                            File.Delete(path);
-                        }
+                        File.Delete(path);
                     }
-                
+                }
+                Console.WriteLine("disposed");
             }
         }
 
@@ -170,6 +178,6 @@ namespace LumDbEngine.Element.Engine
         /// Physically delete the current db file on disk when disposed.
         /// </summary>
         private bool DesrotyOnDispose { get; set; } = false;
-     
+
     }
 }
