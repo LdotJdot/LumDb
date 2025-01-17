@@ -4,6 +4,7 @@ using LumDbEngine.Element.Engine.Transaction;
 using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.IO;
+using System.Diagnostics;
 
 namespace LumDbEngine.Element.Engine
 {
@@ -91,24 +92,33 @@ namespace LumDbEngine.Element.Engine
         public void Dispose()
         {
             if (disposed == false)
-            {
-                disposed = true;
-                autoResetEvent?.Dispose();
+            {       
                 iof?.Dispose();
                 iof = null;
+                autoResetEvent?.Dispose();
+                disposed = true;
+                if (DesrotyOnDispose)
+                {
+                    if (File.Exists(path))
+                    {
+                        File.Delete(path);
+                    }
+                }
             }
         }
 
         /// <summary>
-        /// Physically delete the current db file on disk
+        /// Set desrotyOnDispose to be true and physically delete the current db file on disk when disposed.
         /// </summary>
-        public void Destory()
+        public void SetDestoryOnDisposed()
         {
-            Dispose();
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
+            DesrotyOnDispose = true;
         }
+
+        /// <summary>
+        /// Physically delete the current db file on disk when disposed.
+        /// </summary>
+        private bool DesrotyOnDispose { get; set; } = false;
+     
     }
 }

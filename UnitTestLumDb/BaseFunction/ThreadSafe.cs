@@ -45,7 +45,7 @@ namespace UnitTestLumDb.BaseFunction
                         }
                     });
                 Assert.AreEqual(sumi, 500500);
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
             }
         }
 
@@ -79,7 +79,7 @@ namespace UnitTestLumDb.BaseFunction
                     });
                     Assert.AreEqual(sumi, 500500);
                 }
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
             }
         }
 
@@ -138,7 +138,7 @@ namespace UnitTestLumDb.BaseFunction
                     });
                     Assert.AreEqual(sumi, 500500);
                 }
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
             }
         }
 

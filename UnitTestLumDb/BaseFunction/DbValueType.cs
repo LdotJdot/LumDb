@@ -45,7 +45,7 @@ namespace UnitTestLumDb.BaseFunction
                 Assert.IsTrue(res.Value.uid == 400);
                 Assert.IsTrue(res.Value.username == "anonymous6");
                 Assert.IsTrue(decimal.Compare(res.Value.dec, new decimal(7.141592653)) == 0);
-                eng2.Destory();
+                eng2.SetDestoryOnDisposed();
             }
         }
 

@@ -29,7 +29,7 @@ namespace UnitTestLumDb.BaseFunction
                 });
 
                 Thread.Sleep(1000);
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
             }
         } 
         

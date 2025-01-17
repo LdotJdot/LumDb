@@ -130,7 +130,7 @@ namespace ConsoleTest
                 }
             }
 
-            eng.Destory();
+            eng.SetDestoryOnDisposed();
             
         }
         private static void Find500000()
@@ -201,7 +201,7 @@ namespace ConsoleTest
 
                 st.Stop();
                 Console.WriteLine($"Mem: {GetMem()}kb, ({size}) insert done elapse ms: " + st.ElapsedMilliseconds);
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
             }
         }
 
@@ -245,7 +245,7 @@ namespace ConsoleTest
 
                 st.Stop();
                 Console.WriteLine($"Mem: {GetMem()}kb, ({size}) insert done elapse ms: " + st.ElapsedMilliseconds);
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
             }
         }
 

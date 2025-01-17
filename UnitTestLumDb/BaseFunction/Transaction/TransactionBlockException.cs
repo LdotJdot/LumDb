@@ -25,7 +25,7 @@ namespace UnitTestLumDb.BaseFunction
                 }
 
              
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
             }
         } 
         
@@ -59,7 +59,7 @@ namespace UnitTestLumDb.BaseFunction
 
                 Assert.IsTrue(res.Values.Count() == 5);
 
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
 
             }
         }
@@ -101,7 +101,7 @@ namespace UnitTestLumDb.BaseFunction
                     Assert.IsTrue(ex.Message == "Index was outside the bounds of the array.");
                 }
 
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
 
             }
         }
