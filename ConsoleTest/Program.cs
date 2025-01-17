@@ -34,6 +34,7 @@ namespace ConsoleTest
 
         private static void destory()
         {
+
             using DbEngine eng = new DbEngine("d:\\xxxx123.db");
             Task.Run(() =>
             {

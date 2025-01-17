@@ -1,4 +1,5 @@
 ﻿using LumDbEngine.Element.Engine;
+using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Structure;
 using UnitTestLumDb.Config;
 
@@ -21,7 +22,7 @@ namespace UnitTestLumDb.BaseFunction
                 }
                 catch (Exception ex)
                 {
-                    Assert.IsTrue(ex.Message == "In a single thread, the previous transaction should be disposed before starting another one.");
+                    Assert.IsTrue(ex.Message == LumExceptionMessage.SingleThreadMultiTransaction);
                 }
 
              

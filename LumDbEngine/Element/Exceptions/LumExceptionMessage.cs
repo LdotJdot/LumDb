@@ -16,6 +16,6 @@ namespace LumDbEngine.Element.Exceptions
         internal const string DuplicateColumnHeader = "Duplicate column headers found";
         internal const string NotKey = "is not key";
         internal const string DbEngDisposedTimeOut = "Transactions waiting timeout when tried to dispose DbEngine.";
-        internal const string DbEngDisposedEarly = "DbEngine was disposed before the transaction.";
+        internal const string DbEngDisposedEarly = "Transaction cannot be disposed beacuse the dbEngine has already be disposed early.";
     }
 }
