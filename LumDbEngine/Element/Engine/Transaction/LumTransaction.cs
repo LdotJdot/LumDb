@@ -5,6 +5,7 @@ using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Manager;
 using LumDbEngine.Element.Structure.Page;
 using LumDbEngine.IO;
+using System.Collections.Concurrent;
 using System.Text;
 
 namespace LumDbEngine.Element.Engine.Transaction
@@ -15,6 +16,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         private DbCache db; // Unique for every single transaction.
         private ReaderWriterLockSlim rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private readonly STChecker checker;
+        public Guid Id { get; } = Guid.NewGuid();
         internal int PagesCount => db.pages.Count;
 
         internal string DbState()
@@ -33,13 +35,16 @@ namespace LumDbEngine.Element.Engine.Transaction
         private readonly IOFactory? iof;
         private readonly long cachePages;
         private readonly bool dynamicCache;
-
-        internal LumTransaction(IOFactory? iof, STChecker check, long cachePages, bool dynamicCache)
+        private readonly ConcurrentDictionary<Guid,ITransaction> transPool;
+        internal LumTransaction(IOFactory? iof, STChecker check, long cachePages, bool dynamicCache, ConcurrentDictionary<Guid, ITransaction> transPool)
         {
             this.checker=check;
             db = new DbCache(iof, cachePages, dynamicCache);
             this.iof = iof;
             this.dynamicCache = dynamicCache;
+            Id = Guid.NewGuid();
+            this.transPool = transPool;
+            transPool.TryAdd(Id, this);
         }
 
         private void CheckTransactionState()
@@ -96,6 +101,7 @@ namespace LumDbEngine.Element.Engine.Transaction
                         db = null;
                     }
                     rwLock.Dispose();
+                    transPool.TryRemove(Id, out _);
                 }
                 catch (Exception ex)
                 {

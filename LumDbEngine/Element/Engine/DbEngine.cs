@@ -4,6 +4,7 @@ using LumDbEngine.Element.Engine.Transaction;
 using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.IO;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 
 namespace LumDbEngine.Element.Engine
@@ -62,12 +63,26 @@ namespace LumDbEngine.Element.Engine
 
         private readonly AutoResetEvent autoResetEvent = new AutoResetEvent(true); // make sure serializable
 
-        internal void InitializeNew(string path)
+        private void InitializeNew(string path)
         {
-            var ck = new STChecker(autoResetEvent, callCount, -1);
-            using var ts = new LumTransaction(null, ck, DbCache.DEFAULT_CACHE_PAGES, true);
-            ts.SaveAs(path);
-            ts.Discard();
+            try
+            {
+                var ck = new STChecker(autoResetEvent, callCount, -1);
+                using var ts = new LumTransaction(null, ck, DbCache.DEFAULT_CACHE_PAGES, true, transactionsPool);
+                ts.SaveAs(path);
+                ts.Discard();
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message == LumExceptionMessage.SingleThreadMultiTransaction || ex.Message == LumExceptionMessage.TransactionTimeout)
+                {
+                    throw;
+                }
+                else
+                {
+                    throw LumException.Raise("Transaction start failed, since DbEngine might be disposed.");
+                }
+            }
         }
 
 
@@ -80,8 +95,36 @@ namespace LumDbEngine.Element.Engine
         /// <returns></returns>
         public ITransaction StartTransaction(int initialCachePages = DbCache.DEFAULT_CACHE_PAGES, bool dynamicCache = true, int millisecondsTimeout = -1)
         {
-            var ck = new STChecker( autoResetEvent,callCount, millisecondsTimeout);
-            return new LumTransaction(iof, ck, initialCachePages, dynamicCache);
+            try
+            {
+
+                var ck = new STChecker(autoResetEvent, callCount, millisecondsTimeout);
+                return new LumTransaction(iof, ck, initialCachePages, dynamicCache, transactionsPool);
+            }
+            catch (Exception ex)
+            {
+                if(ex.Message== LumExceptionMessage.SingleThreadMultiTransaction || ex.Message==LumExceptionMessage.TransactionTimeout)
+                {
+                    throw;
+                }
+                else
+                {
+                   throw LumException.Raise("Transaction start failed, since DbEngine might be disposed.");
+                }
+            }
+        }
+
+        ConcurrentDictionary<Guid, ITransaction> transactionsPool = new();
+
+        /// <summary>
+        /// Get transaction id.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="ts"></param>
+        /// <returns></returns>
+        public bool GetById(Guid id, out ITransaction ts)
+        {
+            return transactionsPool.TryGetValue(id,out ts);
         }
 
         private bool disposed;
@@ -92,18 +135,26 @@ namespace LumDbEngine.Element.Engine
         public void Dispose()
         {
             if (disposed == false)
-            {       
-                iof?.Dispose();
-                iof = null;
-                autoResetEvent?.Dispose();
-                disposed = true;
-                if (DesrotyOnDispose)
-                {
-                    if (File.Exists(path))
+            {
+
+                    if (transactionsPool.Count > 0)
                     {
-                        File.Delete(path);
+                        LumException.Throw($"{LumExceptionMessage.DbEngEarlyDisposed} Living transactions: " +
+                            $"{string.Join(';', transactionsPool.Values.Select(o => o.Id.ToString()).ToArray())}");
                     }
-                }
+
+                    iof?.Dispose();
+                    iof = null;
+                    autoResetEvent?.Dispose();
+                    disposed = true;
+                    if (DesrotyOnDispose)
+                    {
+                        if (File.Exists(path))
+                        {
+                            File.Delete(path);
+                        }
+                    }
+                
             }
         }
 

@@ -23,7 +23,8 @@ namespace LumDbEngine.Element.Engine.Checker
 
             callCount.Value++;
             this.autoResetEvent = autoResetEvent;
-            if (autoResetEvent.WaitOne(millisecondsTimeout)==false)
+
+            if (autoResetEvent.WaitOne(millisecondsTimeout) == false)
             {
                 LumException.Throw(LumExceptionMessage.TransactionTimeout);
             }

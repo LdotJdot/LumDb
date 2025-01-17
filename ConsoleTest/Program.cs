@@ -20,7 +20,9 @@ namespace ConsoleTest
 
             ////
             //Debug();
-            readWriteLock();
+
+            destory();
+            //readWriteLock();
 
             //Inserts50();
 
@@ -29,6 +31,19 @@ namespace ConsoleTest
             Console.ReadLine();
         }
             
+
+        private static void destory()
+        {
+            using DbEngine eng = new DbEngine("d:\\tmp14370xxx4.db");
+            Task.Run(() =>
+            {
+                var ts = eng.StartTransaction();
+                Thread.Sleep(10000);
+            });
+            Thread.Sleep(10);
+            eng.SetDestoryOnDisposed();
+            eng.Dispose();
+        }
         private static void Debug()
         {
             using DbEngine eng = new DbEngine("d:\\tmp143704.db");
