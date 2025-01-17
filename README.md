@@ -1,4 +1,6 @@
 # LumDb V1.0.8
+- Remove db.Destory() method, and use db.SetDestoryOnDisposed() insterad.
+# LumDb V1.0.8
 - Timeout parameter was added in start a transaction during waiting.
 
 # LumDb V1.0.6 2025.01.13
