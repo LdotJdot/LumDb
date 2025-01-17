@@ -30,7 +30,7 @@ namespace UnitTestLumDb.BaseFunction
                     {
                     }
                 }
-                eng2.Destory();
+                eng2.SetDestoryOnDisposed();
             }
         }
     }

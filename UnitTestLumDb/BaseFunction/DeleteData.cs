@@ -45,7 +45,7 @@ namespace UnitTestLumDb.BaseFunction
                 Assert.AreEqual(xx3.Value[0], 4998);
                 Assert.AreEqual(xx3.Value[1], "4998");
                 Console.WriteLine("done");
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
             }
         }
 

@@ -86,7 +86,7 @@ namespace UnitTestLumDb.BaseFunction
                 Assert.AreEqual(xx3.Value[0], -899);
                 Assert.AreEqual(xx3.Value[1], "-914");
 
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
             }
         }
 

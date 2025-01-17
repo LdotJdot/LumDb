@@ -119,7 +119,7 @@ namespace UnitTestLumDb.BaseFunction
                 Assert.IsTrue(fd.Value.uid == 50000);
                 Assert.IsTrue(fd.Value.username == "anonymous502");
                 Assert.IsTrue(fd.Value.content == str4);
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
             }
         }
 
@@ -228,7 +228,7 @@ namespace UnitTestLumDb.BaseFunction
                 Assert.IsTrue(fd.Value.uid == 50000);
                 Assert.IsTrue(fd.Value.username == "anonymous502");
                 Assert.IsTrue(fd.Value.content == str4);
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
             }
         }
 
@@ -293,7 +293,7 @@ namespace UnitTestLumDb.BaseFunction
                 Assert.IsTrue(fd.Value.uid == 3001);
                 Assert.IsTrue(fd.Value.username == "kkl2");
                 Assert.IsTrue(fd.Value.content == str1);
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
             }
         }
 
@@ -457,7 +457,7 @@ namespace UnitTestLumDb.BaseFunction
                 Assert.IsTrue(fd.Value.uid == 3001);
                 Assert.IsTrue(fd.Value.username == "kkl2");
                 Assert.IsTrue(fd.Value.content == str1);
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
             }
         }
 

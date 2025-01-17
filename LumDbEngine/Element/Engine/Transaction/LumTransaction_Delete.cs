@@ -1,4 +1,5 @@
-﻿using LumDbEngine.Element.Engine.Lock;
+﻿using LumDbEngine.Element.Engine.Cache;
+using LumDbEngine.Element.Engine.Lock;
 using LumDbEngine.Element.Engine.Results;
 
 namespace LumDbEngine.Element.Engine.Transaction
@@ -38,14 +39,14 @@ namespace LumDbEngine.Element.Engine.Transaction
         public IDbResult Drop(string tableName)
         {
             CheckTransactionState();
+            using var lk = LockTransaction.StartWrite(rwLock);
             try
             {
-                using var lk = LockTransaction.StartWrite(rwLock);
                 return dbManager.Drop(db, tableName);
             }
             catch
             {
-                Discard();
+                db = new DbCache(iof, cachePages, dynamicCache);
                 throw;
             }
         }
