@@ -57,7 +57,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             CheckTransactionState();
             using (var lk = LockTransaction.StartWrite(rwLock))
             {
-                db.SaveChanges();
+                db.SaveCurrentPageCache(dbEngine);
             }
         }
 
@@ -65,7 +65,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         {
             CheckTransactionState();
             using var lk = LockTransaction.StartWrite(rwLock);
-            db.SaveChanges(path);
+            db.SaveCurrentPageCache(path);
         }
 
         

@@ -58,7 +58,22 @@ namespace LumDbEngine.Element.Engine
                     throw new FileNotFoundException($"File not found:{path}");
                 }
             }
+
             this.iof = new IOFactory(path);
+            var state = DbLogUtils.CheckDbState(iof.RentReader());
+
+            switch (state)
+            {
+                case DbLogState.Writing:
+                    var dblog = DbLog.Open(this);
+                    dblog.DumpToDbEngine(iof.FileStream);
+                    dblog.Dispose();
+                    break;
+                case DbLogState.Done:
+                default:
+                    break;
+            }
+
         }
 
         private readonly AutoResetEvent autoResetEvent = new AutoResetEvent(true); // make sure serializable

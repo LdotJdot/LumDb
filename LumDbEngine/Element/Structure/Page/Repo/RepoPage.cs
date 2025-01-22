@@ -48,37 +48,38 @@ namespace LumDbEngine.Element.Structure.Page.Repo
             lock (bw.BaseStream)
             {
                 var pageBytes = stackalloc byte[PAGE_SIZE];
-                using var ms = new FixedStackallocMemoryStream(pageBytes, PAGE_SIZE);
-                using var tmpBw = new BinaryWriter(ms);
-                {
-                    BasePageWrite(tmpBw);
-                    tmpBw.Write(AvailableNodeIndex);
-
-                    tmpBw.BaseStream.Seek(HEADER_SIZE, SeekOrigin.Begin);
-
-                    for (int i = 0; i < NODES_PER_PAGE; i++)
-                    {
-                        Nodes[i].Write(tmpBw);
-                    }
-                }
-
+                WriteBytes(pageBytes);
                 MoveToPageStart(bw.BaseStream);
                 bw.Write(new Span<byte>(pageBytes, PAGE_SIZE));
             }
         }
 
-        public override void Read(BinaryReader br)
+        public override unsafe void WriteBytes(byte* bytes)
         {
-            lock (br.BaseStream)
+            using var ms = new FixedStackallocMemoryStream(bytes, PAGE_SIZE);
+            using var tmpBw = new BinaryWriter(ms);
             {
-                BasePageRead(br);
-                AvailableNodeIndex = br.ReadByte();
-                MoveToPageHeaderSizeOffset(br.BaseStream, HEADER_SIZE);
+                BasePageWrite(tmpBw);
+                tmpBw.Write(AvailableNodeIndex);
+
+                tmpBw.BaseStream.Seek(HEADER_SIZE, SeekOrigin.Begin);
+
                 for (int i = 0; i < NODES_PER_PAGE; i++)
                 {
-                    Nodes[i].Read(br);
-                    Nodes[i].HostPageId = PageId;
+                    Nodes[i].Write(tmpBw);
                 }
+            }
+        }
+
+        public override void Read(BinaryReader br)
+        {
+            BasePageRead(br);
+            AvailableNodeIndex = br.ReadByte();
+            MoveToPageHeaderSizeOffset(br.BaseStream, HEADER_SIZE);
+            for (int i = 0; i < NODES_PER_PAGE; i++)
+            {
+                Nodes[i].Read(br);
+                Nodes[i].HostPageId = PageId;
             }
         }
     }

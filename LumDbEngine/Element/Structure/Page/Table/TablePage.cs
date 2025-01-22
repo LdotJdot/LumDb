@@ -132,53 +132,50 @@ namespace LumDbEngine.Element.Structure.Page.Key
             lock (bw.BaseStream)
             {
                 var pageBytes = stackalloc byte[PAGE_SIZE];
-                using var ms = new FixedStackallocMemoryStream(pageBytes, PAGE_SIZE);
-                using var tmpBw = new BinaryWriter(ms);
-                {
-                    BasePageWrite(tmpBw);
+                WriteBytes(pageBytes);
 
-                    PageHeader.Write(tmpBw);
-
-                    tmpBw.Write(ColumnCount);
-
-                    tmpBw.BaseStream.Seek(HEADER_SIZE, SeekOrigin.Begin);
-
-                    for (int i = 0; i < ColumnCount; i++)
-                    {
-                        ColumnHeaders[i].Write(tmpBw);
-                    }
-
-                    var pos = DbHeader.HEADER_SIZE + (long)PageId * PAGE_SIZE;
-                    var endPos = pos + PAGE_SIZE;
-                    if (bw.BaseStream.Length < endPos) bw.BaseStream.SetLength(endPos);
-
-                }
-                
                 MoveToPageStart(bw.BaseStream);
                 bw.Write(new Span<byte>(pageBytes, PAGE_SIZE));
+            }
+        }
+        public override unsafe void WriteBytes(byte* bytes)
+        {
+            using var ms = new FixedStackallocMemoryStream(bytes, PAGE_SIZE);
+            using var tmpBw = new BinaryWriter(ms);
+            {
+                BasePageWrite(tmpBw);
+
+                PageHeader.Write(tmpBw);
+
+                tmpBw.Write(ColumnCount);
+
+                tmpBw.BaseStream.Seek(HEADER_SIZE, SeekOrigin.Begin);
+
+                for (int i = 0; i < ColumnCount; i++)
+                {
+                    ColumnHeaders[i].Write(tmpBw);
+                }
             }
         }
 
         public override void Read(BinaryReader br)
         {
-            lock (br.BaseStream)
+
+            BasePageRead(br);
+            PageHeader.Read(br);
+            ColumnCount = br.ReadInt32();
+
+            MoveToPageHeaderSizeOffset(br.BaseStream, HEADER_SIZE);
+
+            // read columnHeaders
+            var columnHeaders = new ColumnHeader[ColumnCount];
+
+            for (int i = 0; i < ColumnCount; i++)
             {
-                BasePageRead(br);
-                PageHeader.Read(br);
-                ColumnCount = br.ReadInt32();
-
-                MoveToPageHeaderSizeOffset(br.BaseStream, HEADER_SIZE);
-
-                // read columnHeaders
-                var columnHeaders = new ColumnHeader[ColumnCount];
-
-                for (int i = 0; i < ColumnCount; i++)
-                {
-                    columnHeaders[i] = new ColumnHeader(this);
-                    columnHeaders[i].Read(br);
-                }
-                InitializeColumnHeaders(columnHeaders);
+                columnHeaders[i] = new ColumnHeader(this);
+                columnHeaders[i].Read(br);
             }
+            InitializeColumnHeaders(columnHeaders);
         }
     }
 }

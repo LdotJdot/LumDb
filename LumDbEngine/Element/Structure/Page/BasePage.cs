@@ -73,6 +73,7 @@ namespace LumDbEngine.Element.Structure.Page
         }
 
         public abstract void Write(BinaryWriter bw);
+        public abstract unsafe void WriteBytes(byte* bytes);
 
         public abstract void Read(BinaryReader br);
 
@@ -86,13 +87,18 @@ namespace LumDbEngine.Element.Structure.Page
 
         protected void MoveToPageHeaderSizeOffset(Stream stream, int headerSize)
         {
-            var pos = DbHeader.HEADER_SIZE + (long)PageId * PAGE_SIZE + headerSize;
+            var pos = DbHeader.HEADER_SIZE + (uint)PageId * PAGE_SIZE + headerSize;
             stream.Seek(pos, SeekOrigin.Begin);
         }
              
         protected void MoveToPageStart(Stream stream)
         {
-            var pos = DbHeader.HEADER_SIZE + (long)PageId * PAGE_SIZE;
+            MoveToPageStart(stream, PageId);
+        }
+
+        public static void MoveToPageStart(Stream stream,uint pageId)
+        {
+            var pos = DbHeader.HEADER_SIZE + pageId * PAGE_SIZE;
             var endPos = pos + PAGE_SIZE;
             if (stream.Length < endPos) stream.SetLength(endPos);
 
@@ -110,13 +116,12 @@ namespace LumDbEngine.Element.Structure.Page
 
         public static (uint nextPageId, uint prevPageId) ReadPageInfo(uint pageId, PageType pageType, BinaryReader br)
         {
-            lock (br.BaseStream)
-            {
-                br.BaseStream.Seek(DbHeader.HEADER_SIZE + (long)pageId * PAGE_SIZE, SeekOrigin.Begin);
-                LumException.ThrowIfNotTrue(pageType == (PageType)br.ReadByte(), "page error");  // value of PageType should be the same with the data on disk.
-                LumException.ThrowIfNotTrue(pageId == br.ReadUInt32(), "page error");       // value of PageID should be the same with the data on disk.
-                return (br.ReadUInt32(), br.ReadUInt32());
-            }
+
+            br.BaseStream.Seek(DbHeader.HEADER_SIZE + (long)pageId * PAGE_SIZE, SeekOrigin.Begin);
+            LumException.ThrowIfNotTrue(pageType == (PageType)br.ReadByte(), "page error");  // value of PageType should be the same with the data on disk.
+            LumException.ThrowIfNotTrue(pageId == br.ReadUInt32(), "page error");       // value of PageID should be the same with the data on disk.
+            return (br.ReadUInt32(), br.ReadUInt32());
+
         }
         //private bool disposedValue;
 

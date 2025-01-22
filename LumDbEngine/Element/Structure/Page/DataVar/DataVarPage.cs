@@ -37,43 +37,46 @@ namespace LumDbEngine.Element.Structure.Page.Data
             lock (bw.BaseStream)
             {
                 var pageBytes = stackalloc byte[PAGE_SIZE];
-                using var ms = new FixedStackallocMemoryStream(pageBytes, PAGE_SIZE);
-                using var tmpBw = new BinaryWriter(ms);
-                {
-                    BasePageWrite(tmpBw);
-                    tmpBw.Write(RestPageSize);
-                    tmpBw.Write(TotalDataCount);
-                    tmpBw.Write(CurrentDataCount);
-
-                    tmpBw.BaseStream.Seek(HEADER_SIZE, SeekOrigin.Begin);
-
-                    for (int i = 0; i < TotalDataCount; i++)
-                    {
-                        DataVarNodes[i].Write(tmpBw);
-                    }
-                }
-
+                
+                WriteBytes(pageBytes);
                 MoveToPageStart(bw.BaseStream);
                 bw.Write(new Span<byte>(pageBytes, PAGE_SIZE));
             }
         }
 
-        public override void Read(BinaryReader br)
+        public override unsafe void WriteBytes(byte* bytes)
         {
-            lock (br.BaseStream)
+            using var ms = new FixedStackallocMemoryStream(bytes, PAGE_SIZE);
+            using var tmpBw = new BinaryWriter(ms);
             {
-                BasePageRead(br);
-                RestPageSize = br.ReadInt32();
-                TotalDataCount = br.ReadInt32();
-                CurrentDataCount = br.ReadInt32();
+                BasePageWrite(tmpBw);
+                tmpBw.Write(RestPageSize);
+                tmpBw.Write(TotalDataCount);
+                tmpBw.Write(CurrentDataCount);
 
-                MoveToPageHeaderSizeOffset(br.BaseStream, HEADER_SIZE);
-                DataVarNodes = new DataVarNode[TotalDataCount];
+                tmpBw.BaseStream.Seek(HEADER_SIZE, SeekOrigin.Begin);
+
                 for (int i = 0; i < TotalDataCount; i++)
                 {
-                    DataVarNodes[i] = new DataVarNode(this);
-                    DataVarNodes[i].Read(br);
+                    DataVarNodes[i].Write(tmpBw);
                 }
+            }
+        }
+
+        public override void Read(BinaryReader br)
+        {
+
+            BasePageRead(br);
+            RestPageSize = br.ReadInt32();
+            TotalDataCount = br.ReadInt32();
+            CurrentDataCount = br.ReadInt32();
+
+            MoveToPageHeaderSizeOffset(br.BaseStream, HEADER_SIZE);
+            DataVarNodes = new DataVarNode[TotalDataCount];
+            for (int i = 0; i < TotalDataCount; i++)
+            {
+                DataVarNodes[i] = new DataVarNode(this);
+                DataVarNodes[i].Read(br);
             }
         }
     }
