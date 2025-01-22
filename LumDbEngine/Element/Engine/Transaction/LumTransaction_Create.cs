@@ -1,4 +1,5 @@
-﻿using LumDbEngine.Element.Engine.Lock;
+﻿using LumDbEngine.Element.Engine.Cache;
+using LumDbEngine.Element.Engine.Lock;
 using LumDbEngine.Element.Engine.Results;
 using LumDbEngine.Element.Structure;
 
@@ -9,15 +10,15 @@ namespace LumDbEngine.Element.Engine.Transaction
         public IDbResult Create(string tableName, (string columnName, DbValueType type, bool isKey)[] tableHeader)
         {
             CheckTransactionState();
-            try
+            using var lk = LockTransaction.StartWrite(rwLock);
+            //try
             {
-                using var lk = LockTransaction.StartWrite(rwLock);
                 return dbManager.Create(db, tableName, tableHeader);
             }
-            catch
+            //catch
             {
-                Discard();
-                throw;
+               // db = new DbCache(iof, cachePages, dynamicCache);
+              //  throw;
             }
         }
     }

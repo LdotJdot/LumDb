@@ -57,10 +57,15 @@ namespace LumDbEngine.Element.Structure
                 DbValueType.Decimal => value is decimal,
                 DbValueType.Str8B or DbValueType.Str16B or DbValueType.Str32B or DbValueType.StrVar => value is string,
                 DbValueType.Bytes8 or DbValueType.Bytes16 or DbValueType.Bytes32 or DbValueType.BytesVar => value is IList<byte>,
-                _ => throw LumException.Raise($"Unknown type: {type}"),
+                _ => throw LumException.Raise($"{LumExceptionMessage.UnknownValType}: {type}"),
             };
         }
 
+        /// <summary>
+        /// Check if the data type of a length less than 32 bytes.
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
         public static bool IsValidFix32(this DbValueType type)
         {
             return (byte)type <= DataVarSplitter;
@@ -101,7 +106,7 @@ namespace LumDbEngine.Element.Structure
                 DbValueType.Decimal => value.ToDecimal(),
                 DbValueType.Str8B or DbValueType.Str16B or DbValueType.Str32B => Encoding.UTF8.GetString(value).TrimEnd('\0'),
                 DbValueType.Bytes8 or DbValueType.Bytes16 or DbValueType.Bytes32 or DbValueType.BytesVar or DbValueType.StrVar => value.ToArray(),
-                _ => throw LumException.Raise($"Unknown type"),
+                _ => throw LumException.Raise(LumExceptionMessage.UnknownValType),
             };
         }
 
@@ -204,7 +209,7 @@ namespace LumDbEngine.Element.Structure
                     case DateTime:
                         if (((DateTime)value).Kind != DateTimeKind.Utc)
                         {
-                            throw LumException.Raise("dateTime must be utc kind.");
+                            throw LumException.Raise(LumExceptionMessage.DateTimeUtcError);
                         }
 
                         if (BitConverter.TryWriteBytes(buffer, ((DateTime)value).Ticks))
@@ -228,12 +233,12 @@ namespace LumDbEngine.Element.Structure
                         return buffer;
 
                     default:
-                        throw LumException.Raise("Unknown value type");
+                        throw LumException.Raise(LumExceptionMessage.UnknownValType);
                 };
             }
             catch (Exception ex)
             {
-                throw LumException.Raise($"Type error: {ex.Message}");
+                throw LumException.Raise($"{LumExceptionMessage.UnknownValType}: {ex.Message}");
             }
         }
 
@@ -248,7 +253,7 @@ namespace LumDbEngine.Element.Structure
                 DbValueType.Str16B or DbValueType.Bytes16 or DbValueType.Decimal => 16,
                 DbValueType.Bytes32 or DbValueType.Str32B => 32,
                 DbValueType.BytesVar or DbValueType.StrVar => NodeLink.Size,// the size of NodeLink
-                _ => throw LumException.Raise($"Unknown type"),
+                _ => throw LumException.Raise(LumExceptionMessage.UnknownValType),
             };
         }
     }

@@ -14,7 +14,7 @@ namespace LumDbEngine.Element.Exceptions
             if (value1 == null || value2 == null || !value1.Equals(value2))
             {
                 throw new LumException(message);
-            }
+            }            
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

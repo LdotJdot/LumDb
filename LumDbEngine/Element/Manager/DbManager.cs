@@ -30,7 +30,7 @@ namespace LumDbEngine.Element.Manager
             HashSet<string> tns = new HashSet<string>(tableHeader.Length);
             for (int i = 0; i < tableHeader.Length; i++)
             {
-                LumException.ThrowIfNotTrue(tns.Add(tableHeader[i].columnName), "Duplicate column headers found");
+                LumException.ThrowIfNotTrue(tns.Add(tableHeader[i].columnName),LumExceptionMessage.DuplicateColumnHeader);
 
 #pragma warning disable CA2014 // stack overflow
                 byte* keyNameAlloc = stackalloc byte[ColumnHeader.NameLength];

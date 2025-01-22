@@ -23,6 +23,7 @@ namespace LumDbEngine.IO
         }
 
         public BinaryWriter BinaryWriter { get => binaryWriter; }
+        public Stream FileStream { get => fileStream; }
 
         public IOFactory(string path)
         {

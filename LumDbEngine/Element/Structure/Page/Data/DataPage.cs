@@ -43,47 +43,49 @@ namespace LumDbEngine.Element.Structure.Page.Data
             lock (bw.BaseStream)
             {
                 var pageBytes = stackalloc byte[PAGE_SIZE];
-                using var ms = new FixedStackallocMemoryStream(pageBytes, PAGE_SIZE);
-                using var tmpBw = new BinaryWriter(ms);
-                {
-                    BasePageWrite(tmpBw);
-                    tmpBw.Write(MaxDataCount);
-                    tmpBw.Write(AvailableNodeIndex);
-                    tmpBw.Write(CurrentDataCount);
-                    tmpBw.Write(DataLenthPerNode);
-
-                    tmpBw.BaseStream.Seek(HEADER_SIZE, SeekOrigin.Begin);
-
-                    for (int i = 0; i < MaxDataCount; i++)
-                    {
-                        DataNodes[i].Write(tmpBw);
-                    }
-                }
-
+                WriteBytes(pageBytes);
                 MoveToPageStart(bw.BaseStream);
                 bw.Write(new Span<byte>(pageBytes, PAGE_SIZE));
             }
         }
-           
-        public override void Read(BinaryReader br)
+
+        public override unsafe void WriteBytes(byte* bytes)
         {
-            lock (br.BaseStream)
+            using var ms = new FixedStackallocMemoryStream(bytes, PAGE_SIZE);
+            using var tmpBw = new BinaryWriter(ms);
             {
-                BasePageRead(br);
-                MaxDataCount = br.ReadInt32();
-                AvailableNodeIndex = br.ReadByte();
-                CurrentDataCount = br.ReadInt32();
-                DataLenthPerNode = br.ReadInt32();
+                BasePageWrite(tmpBw);
+                tmpBw.Write(MaxDataCount);
+                tmpBw.Write(AvailableNodeIndex);
+                tmpBw.Write(CurrentDataCount);
+                tmpBw.Write(DataLenthPerNode);
 
-                MoveToPageHeaderSizeOffset(br.BaseStream, HEADER_SIZE);
-
-                ResetDataNodesSize();
+                tmpBw.BaseStream.Seek(HEADER_SIZE, SeekOrigin.Begin);
 
                 for (int i = 0; i < MaxDataCount; i++)
                 {
-                    DataNodes[i] = new DataNode(PageId, DataLenthPerNode);
-                    DataNodes[i].Read(br);
+                    DataNodes[i].Write(tmpBw);
                 }
+            }
+
+        }
+
+        public override void Read(BinaryReader br)
+        {
+            BasePageRead(br);
+            MaxDataCount = br.ReadInt32();
+            AvailableNodeIndex = br.ReadByte();
+            CurrentDataCount = br.ReadInt32();
+            DataLenthPerNode = br.ReadInt32();
+
+            MoveToPageHeaderSizeOffset(br.BaseStream, HEADER_SIZE);
+
+            ResetDataNodesSize();
+
+            for (int i = 0; i < MaxDataCount; i++)
+            {
+                DataNodes[i] = new DataNode(PageId, DataLenthPerNode);
+                DataNodes[i].Read(br);
             }
         }
     }

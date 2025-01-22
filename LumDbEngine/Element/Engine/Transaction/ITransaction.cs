@@ -11,6 +11,11 @@ namespace LumDbEngine.Element.Engine.Transaction
     public interface ITransaction : IDisposable
     {
         /// <summary>
+        /// Transaction unique id.
+        /// </summary>
+        public Guid Id { get; }
+
+        /// <summary>
         /// Create a new table.
         /// </summary>
         /// <param name="tableName">target table name</param>

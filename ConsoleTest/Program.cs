@@ -18,8 +18,11 @@ namespace ConsoleTest
         {
             //Inserts500000Mem();
 
-           
-            Debug();
+            ////
+            //Debug();
+
+            AtomicCheck();
+
             //readWriteLock();
 
             //Inserts50();
@@ -29,10 +32,71 @@ namespace ConsoleTest
             Console.ReadLine();
         }
             
+
+
+        private static void AtomicCheck()
+        {
+            const string TABLENAME = "tableFirst";
+            {
+                using DbEngine eng = new DbEngine("d:\\xxxx123.db", true);
+
+
+                using (var ts = eng.StartTransaction(0, false))
+                {
+                    // var res=ts.Create(TABLENAME, [("a", DbValueType.Int, true), ("b", DbValueType.Long, false), ("c", DbValueType.StrVar, false)]);
+                }
+
+                {
+                    using ITransaction ts = eng.StartTransaction();
+
+                    for (int i = 0; i < 5; i++)
+                    {
+                        //var ds = ts.Insert(TABLENAME, [("a", i + 500), ("b", (long)i * i), ("c", "thirteen thousand one hundred fifty three")]);
+                    }
+                }
+            }
+
+            {
+                using DbEngine eng = new DbEngine("d:\\xxxx123.db",false);
+                using ITransaction ts = eng.StartTransaction();
+
+
+                var ds = ts.Find(TABLENAME, o => o);
+                Console.WriteLine(ds.Values[3][0]);
+
+
+                //  eng.SetDestoryOnDisposed();
+            }
+        }
+        private static void destory()
+        {
+
+            using DbEngine eng = new DbEngine("d:\\xxxx123.db");
+            Task.Run(() =>
+            {
+                try
+                {               
+                    using var ts = eng.StartTransaction();
+                    Thread.Sleep(1000);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.ToString());
+                }
+            });
+            Thread.Sleep(500);
+            eng.DisposeMillisecondsTimeout = 0;
+            eng.SetDestoryOnDisposed();
+            eng.Dispose();
+        }
+
         private static void Debug()
         {
             using DbEngine eng = new DbEngine("d:\\tmp143704.db");
             using var ts=eng.StartTransaction();
+
+            using var ts2=eng.StartTransaction();
+
             string tb1 = "projAuthority";
             string tb2 = "projAuthority2";
 
@@ -49,8 +113,11 @@ namespace ConsoleTest
             //}
 
             var rr=ts.Find(tb2, o => o).Values;
+
+           
             var res = ts.Find(tb1, o => o.Where(
-                v => ts.Find(tb2, o => o.Where(l => (int)l[2]>0)).Values.Select(p => p[0]).Contains(v[0])
+                v => ts.Find(tb2, o => o.Where(k => (int)k[2]>=0)).Values.Select(p => p[0]).Contains(v[0])
+
                 ));
 
             foreach(var v in res.Values)
@@ -68,7 +135,8 @@ namespace ConsoleTest
 
             using (var ts2 = eng.StartTransaction(0, false))
             {
-                using var tt6=en2.StartTransaction();
+
+
                 //ts2.Create(TABLENAME, [("a", DbValueType.Int, true), ("b", DbValueType.Long, false), ("c", DbValueType.StrVar, false)]);
                // var ds = ts2.Insert(TABLENAME, [("a", 22), ("b", (long)233), ("c", "thirteen thousand one hundred fifty three")]);
             }
@@ -76,16 +144,21 @@ namespace ConsoleTest
 
             using var ts = eng.StartTransaction();
             var res = ts.Find(TABLENAME, 1);
-            //using var ts3 = eng.StartTransaction();
+
 
             var t =Task.Factory.StartNew(() =>
             {
                 // The following code would be block due to the singularity of transaction. And should be not called in same thread.
-                using var ts3 = eng.StartTransaction();
-                ts3.Insert(TABLENAME, [("a", 55), ("b", (long)233), ("c", "thirteen thousand one hundred fifty three")]);
+
+                using var ts3 = eng.StartTransaction(millisecondsTimeout:1000);
+               // ts3.Insert(TABLENAME, [("a", 55), ("b", (long)233), ("c", "thirteen thousand one hundred fifty three")]);
                 var res3 = ts3.Find(TABLENAME, 2);
                 Console.WriteLine("r3"+res3.Value[0].ToString());
             });
+
+            Thread.Sleep(6000);
+            Console.WriteLine("ts.done");
+
             ts.Dispose();
 
             t.Wait();
@@ -127,7 +200,7 @@ namespace ConsoleTest
                 }
             }
 
-            eng.Destory();
+            eng.SetDestoryOnDisposed();
             
         }
         private static void Find500000()
@@ -198,7 +271,7 @@ namespace ConsoleTest
 
                 st.Stop();
                 Console.WriteLine($"Mem: {GetMem()}kb, ({size}) insert done elapse ms: " + st.ElapsedMilliseconds);
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
             }
         }
 
@@ -242,7 +315,7 @@ namespace ConsoleTest
 
                 st.Stop();
                 Console.WriteLine($"Mem: {GetMem()}kb, ({size}) insert done elapse ms: " + st.ElapsedMilliseconds);
-                eng.Destory();
+                eng.SetDestoryOnDisposed();
             }
         }
 

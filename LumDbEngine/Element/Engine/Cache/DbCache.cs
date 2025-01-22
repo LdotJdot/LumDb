@@ -4,12 +4,13 @@ using LumDbEngine.Element.Structure.Page;
 using LumDbEngine.Element.Structure.Page.Repo;
 using LumDbEngine.IO;
 using System.Collections.Concurrent;
+using System.IO;
 
 #nullable disable
 
 namespace LumDbEngine.Element.Engine.Cache
 {
-    internal partial class DbCache : IDisposable
+    internal partial class DbCache
     {
         private DbHeader header = new DbHeader();
 
@@ -59,12 +60,50 @@ namespace LumDbEngine.Element.Engine.Cache
         /// <summary>
         /// save changes to file
         /// </summary>
-        internal void SaveChanges()
+        internal void SaveCurrentPageCache(DbEngine dbEngine)
         {
             lock (saveLock)
             {
                 if (iof?.IsValid() == true && disposed == false)
                 {
+                    var dblog =DbLog.Create(dbEngine); 
+                    
+                    // write dblog.
+                    {
+                        dblog.WriteState(DbLogState.Writing);
+                        dblog.Write(header);
+                        foreach (var page in pages.Values)
+                        {
+                            if (page?.IsDirty == true)
+                            {
+                                dblog.Write(page);
+                                page.IsDirty = false;
+                            }
+                        }
+                        dblog.WriteState(DbLogState.Done);
+                    }
+
+                    dblog.DumpToDbEngine(iof.FileStream);
+
+                    dblog.Dispose();    // make sure the dblog file will remain when the process was abort.
+
+                    GarbageCollection();
+                    //pages.Clear();
+                }
+            }
+        }
+        
+        
+        /// <summary>
+        /// save changes to file
+        /// </summary>
+        internal void SaveCurrentPageCache()
+        {
+            lock (saveLock)
+            {
+                if (iof?.IsValid() == true && disposed == false)
+                {
+
                     header.Write(iof.BinaryWriter);
 
                     foreach (var page in pages.Values)
@@ -84,11 +123,12 @@ namespace LumDbEngine.Element.Engine.Cache
             }
         }
 
+        
         /// <summary>
         /// save changes to a new file
         /// </summary>
         /// <param name="path"></param>
-        internal void SaveChanges(string path)
+        internal void SaveCurrentPageCache(string path)
         {
             lock (saveLock)
             {
@@ -128,11 +168,22 @@ namespace LumDbEngine.Element.Engine.Cache
             pages = new();
         }
 
+        public void Dispose(DbEngine dbEngine)
+        {
+            if (!disposed)
+            {
+                SaveCurrentPageCache(dbEngine);
+                PagesClear();
+                pages = null;
+                disposed = true;
+            }
+        }
+        
         public void Dispose()
         {
             if (!disposed)
             {
-                SaveChanges();
+                SaveCurrentPageCache();
                 PagesClear();
                 pages = null;
                 disposed = true;

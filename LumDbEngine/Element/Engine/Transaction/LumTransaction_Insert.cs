@@ -1,4 +1,5 @@
-﻿using LumDbEngine.Element.Engine.Lock;
+﻿using LumDbEngine.Element.Engine.Cache;
+using LumDbEngine.Element.Engine.Lock;
 using LumDbEngine.Element.Engine.Results;
 using LumDbEngine.Element.Value;
 
@@ -10,15 +11,14 @@ namespace LumDbEngine.Element.Engine.Transaction
         {
             // todo
             CheckTransactionState();
-
+            using var lk = LockTransaction.StartWrite(rwLock);
             try
             {
-                using var lk = LockTransaction.StartWrite(rwLock);
                 return dbManager.Insert(db, tableName, values);
             }
             catch
             {
-                Discard();
+                db = new DbCache(iof, cachePages, dynamicCache);
                 throw;
             }
         }
@@ -26,14 +26,14 @@ namespace LumDbEngine.Element.Engine.Transaction
         public IDbValue<uint> Insert<T>(string tableName, T t) where T : IDbEntity, new()
         {
             CheckTransactionState();
+            using var lk = LockTransaction.StartWrite(rwLock);
             try
             {
-                using var lk = LockTransaction.StartWrite(rwLock);
                 return dbManager.Insert(db, tableName, t);
             }
             catch
             {
-                Discard();
+                db = new DbCache(iof, cachePages, dynamicCache);
                 throw;
             }
         }

@@ -5,6 +5,7 @@ using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Manager;
 using LumDbEngine.Element.Structure.Page;
 using LumDbEngine.IO;
+using System.Collections.Concurrent;
 using System.Text;
 
 namespace LumDbEngine.Element.Engine.Transaction
@@ -12,9 +13,11 @@ namespace LumDbEngine.Element.Engine.Transaction
     internal partial class LumTransaction : ITransaction
     {
         private static IDbManager dbManager = new DbManager();
-        private DbCache db;
+        private DbCache db; // Unique for every single transaction.
         private ReaderWriterLockSlim rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private readonly STChecker checker;
+        public Guid Id { get; } = Guid.NewGuid();
+
         internal int PagesCount => db.pages.Count;
 
         internal string DbState()
@@ -33,13 +36,17 @@ namespace LumDbEngine.Element.Engine.Transaction
         private readonly IOFactory? iof;
         private readonly long cachePages;
         private readonly bool dynamicCache;
+        private readonly DbEngine dbEngine;
+        internal LumTransaction(IOFactory? iof, STChecker check, long cachePages, bool dynamicCache, DbEngine dbEngine)
 
-        internal LumTransaction(IOFactory? iof, STChecker check, long cachePages, bool dynamicCache)
         {
             this.checker=check;
             db = new DbCache(iof, cachePages, dynamicCache);
             this.iof = iof;
             this.dynamicCache = dynamicCache;
+            Id = Guid.NewGuid();
+            this.dbEngine = dbEngine;
+            this.dbEngine.transactionsPool.TryAdd(Id, this);
         }
 
         private void CheckTransactionState()
@@ -52,7 +59,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             CheckTransactionState();
             using (var lk = LockTransaction.StartWrite(rwLock))
             {
-                db.SaveChanges();
+                db.SaveCurrentPageCache(dbEngine);
             }
         }
 
@@ -60,7 +67,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         {
             CheckTransactionState();
             using var lk = LockTransaction.StartWrite(rwLock);
-            db.SaveChanges(path);
+            db.SaveCurrentPageCache(path);
         }
 
         
@@ -77,6 +84,8 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch (Exception ex)
             {
+                throw;
+
             }
         }
 
@@ -89,20 +98,34 @@ namespace LumDbEngine.Element.Engine.Transaction
                 disposed = true;
                 try
                 {
-                    using (var lk = LockTransaction.StartWrite(rwLock))
+                    lock (dbEngine)
                     {
-                        db?.Dispose();
-                        db = null;
+                        if (dbEngine.disposed)
+                        {
+                            LumException.Throw($"{LumExceptionMessage.DbEngDisposedEarly}:{Id.ToString()}");
+                        }
+
+                        using (var lk = LockTransaction.StartWrite(rwLock))
+                        {
+                            db?.Dispose(dbEngine);
+                            db = null;
+                        }
+                        rwLock.Dispose();
+                        dbEngine.transactionsPool.TryRemove(Id, out _);
                     }
-                    rwLock.Dispose();
                 }
                 catch (Exception ex)
                 {
-                    throw LumException.Raise(ex.Message);
+                    throw;
                 }
                 finally
                 {
-                    checker.Dispose();
+
+                    if (checker?.disposed == false)
+                    {
+                        checker?.Dispose();
+                    }
+
                 }
             }
         }
