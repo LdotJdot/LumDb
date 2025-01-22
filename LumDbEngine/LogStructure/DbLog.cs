@@ -26,7 +26,7 @@ namespace LumDbEngine.Element.Structure
         BinaryReader logBr;
 
 
-        public static DbLog Open(DbEngine dbEngine)
+        public static DbLog OpenLogToRecoveryDbEngine(DbEngine dbEngine)
         {
             var dblog = new DbLog(dbEngine);
             dblog.LogFilePath = dbEngine.Path + ".log";
@@ -43,7 +43,7 @@ namespace LumDbEngine.Element.Structure
                 case DbLogState.Writing:
                     throw LumException.Raise("The database is corrupted, and the backup logs are lost.");
                 default:
-                    throw LumException.Throw("Unknown state in open Dblog");
+                    throw LumException.Throw("Unknown state of Dblog");
             }
 
             dblog.logBw = new BinaryWriter(dblog.dbLogFileStream);
@@ -67,6 +67,7 @@ namespace LumDbEngine.Element.Structure
                 case DbLogState.Done:
                     throw new Exception("Fatal error in log write");
                 case DbLogState.Writing:
+                case DbLogState.Corrupted:
                     dblog.dbLogFileStream = DbLogUtils.Create(dblog, true);
                     break;
                 default:
@@ -111,9 +112,8 @@ namespace LumDbEngine.Element.Structure
 
                 logBw.BaseStream.Seek(4, SeekOrigin.Begin);
                 var pageBytes = stackalloc byte[DbHeader.HEADER_SIZE];
+                dbHeader.WriteBytes(pageBytes);
 
-                //move, write, and lengthen
-                var originLen = logBw.BaseStream.Length;
                 logBw.Seek(0, SeekOrigin.End);
                 logBw.Write(new Span<byte>(pageBytes, DbHeader.HEADER_SIZE));
             }
@@ -139,6 +139,8 @@ namespace LumDbEngine.Element.Structure
                     var headerBytes = stackalloc byte[DbHeader.HEADER_SIZE];
                     var sp = new Span<byte>(headerBytes, DbHeader.HEADER_SIZE);
                     dbLogFileStream.Read(sp);
+
+                    stream.Seek(0,SeekOrigin.Begin);
                     stream.Write(sp);
                 }
 
@@ -148,6 +150,7 @@ namespace LumDbEngine.Element.Structure
                     var pageBytes = stackalloc byte[BasePage.PAGE_SIZE];
                     while (pos < dbLogFileStream.Length)
                     {
+                        
                         dbLogFileStream.Seek(pos + 1, SeekOrigin.Begin);
                         var pageId = logBr.ReadUInt32();
 

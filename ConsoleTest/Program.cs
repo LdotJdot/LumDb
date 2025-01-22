@@ -21,7 +21,7 @@ namespace ConsoleTest
             ////
             //Debug();
 
-            destory();
+            AtomicCheck();
             //readWriteLock();
 
             //Inserts50();
@@ -32,6 +32,42 @@ namespace ConsoleTest
         }
             
 
+        private static void AtomicCheck()
+        {
+            const string TABLENAME = "tableFirst";
+            {
+                using DbEngine eng = new DbEngine("d:\\xxxx123.db",false);
+
+
+                using (var ts = eng.StartTransaction(0, false))
+                {
+                  // var res=ts.Create(TABLENAME, [("a", DbValueType.Int, true), ("b", DbValueType.Long, false), ("c", DbValueType.StrVar, false)]);
+                }
+
+                {
+                    using ITransaction ts = eng.StartTransaction();
+
+                    for (int i = 0; i < 5; i++)
+                    {
+                     //   var ds = ts.Insert(TABLENAME, [("a", i+500), ("b", (long)i * i), ("c", "thirteen thousand one hundred fifty three")]);
+                    }
+                    ;
+                }
+            }
+
+            {
+                using DbEngine eng = new DbEngine("d:\\xxxx123.db");
+                    using ITransaction ts = eng.StartTransaction();
+
+                    for (int i = 0; i < 1; i++)
+                    {
+                        var ds = ts.Find(TABLENAME, o=>o);
+                    Console.WriteLine(ds.Values[0][0]);
+                    }
+                
+                  //  eng.SetDestoryOnDisposed();
+            }
+        }
         private static void destory()
         {
 

@@ -8,7 +8,8 @@ namespace LumDbEngine.Element.Structure
     {
         NotExisted = 1,
         Done = 2,
-        Writing = 3
+        Writing = 3,
+        Corrupted = 4
     }
     /// <summary>
     /// Common db header to store the basic page information.
@@ -17,13 +18,21 @@ namespace LumDbEngine.Element.Structure
     {
         static internal DbLogState CheckLogState(DbLog dbLog)
         {
-            if (!File.Exists(dbLog.LogFilePath))
+            try
             {
-                return DbLogState.NotExisted;
+
+                if (!File.Exists(dbLog.LogFilePath))
+                {
+                    return DbLogState.NotExisted;
+                }
+                using var fs = new FileStream(dbLog.LogFilePath, new FileStreamOptions() { Access = FileAccess.Read, Share = FileShare.ReadWrite | FileShare.Delete, Mode = FileMode.Open });
+                using BinaryReader br = new BinaryReader(fs);
+                return (DbLogState)br.ReadUInt32();
             }
-            using var fs = new FileStream(dbLog.LogFilePath, new FileStreamOptions() { Access = FileAccess.Read, Share = FileShare.ReadWrite | FileShare.Delete, Mode = FileMode.Open });
-            using BinaryReader br = new BinaryReader(fs);
-            return (DbLogState)br.ReadUInt32();
+            catch (Exception ex)
+            {
+                return DbLogState.Corrupted;
+            }
         }
         
         static internal DbLogState CheckDbState(BinaryReader dbBr)
@@ -34,7 +43,7 @@ namespace LumDbEngine.Element.Structure
 
         static internal FileStream Open(DbLog dbLog)
         {
-            var fs = new FileStream(dbLog.LogFilePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            var fs = new FileStream(dbLog.LogFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
             return fs;
         }
         
@@ -44,7 +53,8 @@ namespace LumDbEngine.Element.Structure
             {
                 Delete(dbLog);
             }
-            return Open(dbLog);
+            var fs = new FileStream(dbLog.LogFilePath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read);
+            return fs;
         }
 
         static internal void Delete(DbLog dbLog)

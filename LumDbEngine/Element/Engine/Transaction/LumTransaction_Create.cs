@@ -11,14 +11,14 @@ namespace LumDbEngine.Element.Engine.Transaction
         {
             CheckTransactionState();
             using var lk = LockTransaction.StartWrite(rwLock);
-            try
+            //try
             {
                 return dbManager.Create(db, tableName, tableHeader);
             }
-            catch
+            //catch
             {
-                db = new DbCache(iof, cachePages, dynamicCache);
-                throw;
+               // db = new DbCache(iof, cachePages, dynamicCache);
+              //  throw;
             }
         }
     }

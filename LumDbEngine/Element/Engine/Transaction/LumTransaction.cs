@@ -104,7 +104,7 @@ namespace LumDbEngine.Element.Engine.Transaction
 
                         using (var lk = LockTransaction.StartWrite(rwLock))
                         {
-                            db?.Dispose();
+                            db?.Dispose(dbEngine);
                             db = null;
                         }
                         rwLock.Dispose();

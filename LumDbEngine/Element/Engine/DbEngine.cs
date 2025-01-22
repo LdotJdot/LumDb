@@ -42,7 +42,7 @@ namespace LumDbEngine.Element.Engine
         public DbEngine(string path, bool createIfNotExists = true)
         {
             this.path = path;
-            InitializeEngine(this.path, createIfNotExists);
+              InitializeEngine(this.path, createIfNotExists);
         }
 
         private void InitializeEngine(string path, bool createIfNotExists)
@@ -65,7 +65,7 @@ namespace LumDbEngine.Element.Engine
             switch (state)
             {
                 case DbLogState.Writing:
-                    var dblog = DbLog.Open(this);
+                    var dblog = DbLog.OpenLogToRecoveryDbEngine(this);
                     dblog.DumpToDbEngine(iof.FileStream);
                     dblog.Dispose();
                     break;
