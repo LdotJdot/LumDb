@@ -80,6 +80,7 @@ namespace LumDbEngine.Element.Engine
 
         private void InitializeNew(string path)
         {
+
             try
             {
                 var ck = new STChecker(autoResetEvent, callCount, -1);
@@ -98,6 +99,7 @@ namespace LumDbEngine.Element.Engine
                     throw LumException.Raise("Transaction start failed, since DbEngine might be disposed.");
                 }
             }
+
         }
 
 
@@ -110,6 +112,7 @@ namespace LumDbEngine.Element.Engine
         /// <returns></returns>
         public ITransaction StartTransaction(int initialCachePages = DbCache.DEFAULT_CACHE_PAGES, bool dynamicCache = true, int millisecondsTimeout = -1)
         {
+
             try
             {
 
@@ -127,6 +130,7 @@ namespace LumDbEngine.Element.Engine
                     throw LumException.Raise("Transaction start failed, since DbEngine might be disposed.");
                 }
             }
+
         }
 
         internal ConcurrentDictionary<Guid, ITransaction> transactionsPool = new();

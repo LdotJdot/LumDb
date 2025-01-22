@@ -26,6 +26,7 @@ namespace LumDbEngine.Element.Structure
         public const uint VERSION = 1_001_001;
 
 
+
         public uint FileVersion { get; set; }           // 4 bytes
         public byte[] DbID { get; set; }
 

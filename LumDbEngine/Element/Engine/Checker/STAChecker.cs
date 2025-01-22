@@ -12,17 +12,22 @@ namespace LumDbEngine.Element.Engine.Checker
         private readonly ThreadLocal<int> callCount;
         private readonly AutoResetEvent autoResetEvent; // make sure the singularity of transaction
 
+
         public STChecker(AutoResetEvent autoResetEvent, ThreadLocal<int> callCount,int millisecondsTimeout)
+
         {
             this.callCount = callCount;
             if (callCount.Value != 0)
             {
+
                 LumException.Throw(LumExceptionMessage.SingleThreadMultiTransaction);
+
 
             }
 
             callCount.Value++;
             this.autoResetEvent = autoResetEvent;
+
 
             if (autoResetEvent.WaitOne(millisecondsTimeout) == false)
             {
@@ -34,6 +39,7 @@ namespace LumDbEngine.Element.Engine.Checker
         public void Dispose()
         {
             disposed = true;
+
             callCount.Value--;
             if (!autoResetEvent.SafeWaitHandle.IsClosed) autoResetEvent.Set();
         }

@@ -17,6 +17,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         private ReaderWriterLockSlim rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private readonly STChecker checker;
         public Guid Id { get; } = Guid.NewGuid();
+
         internal int PagesCount => db.pages.Count;
 
         internal string DbState()
@@ -37,6 +38,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         private readonly bool dynamicCache;
         private readonly DbEngine dbEngine;
         internal LumTransaction(IOFactory? iof, STChecker check, long cachePages, bool dynamicCache, DbEngine dbEngine)
+
         {
             this.checker=check;
             db = new DbCache(iof, cachePages, dynamicCache);
@@ -83,6 +85,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             catch (Exception ex)
             {
                 throw;
+
             }
         }
 
@@ -117,10 +120,12 @@ namespace LumDbEngine.Element.Engine.Transaction
                 }
                 finally
                 {
+
                     if (checker?.disposed == false)
                     {
                         checker?.Dispose();
                     }
+
                 }
             }
         }
