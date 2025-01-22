@@ -1,4 +1,5 @@
-# LumDb V1.0.8
+# LumDb V1.1.1
+- The logging system was added to the database to achieve the full ACID principle.
 - Remove db.Destory() method, and use db.SetDestoryOnDisposed() insterad.
 # LumDb V1.0.8
 - Timeout parameter was added in start a transaction during waiting.
