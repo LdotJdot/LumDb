@@ -1,8 +1,9 @@
 ﻿using LumDbEngine.Element.Engine;
+using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Structure.Page;
 using System.Reflection.Metadata;
 
-namespace LumDbEngine.Element.Structure
+namespace LumDbEngine.Element.LogStructure
 {
     public enum DbLogState : byte
     {
@@ -34,11 +35,11 @@ namespace LumDbEngine.Element.Structure
                 return DbLogState.Corrupted;
             }
         }
-        
+
         static internal DbLogState CheckDbState(BinaryReader dbBr)
         {
             dbBr.BaseStream.Seek(DbHeader.STATE_POS, SeekOrigin.Begin);
-            return (DbLogState) dbBr.ReadByte();           
+            return (DbLogState)dbBr.ReadByte();
         }
 
         static internal FileStream Open(DbLog dbLog)
@@ -46,10 +47,10 @@ namespace LumDbEngine.Element.Structure
             var fs = new FileStream(dbLog.LogFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
             return fs;
         }
-        
+
         static internal FileStream Create(DbLog dbLog, bool deleteIfExisted)
         {
-            if(deleteIfExisted)
+            if (deleteIfExisted)
             {
                 Delete(dbLog);
             }

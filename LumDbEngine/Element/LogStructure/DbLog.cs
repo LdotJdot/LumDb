@@ -1,13 +1,16 @@
 ﻿using LumDbEngine.Element.Engine;
 using LumDbEngine.Element.Exceptions;
+using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Structure.Page;
 
-namespace LumDbEngine.Element.Structure
+#nullable disable
+
+namespace LumDbEngine.Element.LogStructure
 {
     /// <summary>
     /// Common db header to store the basic page information.
     /// </summary>
-    internal class DbLog:IDisposable
+    internal ref struct DbLog
     {
         // ready(0), writing(1)
 
@@ -15,8 +18,8 @@ namespace LumDbEngine.Element.Structure
 
         private DbLog(DbEngine dbEngine)
         {
-            this.dbEngine= dbEngine;
-           
+            this.dbEngine = dbEngine;
+
         }
 
         DbEngine dbEngine;
@@ -51,7 +54,7 @@ namespace LumDbEngine.Element.Structure
 
             return dblog;
         }
-        
+
         public static DbLog Create(DbEngine dbEngine)
         {
             var dblog = new DbLog(dbEngine);
@@ -88,7 +91,7 @@ namespace LumDbEngine.Element.Structure
                 logBw.Write((uint)state);
             }
         }
-           
+
 
         public unsafe void Write(BasePage basePage)
         {
@@ -103,12 +106,12 @@ namespace LumDbEngine.Element.Structure
                 logBw.Write(new Span<byte>(pageBytes, BasePage.PAGE_SIZE));
             }
         }
-        
+
         public unsafe void Write(DbHeader dbHeader)
         {
             lock (logBw.BaseStream)
             {
-                dbHeader.State=(byte)DbLogState.Writing;
+                dbHeader.State = (byte)DbLogState.Writing;
 
                 logBw.BaseStream.Seek(4, SeekOrigin.Begin);
                 var pageBytes = stackalloc byte[DbHeader.HEADER_SIZE];
@@ -127,7 +130,7 @@ namespace LumDbEngine.Element.Structure
             DbLogUtils.Delete(this);
         }
 
-                  
+
 
         public unsafe void DumpToDbEngine(Stream stream)
         {
@@ -140,7 +143,7 @@ namespace LumDbEngine.Element.Structure
                     var sp = new Span<byte>(headerBytes, DbHeader.HEADER_SIZE);
                     dbLogFileStream.Read(sp);
 
-                    stream.Seek(0,SeekOrigin.Begin);
+                    stream.Seek(0, SeekOrigin.Begin);
                     stream.Write(sp);
                 }
 
@@ -150,7 +153,7 @@ namespace LumDbEngine.Element.Structure
                     var pageBytes = stackalloc byte[BasePage.PAGE_SIZE];
                     while (pos < dbLogFileStream.Length)
                     {
-                        
+
                         dbLogFileStream.Seek(pos + 1, SeekOrigin.Begin);
                         var pageId = logBr.ReadUInt32();
 
