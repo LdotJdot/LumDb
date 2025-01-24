@@ -330,5 +330,28 @@ namespace LumDbEngine.Element.Manager
             TableRepoManager.Drop(db, ref dropNode);
             return DbResults.Success;
         }
+
+
+        public IDbValues<T> Where<T>(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions, bool isBackward, uint skip, uint limit) where T : IDbEntity, new()
+        {
+            return null;
+        }
+
+        public IDbValues Where(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions, bool isBackward, uint skip, uint limit)
+        {
+            return null;
+        }
+
+        public IDbValue Count(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions)
+        {
+            var tablePage = TableRepoManager.GetTablePage(db, tableName);
+
+            if (tablePage == null)
+            {
+                return new DbValue(DbResults.TableNotFound);
+            }
+            return TableManager.CountCondition(db, tablePage,conditions);
+        }
+
     }
 }

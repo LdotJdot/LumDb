@@ -5,8 +5,10 @@ using LumDbEngine.Element.Manager.Common;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Structure.Page.Data;
 using LumDbEngine.Element.Structure.Page.Key;
+using LumDbEngine.Element.Structure.Page.Table;
 using LumDbEngine.Element.Value;
 using LumDbEngine.Utils.StringUtils;
+using System.Text;
 
 namespace LumDbEngine.Element.Manager.Specific
 {
@@ -55,16 +57,15 @@ namespace LumDbEngine.Element.Manager.Specific
         }
 
         public static IDbValues Traversal(DbCache db, TablePage tablePage, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition, bool isBackward)
-
         {
             if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
             {
-                return new DbValues(0,[]);
+                return new DbValues([]);
             }
             var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
             var values =isBackward? condition(DataManager.GetValues_Backward(db, tablePage.ColumnHeaders, rootPage!).Select(o => o.data)) : condition(DataManager.GetValues(db, tablePage.ColumnHeaders, rootPage!).Select(o => o.data));
 
-            return new DbValues(tablePage.PageHeader.ColumnCount, values);
+            return new DbValues(values);
 
         }
 
@@ -330,6 +331,67 @@ namespace LumDbEngine.Element.Manager.Specific
             DataManager.GetDataPagesAndRemoveDataVar(db, tablePage, rootPage, pages);
 
             PageManager.DropPages(db, pages);
+        }
+
+
+        public static IDbValues TraversalWithCondition(DbCache db, TablePage tablePage, (string keyName, Func<object, bool> checkFunc)[] conditions, bool isBackward)
+        {
+            return null;
+            //if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
+            //{
+            //    return new DbValues(0, []);
+            //}
+            //var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
+            //var values = isBackward ? condition(DataManager.GetValues_Backward(db, tablePage.ColumnHeaders, rootPage!).Select(o => o.data)) : condition(DataManager.GetValues(db, tablePage.ColumnHeaders, rootPage!).Select(o => o.data));
+
+            //return new DbValues(tablePage.PageHeader.ColumnCount, values);
+
+        }
+
+        public static IDbValues<T> TraversalWithCondition<T>(DbCache db, TablePage tablePage, (string keyName, Func<object, bool> checkFunc)[] conditions, bool isBackward) where T : IDbEntity, new()
+        {
+            return null;
+            //if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
+            //{
+            //    return new DbValues<T>([]);
+            //}
+
+            //var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
+            //var values = isBackward ? DataManager.GetValuesWithId_Backward(db, tablePage.ColumnHeaders, rootPage!) : DataManager.GetValuesWithId(db, tablePage.ColumnHeaders, rootPage!);
+            //return new DbValues<T>(condition(values.Select(o => (T)(new T()).UnboxingWithId(o.id, o.obj))));
+        }
+
+        public static unsafe IDbValue CountCondition(DbCache db, TablePage tablePage, (string keyName, Func<object, bool> checkFunc)[] conditions )
+        {
+            if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
+            {
+                return new DbValue([0]);
+            }
+
+            var fullCondition = new Func<object, bool>?[tablePage.ColumnCount];
+
+            var headerStringNames=tablePage.ColumnHeaders.Select(o=> Encoding.UTF8.GetString(o.Name).TrimEnd('\0')).ToArray();
+            var keyStringNames=conditions.Select(o=>o.keyName).ToArray();
+
+            // not done
+
+            for (int i = 0; i < fullCondition.Length; i++)
+            {
+                for(int j = 0; j < conditions.Length; j++)
+                {
+                    if (keyStringNames[j].Equals(headerStringNames[i],StringComparison.Ordinal))
+                    {
+                        fullCondition[i] = conditions[j].checkFunc;
+                        keyStringNames[j] = string.Empty;
+                        break;
+                    }
+                }
+            }
+
+
+            var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
+            var value = DataManager.CountWithCnditions(db, tablePage.ColumnHeaders, fullCondition, rootPage!);
+            return new DbValue([value]);
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using LumDbEngine.Element.Engine.Cache;
+using LumDbEngine.Element.Engine.Results;
 using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Manager.Common;
 using LumDbEngine.Element.Structure;
@@ -349,7 +350,7 @@ namespace LumDbEngine.Element.Manager.Specific
             return BasePage.ReadPageInfo(pageId,pageType, reader).nextPageId;
         }
 
-internal static object[] GetValue(DbCache db, ColumnHeader[] headers, Span<byte> value)
+        internal static object[] GetValue(DbCache db, ColumnHeader[] headers, Span<byte> value)
         {
             var objects = new object[headers.Length];
 
@@ -363,6 +364,34 @@ internal static object[] GetValue(DbCache db, ColumnHeader[] headers, Span<byte>
             }
 
             return objects;
+        }
+
+        private static bool CheckCondition(DbCache db, ColumnHeader[] fullColumnHeaders, Func<object,bool>? [] conditions, Span<byte> value)
+        {
+            if(conditions==null || conditions.Length == 0)
+            {
+                return true;
+            }
+
+            var dataOffset = 0;
+
+            for (int i = 0; i < fullColumnHeaders.Length; i++)
+            {
+                var valueTypeLength = fullColumnHeaders[i].ValueType.GetLength();
+
+                if (conditions[i] != null)
+                {
+                    var obj = value.Slice(dataOffset, valueTypeLength).DeserializeBytesToValue(db, fullColumnHeaders[i].ValueType);
+                    
+                    if (conditions[i]!(obj) == false) // keep the value with a conditions result of true
+                    {
+                        return false;
+                    }
+                }
+
+                dataOffset += valueTypeLength;
+            }
+            return true;
         }
 
         internal static void DeleteDataNodeByIndex(DbCache db, TablePage tablePage, DataNode dataNode)
@@ -522,5 +551,35 @@ internal static object[] GetValue(DbCache db, ColumnHeader[] headers, Span<byte>
                 }
             }
         }
+
+        internal static uint CountWithCnditions(DbCache db, ColumnHeader[] columnHeaders, Func<object, bool>?[] conditions, DataPage? page)
+        {
+            uint sum = 0;
+
+            while (page != null)
+            {
+                for (int i = 0; i < page.MaxDataCount; i++)
+                {
+                    var dataNode = page.DataNodes[i];
+
+                    if (dataNode.IsAvailable && CheckCondition(db, columnHeaders, conditions, dataNode.Data))
+                    {
+                        sum++;
+                    }
+                }
+
+                if (db.IsValidPage(page.NextPageId))
+                {
+                    page = PageManager.GetPage<DataPage>(db, page.NextPageId);
+                }
+                else
+                {
+                    page = null;
+                }
+            }
+
+            return sum;
+        }
+
     }
 }

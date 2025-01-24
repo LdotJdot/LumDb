@@ -32,11 +32,9 @@ namespace LumDbEngine.Element.Engine.Results
     {
         public IReadOnlyList<object[]> Values { get; } = null;
 
-        public int ColumnCount { get; set; } = -1;
 
-        public DbValues(int count, IEnumerable<object[]> values)
+        public DbValues(IEnumerable<object[]> values)
         {
-            ColumnCount = count;
             Values = values.ToArray();
         }
 

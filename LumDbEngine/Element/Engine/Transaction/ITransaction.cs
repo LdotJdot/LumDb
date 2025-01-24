@@ -84,6 +84,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         /// <summary>
         /// Search a result in table by key name and key value
         /// </summary>
+        /// <typeparam name="T">A class implement IDbEntity interface corresponding to the table header structure.</typeparam>
         /// <param name="tableName">target table name</param>
         /// <param name="keyName">target key name</param>
         /// <param name="keyValue">target key value</param>
@@ -91,13 +92,44 @@ namespace LumDbEngine.Element.Engine.Transaction
         public IDbValue<T> Find<T>(string tableName, string keyName, object keyValue) where T : IDbEntity, new();
 
         /// <summary>
-        /// Search a result in table by key name and key value
+        /// Search a result in table by key name and key value  
         /// </summary>
         /// <param name="tableName">target table name</param>
         /// <param name="id">target id. <br/>
         /// Each data in table has a unique ordered uint32 id, and could be used as a index</param>
         /// <returns>DbValue of T, The value is present only when the 'IsSuccess' is 'true'</returns>
         public IDbValue<T> Find<T>(string tableName, uint id) where T : IDbEntity, new();
+
+        /// <summary>
+        /// Search the results in table with specific condition
+        /// </summary>
+        /// <typeparam name="T">A class implement IDbEntity interface corresponding to the table header structure.</typeparam>
+        /// <param name="tableName">table name</param>
+        /// <param name="conditions">value filter condition</param>
+        /// <param name="isBackward">execute backward or forward search</param>
+        /// <param name="skip">result skip number</param>
+        /// <param name="limit">result limit number</param>
+        /// <returns>DbValues of T. The value is present only when the 'IsSuccess' is 'true'</returns>
+        public IDbValues<T> Where<T>(string tableName, (string keyName,Func<object,bool> checkFunc)[] conditions, bool isBackward = false, uint skip = 0, uint limit = 0) where T : IDbEntity, new();
+
+        /// <summary>
+        /// Search the results in table with specific condition
+        /// </summary>
+        /// <param name="tableName">table name</param>
+        /// <param name="conditions">value filter condition</param>
+        /// <param name="isBackward">execute backward or forward search</param>
+        /// <param name="skip">result skip number</param>
+        /// <param name="limit">result limit number</param>
+        /// <returns>DbValues of T. The value is present only when the 'IsSuccess' is 'true'</returns>
+        public IDbValues Where(string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions, bool isBackward = false, uint skip = 0, uint limit = 0);
+        
+        /// <summary>
+        /// Count the results in table with specific condition
+        /// </summary>
+        /// <param name="tableName">table name</param>
+        /// <param name="conditions">value filter condition</param>   
+        /// <returns>DbValues of T. The value is present only when the 'IsSuccess' is 'true'</returns>
+        public IDbValue Count(string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions);
 
         /// <summary>
         /// Delete a data by default id.<br/>
