@@ -332,14 +332,26 @@ namespace LumDbEngine.Element.Manager
         }
 
 
-        public IDbValues<T> Where<T>(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions, bool isBackward, uint skip, uint limit) where T : IDbEntity, new()
+        public IDbValues<T> Where<T>(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[]? conditions, bool isBackward, uint skip, uint limit) where T : IDbEntity, new()
         {
-            return null;
+            var tablePage = TableRepoManager.GetTablePage(db, tableName);
+
+            if (tablePage == null)
+            {
+                return new DbValues<T>(DbResults.TableNotFound);
+            }
+            return TableManager.Where<T>(db, tablePage, conditions, isBackward, skip, limit);
         }
 
-        public IDbValues Where(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions, bool isBackward, uint skip, uint limit)
+        public IDbValues Where(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[]? conditions, bool isBackward, uint skip, uint limit)
         {
-            return null;
+            var tablePage = TableRepoManager.GetTablePage(db, tableName);
+
+            if (tablePage == null)
+            {
+                return new DbValues(DbResults.TableNotFound);
+            }
+            return TableManager.Where(db, tablePage, conditions,isBackward,skip,limit);
         }
 
         public IDbValue Count(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions)

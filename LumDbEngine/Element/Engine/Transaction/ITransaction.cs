@@ -110,7 +110,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         /// <param name="skip">result skip number</param>
         /// <param name="limit">result limit number</param>
         /// <returns>DbValues of T. The value is present only when the 'IsSuccess' is 'true'</returns>
-        public IDbValues<T> Where<T>(string tableName, (string keyName,Func<object,bool> checkFunc)[] conditions, bool isBackward = false, uint skip = 0, uint limit = 0) where T : IDbEntity, new();
+        public IDbValues<T> Where<T>(string tableName, bool isBackward, uint skip, uint limit, params (string keyName, Func<object, bool> checkFunc)[] conditions) where T : IDbEntity, new();
 
         /// <summary>
         /// Search the results in table with specific condition
@@ -121,7 +121,26 @@ namespace LumDbEngine.Element.Engine.Transaction
         /// <param name="skip">result skip number</param>
         /// <param name="limit">result limit number</param>
         /// <returns>DbValues of T. The value is present only when the 'IsSuccess' is 'true'</returns>
-        public IDbValues Where(string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions, bool isBackward = false, uint skip = 0, uint limit = 0);
+        public IDbValues Where(string tableName, bool isBackward , uint skip, uint limit, params (string keyName, Func<object, bool> checkFunc)[] conditions);
+
+        /// <summary>
+        /// Search the results in table with specific condition
+        /// </summary>
+        /// <typeparam name="T">A class implement IDbEntity interface corresponding to the table header structure.</typeparam>
+        /// <param name="tableName">table name</param>
+        /// <param name="conditions">value filter condition</param>
+
+        /// <returns>DbValues of T. The value is present only when the 'IsSuccess' is 'true'</returns>
+        public IDbValues<T> Where<T>(string tableName, params (string keyName, Func<object, bool> checkFunc)[] conditions) where T : IDbEntity, new();
+
+        /// <summary>
+        /// Search the results in table with specific condition
+        /// </summary>
+        /// <param name="tableName">table name</param>
+        /// <param name="conditions">value filter condition</param>
+
+        /// <returns>DbValues of T. The value is present only when the 'IsSuccess' is 'true'</returns>
+        public IDbValues Where(string tableName, params (string keyName, Func<object, bool> checkFunc)[] conditions);
         
         /// <summary>
         /// Count the results in table with specific condition

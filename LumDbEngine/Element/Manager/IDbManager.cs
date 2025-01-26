@@ -41,9 +41,9 @@ namespace LumDbEngine.Element.Manager
 
         public IDbResult Drop(DbCache db, string tableName);
 
-        public IDbValues<T> Where<T>(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions, bool isBackward, uint skip, uint limit) where T : IDbEntity, new();
+        public IDbValues<T> Where<T>(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[]? conditions, bool isBackward, uint skip, uint limit) where T : IDbEntity, new();
 
-        public IDbValues Where(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions, bool isBackward, uint skip, uint limit);
+        public IDbValues Where(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[]? conditions, bool isBackward, uint skip, uint limit);
 
         public IDbValue Count(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions);
 

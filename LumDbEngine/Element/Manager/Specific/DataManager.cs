@@ -8,6 +8,7 @@ using LumDbEngine.Element.Structure.Page.Data;
 using LumDbEngine.Element.Structure.Page.Key;
 using LumDbEngine.Utils.ByteUtils;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
@@ -283,67 +284,7 @@ namespace LumDbEngine.Element.Manager.Specific
             }
         }
 
-        internal static IEnumerable<(uint id, object[] obj)> GetValuesWithId(DbCache db, ColumnHeader[] headers, DataPage? page)
-        {
-            while (page != null)
-            {
-                for (int i = 0; i < page.MaxDataCount; i++)
-                {
-                    var dataNode = page.DataNodes[i];
-
-                    if (dataNode.IsAvailable)
-                    {
-                        yield return (dataNode.Id, GetValue(db, headers, dataNode.Data));
-                    }
-                }
-
-                if (db.IsValidPage(page.NextPageId))
-                {
-                    page = PageManager.GetPage<DataPage>(db, page.NextPageId);
-                }
-                else
-                {
-                    page = null;
-                }
-            }
-        }
-
-        internal static IEnumerable<(uint id, object[] obj)> GetValuesWithId_Backward(DbCache db, ColumnHeader[] headers, DataPage? page)
-        {
-            uint initPageId = page?.PageId ?? uint.MaxValue;
-            uint nextId = page?.NextPageId ?? uint.MaxValue;
-
-            while (db.IsValidPage(nextId))
-            {
-                initPageId = nextId;
-                nextId = GetNextPageId(db, PageType.Data, initPageId);
-            }
-
-            page = PageManager.GetPage<DataPage>(db, initPageId);
-
-            while (page != null)
-            {
-                for (int i = page.MaxDataCount - 1; i >= 0; i--)
-                {
-                    var dataNode = page.DataNodes[i];
-
-                    if (dataNode.IsAvailable)
-                    {
-                        yield return (dataNode.Id, GetValue(db, headers, dataNode.Data));
-                    }
-                }
-
-                if (db.IsValidPage(page.PrevPageId))
-                {
-                    page = PageManager.GetPage<DataPage>(db, page.PrevPageId);
-                }
-                else
-                {
-                    page = null;
-                }
-            }
-        }
-
+      
         private static uint GetNextPageId(DbCache db, PageType pageType, uint pageId)
         {
             using var reader = db.iof.RentReader();
@@ -366,9 +307,9 @@ namespace LumDbEngine.Element.Manager.Specific
             return objects;
         }
 
-        private static bool CheckCondition(DbCache db, ColumnHeader[] fullColumnHeaders, Func<object,bool>? [] conditions, Span<byte> value)
+        private static bool CheckCondition(DbCache db, ColumnHeader[] fullColumnHeaders, Func<object,bool>? []? conditions, Span<byte> value)
         {
-            if(conditions==null || conditions.Length == 0)
+            if (conditions == null || conditions.Length == 0)
             {
                 return true;
             }
@@ -579,6 +520,107 @@ namespace LumDbEngine.Element.Manager.Specific
             }
 
             return sum;
+        }
+
+        internal static IEnumerable<(DataNode node, object[] data)> GetValuesWithIdCondition(DbCache db, ColumnHeader[] headers, DataPage? page, Func<object, bool>?[]? conditions,uint skip,uint limit)
+        {
+            int currentCount = 0;
+            int currentSkip = 0;
+
+            while (page != null)
+            {
+                for (int i = 0; i < page.MaxDataCount; i++)
+                {
+                    var dataNode = page.DataNodes[i];
+
+                    if (dataNode.IsAvailable && (CheckCondition(db, headers, conditions, dataNode.Data)))
+                    {
+                        if (skip == 0 || currentSkip >= skip)
+                        {
+                            if (limit == 0 || currentCount < limit)
+                            {
+                                currentCount++;
+                                yield return (dataNode, GetValue(db, headers, dataNode.Data));
+                            }
+                            else
+                            {
+                                goto end;
+                            }
+                        }
+                        else
+                        {
+                            currentSkip++;
+                        }
+                    }
+                }
+
+                if (db.IsValidPage(page.NextPageId))
+                {
+                    page = PageManager.GetPage<DataPage>(db, page.NextPageId);
+                }
+                else
+                {
+                    page = null;
+                }
+            }
+
+            end:;
+        }
+
+        internal static IEnumerable<(DataNode node, object[] data)> GetValuesWithIdCondition_Backward(DbCache db, ColumnHeader[] headers, DataPage? page, Func<object, bool>?[]? conditions, uint skip, uint limit)
+        {
+            uint initPageId = page?.PageId ?? uint.MaxValue;
+            uint nextId = page?.NextPageId ?? uint.MaxValue;
+
+            while (db.IsValidPage(nextId))
+            {
+                initPageId = nextId;
+                nextId = GetNextPageId(db, PageType.Data, initPageId);
+            }
+
+
+            int currentCount = 0;
+            int currentSkip = 0;
+
+            page = PageManager.GetPage<DataPage>(db, initPageId);
+
+            while (page != null)
+            {
+                for (int i = page.MaxDataCount - 1; i >= 0; i--)
+                {
+                    var dataNode = page.DataNodes[i];
+
+                    if (dataNode.IsAvailable && (CheckCondition(db, headers, conditions, dataNode.Data)))
+                    {
+                        if (skip == 0 || currentSkip >= skip)
+                        {
+                            if (limit == 0 || currentCount < limit)
+                            {
+                                currentCount++;
+                                yield return (dataNode, GetValue(db, headers, dataNode.Data));
+                            }
+                            else
+                            {
+                                goto end;
+                            }
+                        }
+                        else
+                        {
+                            currentSkip++;
+                        }
+                    }
+                }
+
+                if (db.IsValidPage(page.PrevPageId))
+                {
+                    page = PageManager.GetPage<DataPage>(db, page.PrevPageId);
+                }
+                else
+                {
+                    page = null;
+                }
+            }
+            end:;
         }
 
     }

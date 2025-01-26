@@ -9,8 +9,36 @@ namespace LumDbEngine.Element.Engine.Transaction
 {
     internal partial class LumTransaction
     {
+        public IDbValues<T> Where<T>(string tableName, params (string keyName, Func<object, bool> checkFunc)[]? conditions) where T : IDbEntity, new()
+        {
+            CheckTransactionState();
+            try
+            {
+                using var lk = LockTransaction.StartRead(rwLock);
+                return dbManager.Where<T>(db, tableName, conditions, false, 0, 0);
+            }
+            catch
+            {
+                throw;
+            }
+        }
 
-        public IDbValues<T> Where<T>(string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions, bool isBackward = false, uint skip = 0, uint limit = 0) where T : IDbEntity, new()
+        public IDbValues Where(string tableName, params (string keyName, Func<object, bool> checkFunc)[]? conditions)
+        {
+            CheckTransactionState();
+            try
+            {
+                using var lk = LockTransaction.StartRead(rwLock);
+                return dbManager.Where(db, tableName, conditions, false, 0, 0);
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+
+        public IDbValues<T> Where<T>(string tableName,  bool isBackward, uint skip, uint limit, params (string keyName, Func<object, bool> checkFunc)[]? conditions) where T : IDbEntity, new()
         {
             CheckTransactionState();
             try
@@ -24,7 +52,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
         }
 
-        public IDbValues Where(string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions, bool isBackward = false, uint skip = 0, uint limit = 0)
+        public IDbValues Where(string tableName, bool isBackward, uint skip, uint limit, params (string keyName, Func<object, bool> checkFunc)[]? conditions)
         {
             CheckTransactionState();
             try
