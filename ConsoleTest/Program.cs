@@ -23,6 +23,7 @@ namespace ConsoleTest
 
             //AtomicCheck();
 
+
             //readWriteLock();
 
             //Inserts50();
@@ -31,6 +32,7 @@ namespace ConsoleTest
             Console.WriteLine("All done.");
             Console.ReadLine();
         }
+
 
         private static void WhereMethod()
         {
@@ -137,6 +139,7 @@ namespace ConsoleTest
         }
 
     }
+
 
         private static void AtomicCheck()
         {

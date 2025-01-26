@@ -69,6 +69,7 @@ namespace LumDbEngine.Element.Engine
                     var dblog = DbLog.OpenLogToRecoveryDbEngine(this);
                     dblog.DumpToDbEngine(iof.FileStream);
                     dblog.Dispose(); // make sure the log can be normally disposed when no exception was throw.
+
                     break;
                 case DbLogState.Done:
                 default:
