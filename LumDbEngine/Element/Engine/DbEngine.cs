@@ -2,6 +2,7 @@
 using LumDbEngine.Element.Engine.Checker;
 using LumDbEngine.Element.Engine.Transaction;
 using LumDbEngine.Element.Exceptions;
+using LumDbEngine.Element.LogStructure;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.IO;
 using System.Collections.Concurrent;
@@ -67,7 +68,8 @@ namespace LumDbEngine.Element.Engine
                 case DbLogState.Writing:
                     var dblog = DbLog.OpenLogToRecoveryDbEngine(this);
                     dblog.DumpToDbEngine(iof.FileStream);
-                    dblog.Dispose();
+                    dblog.Dispose(); // make sure the log can be normally disposed when no exception was throw.
+
                     break;
                 case DbLogState.Done:
                 default:

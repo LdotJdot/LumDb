@@ -4,7 +4,6 @@ namespace LumDbEngine.Element.Engine.Results
 {
     public interface IDbValues : IDbResult
     {
-        public int ColumnCount { get; }         
 
         public IReadOnlyList<object[]> Values { get; }
     }

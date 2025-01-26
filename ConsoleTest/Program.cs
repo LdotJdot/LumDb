@@ -21,17 +21,124 @@ namespace ConsoleTest
             ////
             //Debug();
 
-            AtomicCheck();
+            //AtomicCheck();
+
 
             //readWriteLock();
 
             //Inserts50();
-
+            WhereMethod();
 
             Console.WriteLine("All done.");
             Console.ReadLine();
         }
-            
+
+
+        private static void WhereMethod()
+        {
+            const string TABLENAME = "tableFirst";
+            {
+                using DbEngine eng = new DbEngine("d:\\xxxxWhere.db", true);
+
+
+                using (var ts = eng.StartTransaction(0, false))
+                {
+                    var res = ts.Create(TABLENAME, [("a", DbValueType.Int, true), ("b", DbValueType.Long, false), ("c", DbValueType.StrVar, false)]);
+
+                }
+
+                {
+                    using ITransaction ts = eng.StartTransaction();
+
+                    for (int i = 0; i < 1000; i++)
+                    {
+                        var ds = ts.Insert(TABLENAME, [("a", i + 500), ("b", (long)i * i), ("c", "thirteen thousand one hundred fifty three")]);
+                    }
+                }
+            }
+
+
+            //{
+            //    using DbEngine eng = new DbEngine("d:\\xxxxWhere.db", false);
+            //    using ITransaction ts = eng.StartTransaction();
+
+            //    var t2 = Stopwatch.GetTimestamp();
+
+            //    var ds = ts.Find(TABLENAME, o => (o.Take(5000)));
+            //    Console.WriteLine(ds.Values.Count);
+
+            //    Console.WriteLine(Stopwatch.GetTimestamp() - t2);
+            //    eng.SetDestoryOnDisposed();
+
+            //}
+
+            {
+                using DbEngine eng = new DbEngine("d:\\xxxxWhere.db", false);
+                using ITransaction ts = eng.StartTransaction();
+
+                var t = Stopwatch.GetTimestamp();
+                var ds2 = ts.Where(TABLENAME, false, 0, 500);
+                Console.WriteLine(ds2.Values.Count);
+                Console.WriteLine("value");
+                Console.WriteLine(ds2.Values[0][0]);
+
+                Console.WriteLine(Stopwatch.GetTimestamp() - t);
+                eng.SetDestoryOnDisposed();
+
+            }
+        }
+        private static void CountMethod()
+        {
+            const string TABLENAME = "tableFirst";
+            {
+                using DbEngine eng = new DbEngine("d:\\xxxxCount.db", true);
+
+
+                using (var ts = eng.StartTransaction(0, false))
+                {
+                   var res = ts.Create(TABLENAME, [("a", DbValueType.Int, true), ("b", DbValueType.Long, false), ("c", DbValueType.StrVar, false)]);
+
+                }
+
+                {
+                    using ITransaction ts = eng.StartTransaction();
+
+                    for (int i = 0; i < 10000; i++)
+                    {
+                        var ds = ts.Insert(TABLENAME, [("a", i + 500), ("b", (long)i * i), ("c", "thirteen thousand one hundred fifty three")]);
+                    }
+                }
+            }
+
+
+            //{
+            //    using DbEngine eng = new DbEngine("d:\\xxxxCount.db", false);
+            //    using ITransaction ts = eng.StartTransaction();
+
+            //    var t2 = Stopwatch.GetTimestamp();
+
+            //    var ds = ts.Find(TABLENAME, o => (o.Where(l => ((long)l[1]) % 3 == 0 && (int)l[0]>5000)));
+            //    Console.WriteLine(ds.Values.Count);
+
+            //    Console.WriteLine(Stopwatch.GetTimestamp() - t2);
+            //    eng.SetDestoryOnDisposed();
+
+            //}
+
+        {
+            using DbEngine eng = new DbEngine("d:\\xxxxCount.db", false);
+            using ITransaction ts = eng.StartTransaction();
+
+            var t = Stopwatch.GetTimestamp();
+            var ds2 = ts.Count(TABLENAME, [("b", (o) => (long)o % 3 == 0), ("a", (o) => (int)o > 5000)]);
+            Console.WriteLine(ds2.Value[0]);
+
+            Console.WriteLine(Stopwatch.GetTimestamp() - t);
+            eng.SetDestoryOnDisposed();
+
+        }
+
+    }
 
 
         private static void AtomicCheck()

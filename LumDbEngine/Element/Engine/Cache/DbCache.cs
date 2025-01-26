@@ -1,4 +1,5 @@
 ﻿using LumDbEngine.Element.Exceptions;
+using LumDbEngine.Element.LogStructure;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Structure.Page;
 using LumDbEngine.Element.Structure.Page.Repo;
