@@ -47,5 +47,9 @@ namespace LumDbEngine.Element.Manager
 
         public IDbValue Count(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions);
 
+        public void GoThrough<T>(DbCache db, string tableName, Action<T> action) where T : IDbEntity, new();
+
+        public void GoThrough(DbCache db, string tableName, Action<object[]> action);
+
     }
 }

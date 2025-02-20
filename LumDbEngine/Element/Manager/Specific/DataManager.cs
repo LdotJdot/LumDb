@@ -6,6 +6,7 @@ using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Structure.Page;
 using LumDbEngine.Element.Structure.Page.Data;
 using LumDbEngine.Element.Structure.Page.Key;
+using LumDbEngine.Element.Value;
 using LumDbEngine.Utils.ByteUtils;
 using System.Buffers;
 using System.Collections.Generic;
@@ -621,6 +622,56 @@ namespace LumDbEngine.Element.Manager.Specific
                 }
             }
             end:;
+        }
+
+        internal static void GoThrough<T>(DbCache db, ColumnHeader[] headers, DataPage? page, Action<T> action) where T : IDbEntity, new()
+        {
+            while (page != null)
+            {
+                for (int i = 0; i < page.MaxDataCount; i++)
+                {
+                    var dataNode = page.DataNodes[i];
+
+                    if (dataNode.IsAvailable)
+                    {
+                        action((T)(new T()).UnboxingWithId(dataNode.Id, GetValue(db, headers, dataNode.Data)));
+                    }
+                }
+
+                if (db.IsValidPage(page.NextPageId))
+                {
+                    page = PageManager.GetPage<DataPage>(db, page.NextPageId);
+                }
+                else
+                {
+                    page = null;
+                }
+            }
+        }
+        
+        internal static void GoThrough(DbCache db, ColumnHeader[] headers, DataPage? page, Action<object[]>  action)
+        {
+            while (page != null)
+            {
+                for (int i = 0; i < page.MaxDataCount; i++)
+                {
+                    var dataNode = page.DataNodes[i];
+
+                    if (dataNode.IsAvailable)
+                    {
+                        action(GetValue(db, headers, dataNode.Data));
+                    }
+                }
+
+                if (db.IsValidPage(page.NextPageId))
+                {
+                    page = PageManager.GetPage<DataPage>(db, page.NextPageId);
+                }
+                else
+                {
+                    page = null;
+                }
+            }
         }
 
     }
