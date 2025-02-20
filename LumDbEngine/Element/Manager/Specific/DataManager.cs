@@ -624,7 +624,7 @@ namespace LumDbEngine.Element.Manager.Specific
             end:;
         }
 
-        internal static void GoThrough<T>(DbCache db, ColumnHeader[] headers, DataPage? page, Action<T> action) where T : IDbEntity, new()
+        internal static void GoThrough<T>(DbCache db, ColumnHeader[] headers, DataPage? page, Func<T, bool> action) where T : IDbEntity, new()
         {
             while (page != null)
             {
@@ -634,7 +634,10 @@ namespace LumDbEngine.Element.Manager.Specific
 
                     if (dataNode.IsAvailable)
                     {
-                        action((T)(new T()).UnboxingWithId(dataNode.Id, GetValue(db, headers, dataNode.Data)));
+                        if(!action((T)(new T()).UnboxingWithId(dataNode.Id, GetValue(db, headers, dataNode.Data))))
+                        {
+                            return;
+                        }
                     }
                 }
 
@@ -649,7 +652,7 @@ namespace LumDbEngine.Element.Manager.Specific
             }
         }
         
-        internal static void GoThrough(DbCache db, ColumnHeader[] headers, DataPage? page, Action<object[]>  action)
+        internal static void GoThrough(DbCache db, ColumnHeader[] headers, DataPage? page, Func<object[], bool>  action)
         {
             while (page != null)
             {
@@ -659,7 +662,10 @@ namespace LumDbEngine.Element.Manager.Specific
 
                     if (dataNode.IsAvailable)
                     {
-                        action(GetValue(db, headers, dataNode.Data));
+                        if(!action(GetValue(db, headers, dataNode.Data)))
+                        {
+                            return;
+                        }
                     }
                 }
 

@@ -11,7 +11,7 @@ namespace LumDbEngine.Element.Engine.Transaction
     {
    
 
-        public void GoThrough<T>(string tableName, Action<T> action) where T : IDbEntity, new()
+        public void GoThrough<T>(string tableName, Func<T, bool> action) where T : IDbEntity, new()
         {
             CheckTransactionState();
 
@@ -26,7 +26,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
         }
 
-        public void GoThrough(string tableName, Action<object[]> action)
+        public void GoThrough(string tableName, Func<object[], bool> action)
         {
             CheckTransactionState();
 

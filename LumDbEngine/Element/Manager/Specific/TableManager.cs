@@ -440,7 +440,7 @@ namespace LumDbEngine.Element.Manager.Specific
             return new DbValues<T>(values.Select(o => (T)(new T()).UnboxingWithId(o.node.Id, o.data)));
         }
 
-        public static void GoThrough<T>(DbCache db, TablePage tablePage, Action<T> action) where T : IDbEntity, new()
+        public static void GoThrough<T>(DbCache db, TablePage tablePage, Func<T, bool> action) where T : IDbEntity, new()
         {
             if (db.IsValidPage(tablePage.PageHeader.RootDataPageId))
             {
@@ -450,7 +450,7 @@ namespace LumDbEngine.Element.Manager.Specific
 
         }
         
-        public static void GoThrough(DbCache db, TablePage tablePage, Action<object[]> action)
+        public static void GoThrough(DbCache db, TablePage tablePage, Func<object[], bool> action)
         {
             if (db.IsValidPage(tablePage.PageHeader.RootDataPageId))
             {

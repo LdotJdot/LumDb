@@ -64,6 +64,8 @@ namespace ConsoleTest
                         {
                             count++;
                             Console.WriteLine(objs[0]);
+                            if (count > 500) return false;
+                            return true;
                         });
                 }
 

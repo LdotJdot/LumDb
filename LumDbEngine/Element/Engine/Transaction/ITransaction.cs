@@ -242,9 +242,9 @@ namespace LumDbEngine.Element.Engine.Transaction
         /// <typeparam name="T">A class implement IDbEntity interface corresponding to the table header structure.</typeparam>
         /// <param name="tableName">target table name</param>
         /// <param name="action">action with respect to data</param>
-        public void GoThrough<T>(string tableName, Action<T> action) where T : IDbEntity, new();
+        public void GoThrough<T>(string tableName, Func<T,bool> action) where T : IDbEntity, new();
 
-        public void GoThrough(string tableName, Action<object[]> action);
+        public void GoThrough(string tableName, Func<object[], bool> action);
 
     }
 }
