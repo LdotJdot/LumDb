@@ -244,6 +244,12 @@ namespace LumDbEngine.Element.Engine.Transaction
         /// <param name="action">action with respect to data</param>
         public void GoThrough<T>(string tableName, Func<T,bool> action) where T : IDbEntity, new();
 
+
+        /// <summary>
+        /// Go through the valid data for special action like sum or count.
+        /// </summary>
+        /// <param name="tableName">target table name</param>
+        /// <param name="action">action with respect to data</param>
         public void GoThrough(string tableName, Func<object[], bool> action);
 
     }
