@@ -23,6 +23,7 @@ namespace ConsoleTest
 
             //AtomicCheck();
 
+
             //readWriteLock();
 
             //Inserts50();
@@ -186,6 +187,7 @@ namespace ConsoleTest
         }
 
     }
+
 
         private static void AtomicCheck()
         {
