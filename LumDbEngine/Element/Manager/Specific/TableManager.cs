@@ -41,18 +41,28 @@ namespace LumDbEngine.Element.Manager.Specific
 
         public static uint? InsertData(DbCache db, TablePage tablePage, in TableValue[] values)
         {
-            LumException.ThrowIfTrue(values.Length > tablePage.PageHeader.ColumnCount, LumExceptionMessage.TooMuchValuesForColumns);
+            LumException.ThrowIfTrue(values.Length != tablePage.PageHeader.ColumnCount, LumExceptionMessage.ColumnElementNotEqual);            
+            
+            foreach(var val in values)
+            {
+                if (!tablePage.IsHeaderExists(val.columnName))
+                {
+                    throw LumException.Raise($"{LumExceptionMessage.ColumnNameNotExisted}:{val.columnName}");
+                }
+            }
+
+            var valuesOrdered=values.OrderBy(val => tablePage.GetTableHeaderIndex(val.columnName)).ToArray();
 
             var dataPage = DataManager.RequestAvailableDataPage(db, tablePage);
             dataPage.MarkDirty();
             dataPage.CurrentDataCount++;
             // mem leak
 
-            var dataNode = DataManager.InsertValueToDataPage(db, tablePage, dataPage, values);
+            var dataNode = DataManager.InsertValueToDataPage(db, tablePage, dataPage, valuesOrdered);
 
             IndexManager.InsertMainIndex(db, tablePage, dataNode);
 
-            IndexManager.InsertSubIndices(db, tablePage, dataNode, values);
+            IndexManager.InsertSubIndices(db, tablePage, dataNode, valuesOrdered);
             return dataNode?.Id;
         }
 

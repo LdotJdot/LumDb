@@ -10,7 +10,8 @@ namespace LumDbEngine.Element.Exceptions
         internal const string DateTimeUtcError = "DateTime should be Utc type.";
         internal const string UnknownValType = "Unknown value type";
         internal const string DataTypeNotSupport = "The value type is not supported, or check the length.";
-        internal const string TooMuchValuesForColumns = "To much input values";
+        internal const string ColumnElementNotEqual = "The number of inputs is not equal with that of column element";
+        internal const string ColumnNameNotExisted = "Column name is not existed";
         internal const string KeyNoFound = "Key not found,";
         internal const string DataNoFound = "Data not found,";
         internal const string DuplicateColumnHeader = "Duplicate column headers found";
