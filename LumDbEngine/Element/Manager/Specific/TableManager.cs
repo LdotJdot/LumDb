@@ -41,18 +41,28 @@ namespace LumDbEngine.Element.Manager.Specific
 
         public static uint? InsertData(DbCache db, TablePage tablePage, in TableValue[] values)
         {
-            LumException.ThrowIfTrue(values.Length > tablePage.PageHeader.ColumnCount, LumExceptionMessage.TooMuchValuesForColumns);
+            LumException.ThrowIfTrue(values.Length != tablePage.PageHeader.ColumnCount, LumExceptionMessage.ColumnElementNotEqual);            
+            
+            foreach(var val in values)
+            {
+                if (!tablePage.IsHeaderExists(val.columnName))
+                {
+                    throw LumException.Raise($"{LumExceptionMessage.ColumnNameNotExisted}:{val.columnName}");
+                }
+            }
+
+            var valuesOrdered=values.OrderBy(val => tablePage.GetTableHeaderIndex(val.columnName)).ToArray();
 
             var dataPage = DataManager.RequestAvailableDataPage(db, tablePage);
             dataPage.MarkDirty();
             dataPage.CurrentDataCount++;
             // mem leak
 
-            var dataNode = DataManager.InsertValueToDataPage(db, tablePage, dataPage, values);
+            var dataNode = DataManager.InsertValueToDataPage(db, tablePage, dataPage, valuesOrdered);
 
             IndexManager.InsertMainIndex(db, tablePage, dataNode);
 
-            IndexManager.InsertSubIndices(db, tablePage, dataNode, values);
+            IndexManager.InsertSubIndices(db, tablePage, dataNode, valuesOrdered);
             return dataNode?.Id;
         }
 
@@ -438,6 +448,26 @@ namespace LumDbEngine.Element.Manager.Specific
             var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
             var values = isBackforward ? DataManager.GetValuesWithIdCondition_Backward(db, tablePage.ColumnHeaders, rootPage!, fullCondition, skip, limit):  DataManager.GetValuesWithIdCondition(db, tablePage.ColumnHeaders,rootPage!, fullCondition, skip, limit);
             return new DbValues<T>(values.Select(o => (T)(new T()).UnboxingWithId(o.node.Id, o.data)));
+        }
+
+        public static void GoThrough<T>(DbCache db, TablePage tablePage, Func<T, bool> action) where T : IDbEntity, new()
+        {
+            if (db.IsValidPage(tablePage.PageHeader.RootDataPageId))
+            {
+                var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
+                DataManager.GoThrough(db, tablePage.ColumnHeaders, rootPage!,action);
+            }
+
+        }
+        
+        public static void GoThrough(DbCache db, TablePage tablePage, Func<object[], bool> action)
+        {
+            if (db.IsValidPage(tablePage.PageHeader.RootDataPageId))
+            {
+                var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
+                DataManager.GoThrough(db, tablePage.ColumnHeaders, rootPage!,action);
+            }
+
         }
     }
 }

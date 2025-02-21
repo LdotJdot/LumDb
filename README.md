@@ -1,3 +1,6 @@
+# LumDb V1.1.3
+- fix a insert value bug with inconsistent order or column count.
+- add gothrough method to iterate the table data with custom action.
 # LumDb V1.1.2
 - add inner where and count method with 'limit' and 'skip' parameters.
 # LumDb V1.1.1

@@ -67,6 +67,12 @@ namespace LumDbEngine.Element.Structure.Page.Key
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsHeaderExists(string headerName)
+        {
+            return headerMap.ContainsKey(headerName);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint GetNextDataIdAndAutoIncrement()
         {
             MarkDirty();

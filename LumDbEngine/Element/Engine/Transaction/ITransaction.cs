@@ -235,5 +235,22 @@ namespace LumDbEngine.Element.Engine.Transaction
         /// <param name="value">to be updated instance of the IDbEntity</param>
         /// <returns>The action is executed only when the 'IsSuccess' is 'true'</returns>
         public IDbResult Update<T>(string tableName, Func<T, bool> condition, T value) where T : IDbEntity, new();
+
+        /// <summary>
+        /// Go through the valid data for special action like sum or count.
+        /// </summary>
+        /// <typeparam name="T">A class implement IDbEntity interface corresponding to the table header structure.</typeparam>
+        /// <param name="tableName">target table name</param>
+        /// <param name="action">action with respect to data</param>
+        public void GoThrough<T>(string tableName, Func<T,bool> action) where T : IDbEntity, new();
+
+
+        /// <summary>
+        /// Go through the valid data for special action like sum or count.
+        /// </summary>
+        /// <param name="tableName">target table name</param>
+        /// <param name="action">action with respect to data</param>
+        public void GoThrough(string tableName, Func<object[], bool> action);
+
     }
 }

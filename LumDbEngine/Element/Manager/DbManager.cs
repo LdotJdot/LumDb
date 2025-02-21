@@ -365,5 +365,27 @@ namespace LumDbEngine.Element.Manager
             return TableManager.CountCondition(db, tablePage,conditions);
         }
 
+        public void GoThrough<T>(DbCache db, string tableName, Func<T, bool> action) where T : IDbEntity, new()
+        {
+            var tablePage = TableRepoManager.GetTablePage(db, tableName);
+
+            if (tablePage != null)
+            {
+                TableManager.GoThrough<T>(db, tablePage, action);
+            }
+
+        }
+        
+        public void GoThrough(DbCache db, string tableName, Func<object[], bool> action)
+        {
+            var tablePage = TableRepoManager.GetTablePage(db, tableName);
+
+            if (tablePage != null)
+            {
+                TableManager.GoThrough(db, tablePage, action);
+            }
+
+        }
+
     }
 }

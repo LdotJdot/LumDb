@@ -6,6 +6,7 @@ using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Structure.Page;
 using LumDbEngine.Element.Structure.Page.Data;
 using LumDbEngine.Element.Structure.Page.Key;
+using LumDbEngine.Element.Value;
 using LumDbEngine.Utils.ByteUtils;
 using System.Buffers;
 using System.Collections.Generic;
@@ -76,9 +77,9 @@ namespace LumDbEngine.Element.Manager.Specific
             }
         }
 
-        public static DataNode InsertValueToDataPage(DbCache db, TablePage tablePage, DataPage dataPage, TableValue[] values)
+        public static DataNode InsertValueToDataPage(DbCache db, TablePage tablePage, DataPage dataPage, TableValue[] valuesOrdered)
         {
-            var node = SetValueToDataPage(db, tablePage, dataPage, values);
+            var node = SetValueToDataPage(db, tablePage, dataPage, valuesOrdered);
             return node;
         }
 
@@ -104,9 +105,9 @@ namespace LumDbEngine.Element.Manager.Specific
             offset += length;
         }
 
-        public static unsafe DataNode SetValueToDataPage(DbCache db, TablePage tablePage, DataPage dataPage, TableValue[] values)
-        {
-            var node = dataPage.DataNodes[dataPage.AvailableNodeIndex];
+        public static unsafe DataNode SetValueToDataPage(DbCache db, TablePage tablePage, DataPage dataPage, TableValue[] valuesOrdered)
+        {           
+            var node = dataPage.DataNodes[dataPage.AvailableNodeIndex]; //get the available node to store new data.
 
             Span<byte> dataSpan = stackalloc byte[dataPage.DataLenthPerNode];
 
@@ -114,11 +115,11 @@ namespace LumDbEngine.Element.Manager.Specific
 
             Span<byte> bts = stackalloc byte[NodeLink.Size];
 
-            foreach (var tableValue in values)
+            for (int i = 0; i < valuesOrdered.Length; i++)
             {
-                var dataIndex = tablePage.GetTableHeaderIndex(tableValue.columnName);
+                var tableValue = valuesOrdered[i];
 
-                var typeCheck = DbValueTypeUtils.CheckType(tablePage.ColumnHeaders[dataIndex].ValueType, tableValue.value);
+                var typeCheck = DbValueTypeUtils.CheckType(tablePage.ColumnHeaders[i].ValueType, tableValue.value);
 
                 if (!typeCheck)
                 {
@@ -127,7 +128,7 @@ namespace LumDbEngine.Element.Manager.Specific
 
 #pragma warning disable CA2014
 
-                switch (tablePage.ColumnHeaders[dataIndex].ValueType)
+                switch (tablePage.ColumnHeaders[i].ValueType)
                 {
                     case DbValueType.Decimal:
                         {
@@ -621,6 +622,64 @@ namespace LumDbEngine.Element.Manager.Specific
                 }
             }
             end:;
+        }
+
+        internal static void GoThrough<T>(DbCache db, ColumnHeader[] headers, DataPage? page, Func<T, bool> action) where T : IDbEntity, new()
+        {
+            while (page != null)
+            {
+                for (int i = 0; i < page.MaxDataCount; i++)
+                {
+                    var dataNode = page.DataNodes[i];
+
+                    if (dataNode.IsAvailable)
+                    {
+                        var newEntity= (new T()).UnboxingWithId(dataNode.Id, GetValue(db, headers, dataNode.Data));
+
+                        if (!action((T)newEntity))
+                        {
+                            return;
+                        }
+                    }
+                }
+
+                if (db.IsValidPage(page.NextPageId))
+                {
+                    page = PageManager.GetPage<DataPage>(db, page.NextPageId);
+                }
+                else
+                {
+                    page = null;
+                }
+            }
+        }
+        
+        internal static void GoThrough(DbCache db, ColumnHeader[] headers, DataPage? page, Func<object[], bool>  action)
+        {
+            while (page != null)
+            {
+                for (int i = 0; i < page.MaxDataCount; i++)
+                {
+                    var dataNode = page.DataNodes[i];
+
+                    if (dataNode.IsAvailable)
+                    {
+                        if(!action(GetValue(db, headers, dataNode.Data)))
+                        {
+                            return;
+                        }
+                    }
+                }
+
+                if (db.IsValidPage(page.NextPageId))
+                {
+                    page = PageManager.GetPage<DataPage>(db, page.NextPageId);
+                }
+                else
+                {
+                    page = null;
+                }
+            }
         }
 
     }

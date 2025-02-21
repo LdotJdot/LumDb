@@ -26,11 +26,60 @@ namespace ConsoleTest
             //readWriteLock();
 
             //Inserts50();
-            WhereMethod();
+            //WhereMethod();
+            Gothrough();
 
             Console.WriteLine("All done.");
             Console.ReadLine();
         }
+
+        private static void Gothrough()
+        {
+            const string TABLENAME = "tableFirst";
+            {
+                using DbEngine eng = new DbEngine("d:\\xxxxGothrough.db", true);
+
+
+                using (var ts = eng.StartTransaction(0, false))
+                {
+                    var res = ts.Create(TABLENAME, [("a", DbValueType.Int, true), ("b", DbValueType.Long, false), ("c", DbValueType.StrVar, false)]);
+
+                }
+
+                {
+                    using ITransaction ts = eng.StartTransaction();
+
+                    for (int i = 0; i < 1000; i++)
+                    {
+                        var ds = ts.Insert(TABLENAME, [("a", i + 500), ("b", (long)i * i), ("c", "thirteen thousand one hundred fifty three")]);
+                    }
+                }                               
+
+                int count = 0;
+
+                {
+                    using ITransaction ts = eng.StartTransaction();
+
+                        ts.GoThrough(TABLENAME, (object[] objs) =>
+                        {
+                            count++;
+                            Console.WriteLine(objs[0]);
+                            if (count > 500) return false;
+                            return true;
+                        });
+                }
+
+                Console.WriteLine(count);
+
+                eng.SetDestoryOnDisposed();
+
+
+            }
+
+
+
+        }
+
 
         private static void WhereMethod()
         {
