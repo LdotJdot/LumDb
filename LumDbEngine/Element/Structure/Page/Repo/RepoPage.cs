@@ -19,6 +19,7 @@ namespace LumDbEngine.Element.Structure.Page.Repo
 
         public RepoPage()
         {
+            ;
         }
 
         internal override BasePage Initialize(uint pageID)
@@ -33,6 +34,7 @@ namespace LumDbEngine.Element.Structure.Page.Repo
             {
                 Nodes[i].HostPageId = pageID;
                 Nodes[i].NodeIndex = (byte)i;
+                Nodes[i].TargetLink.TargetPageID = uint.MaxValue;
             }
             base.Initialize(pageID);
             return this;

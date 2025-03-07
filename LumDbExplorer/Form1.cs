@@ -1,3 +1,4 @@
+using LumDbEngine.Element.Engine;
 using LumDbExplorer.LumExplorer;
 
 namespace LumDbExplorer
@@ -10,6 +11,7 @@ namespace LumDbExplorer
         }
 
         DbExplorer de;
+        DbEngine db;
 
         private void 打开ToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -18,37 +20,20 @@ namespace LumDbExplorer
 
             if (op.ShowDialog() == DialogResult.OK && op.FileName != null)
             {
-                de = new DbExplorer(op.FileName);
-                Update();
+                db = new DbEngine(op.FileName);
+                UpdateTable();
             }
             op.Dispose();
         }
 
 
-        private void Update()
+        private void UpdateTable()
         {
-
+           
         }
 
-        private void textBox1_TextChanged(object sender, EventArgs e)
-        {
 
-        }
-
-        private void textBox1_KeyPress(object sender, KeyPressEventArgs e)
-        {
-            if (e.KeyChar == 13)
-            {
-                if (uint.TryParse(textBox1.Text, out var pageId))
-                {
-                    textBox2.Text = de?.GetPage(pageId)??"未打开";
-                }
-                else
-                {
-                    MessageBox.Show("无效");
-                }
-            }
-        }
+      
 
         private void 关闭ToolStripMenuItem_Click(object sender, EventArgs e)
         {

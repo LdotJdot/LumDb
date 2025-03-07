@@ -252,5 +252,13 @@ namespace LumDbEngine.Element.Engine.Transaction
         /// <param name="action">action with respect to data</param>
         public void GoThrough(string tableName, Func<object[], bool> action);
 
+
+        /// <summary>
+        /// Get the all valid tables
+        /// </summary>
+        /// <returns></returns>
+        public IDbValues<(string tableName, (string columnName, string dataType, bool isKey)[] columns)> GetTableNames();
+
+
     }
 }

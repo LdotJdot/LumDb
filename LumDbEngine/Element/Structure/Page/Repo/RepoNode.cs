@@ -1,4 +1,5 @@
 ﻿using LumDbEngine.Utils.ByteUtils;
+using System.Text;
 
 namespace LumDbEngine.Element.Structure.Page.Repo
 {
@@ -41,6 +42,18 @@ namespace LumDbEngine.Element.Structure.Page.Repo
                 && k2 == key.k2
                 && k3 == key.k3
                 && k4 == key.k4;
+        }
+
+        internal string KeyToString()
+        {
+            Span<byte> spanBuffer = stackalloc byte[32];
+
+            k1.SerializeObjectToBytes(spanBuffer.Slice(0, 8));
+            k2.SerializeObjectToBytes(spanBuffer.Slice(8, 8));
+            k3.SerializeObjectToBytes(spanBuffer.Slice(16, 8));
+            k4.SerializeObjectToBytes(spanBuffer.Slice(24, 8));
+
+            return Encoding.UTF8.GetString(spanBuffer);
         }
 
         // 47 bytes
@@ -96,7 +109,7 @@ namespace LumDbEngine.Element.Structure.Page.Repo
         internal readonly ulong k3 = 0;
         internal readonly ulong k4 = 0;
 
-        public RepoNodeKey(Span<byte> bytes)
+        internal RepoNodeKey(Span<byte> bytes)
         {
             Span<byte> spanBuffer = stackalloc byte[8];
             var len = bytes.Length;

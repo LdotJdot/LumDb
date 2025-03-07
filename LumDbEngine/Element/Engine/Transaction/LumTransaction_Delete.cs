@@ -36,19 +36,5 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
         }
 
-        public IDbResult Drop(string tableName)
-        {
-            CheckTransactionState();
-            using var lk = LockTransaction.StartWrite(rwLock);
-            try
-            {
-                return dbManager.Drop(db, tableName);
-            }
-            catch
-            {
-                db = new DbCache(iof, cachePages, dynamicCache);
-                throw;
-            }
-        }
     }
 }
