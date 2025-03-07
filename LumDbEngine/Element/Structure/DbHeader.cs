@@ -23,7 +23,8 @@ namespace LumDbEngine.Element.Structure
 
         private static readonly byte[] FileID = [76, 117, 109, 68, 66, 83];        // 6 bytes "LumDBS"
 
-        public const uint VERSION = 1_001_003;
+        public const uint VERSION = 1_001_004;
+
 
 
 

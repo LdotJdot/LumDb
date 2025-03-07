@@ -11,6 +11,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConsolePlayground", "Consol
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnitTestLumDb", "UnitTestLumDb\UnitTestLumDb.csproj", "{D3B3FBE0-AA46-4C4D-8D6A-6951F9F285EA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LumDbExplorer", "LumDbExplorer\LumDbExplorer.csproj", "{1605CECE-553A-4E84-805C-52C662397184}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,6 +53,14 @@ Global
 		{D3B3FBE0-AA46-4C4D-8D6A-6951F9F285EA}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D3B3FBE0-AA46-4C4D-8D6A-6951F9F285EA}.Release|x64.ActiveCfg = Release|x64
 		{D3B3FBE0-AA46-4C4D-8D6A-6951F9F285EA}.Release|x64.Build.0 = Release|x64
+		{1605CECE-553A-4E84-805C-52C662397184}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1605CECE-553A-4E84-805C-52C662397184}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1605CECE-553A-4E84-805C-52C662397184}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1605CECE-553A-4E84-805C-52C662397184}.Debug|x64.Build.0 = Debug|Any CPU
+		{1605CECE-553A-4E84-805C-52C662397184}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1605CECE-553A-4E84-805C-52C662397184}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1605CECE-553A-4E84-805C-52C662397184}.Release|x64.ActiveCfg = Release|Any CPU
+		{1605CECE-553A-4E84-805C-52C662397184}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

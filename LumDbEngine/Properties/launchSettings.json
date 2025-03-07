@@ -5,7 +5,7 @@
     },
     "http": {
       "commandName": "Executable",
-      "executablePath": "D:\\Data\\个人\\FAV\\MyCoreProj\\WorkInProcess\\ProjectNexus\\PNWebHost\\PNWebHost\\bin\\x64\\Debug\\net8.0\\PNWebHost.exe",
+      "executablePath": "D:\\Data\\个人\\FAV\\MyCoreProj\\WorkInProcess\\ProjectNexus\\PNWebHost\\PNWebHost\\bin\\Debug\\net8.0\\PNWebHost.exe",
       "workingDirectory": "D:\\Data\\个人\\FAV\\MyCoreProj\\WorkInProcess\\ProjectNexus\\PNWebHost\\PNWebHost\\bin\\x64\\Debug\\net8.0\\"
     }
   }

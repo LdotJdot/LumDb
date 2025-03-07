@@ -1,4 +1,5 @@
 ﻿using LumDbEngine.Utils.ByteUtils;
+using System.Text;
 
 namespace LumDbEngine.Element.Structure.Page.Data
 {
@@ -21,6 +22,40 @@ namespace LumDbEngine.Element.Structure.Page.Data
         public DataVarPage()
         {
         }
+        
+        public override string ToString()
+        {
+            var sb = new StringBuilder();
+            
+
+            sb.AppendLine("// base: 13 bytes");
+            sb.AppendLine(base.ToString());
+            
+            sb.AppendLine("// info: 12 bytes");
+            sb.Append($"{{RestPageSize:{RestPageSize},TotalDataCount:{TotalDataCount},CurrentDataCount:{CurrentDataCount}}}");
+
+            
+            sb.AppendLine("// nodes:");
+            sb.AppendLine("[");
+            int index = 0;
+            int totalData=0;
+
+            foreach(var nd in DataVarNodes)
+            {
+                sb.AppendLine(nd.ToString()+ "  // "+index.ToString() );
+                totalData += 13 + nd.SpaceLength;
+                index++;
+            }
+            sb.AppendLine("]");
+            
+            sb.AppendLine($"// total dataVarNodeSize:{totalData}");
+
+
+
+            
+            return sb.ToString();
+        }
+
 
         internal override BasePage Initialize(uint pageID)
         {
@@ -73,11 +108,16 @@ namespace LumDbEngine.Element.Structure.Page.Data
 
             MoveToPageHeaderSizeOffset(br.BaseStream, HEADER_SIZE);
             DataVarNodes = new DataVarNode[TotalDataCount];
+            int totalBytes = 0;
             for (int i = 0; i < TotalDataCount; i++)
             {
                 DataVarNodes[i] = new DataVarNode(this);
                 DataVarNodes[i].Read(br);
+                totalBytes += DataVarNodes[i].SpaceLength+DataVarNode.HEADER_SIZE;
             }
+
+            // additional calculate due to bug
+            RestPageSize = BasePage.PAGE_SIZE - HEADER_SIZE - totalBytes;
         }
     }
 }

@@ -76,5 +76,10 @@ namespace LumDbEngine.Element.Structure.Page.KeyIndex
                 }
             }
         }
+
+        public override unsafe void WriteBytes(byte* bytes)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

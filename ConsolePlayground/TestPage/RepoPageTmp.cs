@@ -73,5 +73,10 @@ namespace LumDbEngine.Element.Structure.Page.Repo
                 }
             }
         }
+
+        public override unsafe void WriteBytes(byte* bytes)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
