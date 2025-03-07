@@ -16,7 +16,7 @@ namespace ConsoleTest
         /// <param name="args"></param>
         private static void Main(string[] args)
         {
-            //Inserts500000Mem();
+            Inserts500000Mem();
 
             ////
             //Debug();
@@ -28,10 +28,15 @@ namespace ConsoleTest
 
             //Inserts50();
             //WhereMethod();
-            Gothrough();
+          //  Gothrough();
 
             Console.WriteLine("All done.");
             Console.ReadLine();
+        }
+
+        private static void WriteDataVarLot()
+        {
+
         }
 
         private static void Gothrough()

@@ -1,4 +1,6 @@
-﻿namespace LumDbEngine.Element.Structure.Page.Data
+﻿using System.Text;
+
+namespace LumDbEngine.Element.Structure.Page.Data
 {
     /// <summary>
     /// 9 + x bytes
@@ -11,12 +13,25 @@
 
         public int TotalDataRestLength;                      // 4 bytes
         public int DataLength;                          // 4 bytes
+
+        /// <summary>
+        /// The actual byte array length of data in store.
+        /// </summary>
         public int SpaceLength;                          // 4 bytes
         public bool IsAvailable;                         // 1 byte
 
         public Span<byte> Data => data.AsSpan(0, SpaceLength);
 
-        public byte[] data;
+        private byte[] data;
+
+        public override string ToString()
+        {
+            var sb = new StringBuilder();
+            sb.Append("{");
+            sb.Append($"TotalDataRestLength:{TotalDataRestLength},datalength:{DataLength},spaceLength:{SpaceLength},isAvailable:{IsAvailable},dataLength:{data?.Length??0}");
+            sb.Append("}");
+            return sb.ToString();
+        }
 
         public DataVarNode(DataVarPage Page)
         {

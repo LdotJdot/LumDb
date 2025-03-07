@@ -1,5 +1,7 @@
 ﻿using LumDbEngine.Element.Exceptions;
+using LumDbEngine.Element.Structure.Page.Data;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace LumDbEngine.Element.Structure.Page
 {
@@ -17,7 +19,7 @@ namespace LumDbEngine.Element.Structure.Page
     {
         public const int PAGE_SIZE = 4096;          // 4 kb in total (buffer cache size)
 
-        public const int COMMON_HEADER_SIZE = 13;  // 公共页面头部长度为 7 bytes
+        public const int COMMON_HEADER_SIZE = 13;  // 公共页面头部长度为 13 bytes
 
         public abstract PageType Type { get; protected set; }      // 1 bytes
 
@@ -34,7 +36,22 @@ namespace LumDbEngine.Element.Structure.Page
         //static long pageCount = 0;
         internal BasePage()
         {
+
         }
+        public override string ToString()
+        {
+            var sb = new StringBuilder();
+
+            sb.Append("{");
+            sb.Append($"Type:{this.Type},");
+            sb.Append($"PageId:{this.PageId},");
+            sb.Append($"NextPageId:{this.NextPageId},");
+            sb.Append($"PrevPageId:{this.PrevPageId}");
+            sb.Append("}");
+
+            return sb.ToString();
+        }
+
 
         internal virtual BasePage Initialize(uint pageId)
         {

@@ -59,13 +59,13 @@ namespace LumDbEngine.Element.Manager.Specific
 
                 if (rest >= 0)
                 {
-                    dataVarPage.RestPageSize = rest;
                     dataVarNode.DataLength = dataSpan.Length - offset;
                     dataVarNode.TotalDataRestLength = len - offset;
                     dataVarNode.SpaceLength = Math.Max(dataVarNode.DataLength, DataVarNode.REDUNDANCY_SIZE);  // already make sure the redundancy size is sufficient.
+                    dataVarPage.RestPageSize -= DataVarNode.HEADER_SIZE + dataVarNode.SpaceLength;
                     dataVarNode.InitializeData();
                     dataSpan.Slice(offset, dataVarNode.DataLength).CopyTo(dataVarNode.Data);
-                    //Array.Copy(data, offset, dataVarNode.Data, 0, dataVarNode.DataLength);
+
                     return;
                 }
                 else
@@ -78,7 +78,6 @@ namespace LumDbEngine.Element.Manager.Specific
                     dataVarNode.InitializeData();
 
                     dataSpan.Slice(offset, dataVarNode.DataLength).CopyTo(dataVarNode.Data);
-                    //Array.Copy(data, offset, dataVarNode.Data, 0, dataVarNode.DataLength);
                     offset += dataVarNode.DataLength;
                     var nextPage = CreateDataVarPage(db);
                     PageManager.LinkPage(dataVarPage, nextPage);
