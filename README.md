@@ -1,4 +1,6 @@
-# LumDb V1.1.3
+# LumDb V1.1.4
+- bug fixed: in certain situation, insert strVar valueType cause an ArgumentOutOfRangeException.
+- # LumDb V1.1.3
 - fix a insert value bug with inconsistent order or column count.
 - add gothrough method to iterate the table data with custom action.
 # LumDb V1.1.2
