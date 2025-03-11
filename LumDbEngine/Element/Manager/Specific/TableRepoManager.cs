@@ -135,6 +135,37 @@ namespace LumDbEngine.Element.Manager.Specific
             return null;
         }
 
+        internal static IList<RepoNode> IterateNodes(DbCache db)
+        {
+            var repoPage = PageManager.GetRootTableRepoPage(db);
+
+            var nodes = new List<RepoNode>();
+
+            while (true)
+            {
+                if (repoPage != null)
+                {
+                    for (int i = 0; i < RepoPage.NODES_PER_PAGE; i++)
+                    {
+                        if (db.IsValidPage(repoPage.Nodes[i].TargetLink.TargetPageID))
+                        {
+                            nodes.Add(repoPage.Nodes[i]);
+                        }
+                    }
+
+                    if (db.IsValidPage(repoPage.NextPageId))
+                    {
+                        repoPage = PageManager.GetPage<RepoPage>(db, repoPage.NextPageId);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+            }
+            return nodes;
+        }
+
         internal static void Drop(DbCache db, ref RepoNode node)
         {
             node.TargetLink.TargetPageID = uint.MaxValue;

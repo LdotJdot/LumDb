@@ -31,10 +31,18 @@
             menuStrip1 = new MenuStrip();
             文件ToolStripMenuItem = new ToolStripMenuItem();
             打开ToolStripMenuItem = new ToolStripMenuItem();
-            textBox1 = new TextBox();
-            textBox2 = new TextBox();
-            关闭ToolStripMenuItem = new ToolStripMenuItem();
+            CloseToolStripMenuItem = new ToolStripMenuItem();
+            splitContainer1 = new SplitContainer();
+            treeView1 = new TreeView();
+            button1 = new Button();
+            button2 = new Button();
+            dataGridView1 = new DataGridView();
             menuStrip1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
+            splitContainer1.Panel1.SuspendLayout();
+            splitContainer1.Panel2.SuspendLayout();
+            splitContainer1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             SuspendLayout();
             // 
             // menuStrip1
@@ -42,63 +50,111 @@
             menuStrip1.Items.AddRange(new ToolStripItem[] { 文件ToolStripMenuItem });
             menuStrip1.Location = new Point(0, 0);
             menuStrip1.Name = "menuStrip1";
-            menuStrip1.Size = new Size(800, 25);
+            menuStrip1.Size = new Size(1251, 25);
             menuStrip1.TabIndex = 0;
             menuStrip1.Text = "menuStrip1";
             // 
             // 文件ToolStripMenuItem
             // 
-            文件ToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { 打开ToolStripMenuItem, 关闭ToolStripMenuItem });
+            文件ToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { 打开ToolStripMenuItem, CloseToolStripMenuItem });
             文件ToolStripMenuItem.Name = "文件ToolStripMenuItem";
-            文件ToolStripMenuItem.Size = new Size(44, 21);
-            文件ToolStripMenuItem.Text = "文件";
+            文件ToolStripMenuItem.Size = new Size(39, 21);
+            文件ToolStripMenuItem.Text = "File";
             // 
             // 打开ToolStripMenuItem
             // 
             打开ToolStripMenuItem.Name = "打开ToolStripMenuItem";
-            打开ToolStripMenuItem.Size = new Size(100, 22);
-            打开ToolStripMenuItem.Text = "打开";
-            打开ToolStripMenuItem.Click += 打开ToolStripMenuItem_Click;
+            打开ToolStripMenuItem.Size = new Size(108, 22);
+            打开ToolStripMenuItem.Text = "Open";
+            打开ToolStripMenuItem.Click += OpenToolStripMenuItem_Click;
             // 
-            // textBox1
+            // CloseToolStripMenuItem
             // 
-            textBox1.Dock = DockStyle.Top;
-            textBox1.Location = new Point(0, 25);
-            textBox1.Name = "textBox1";
-            textBox1.Size = new Size(800, 23);
-            textBox1.TabIndex = 1;
-            textBox1.TextChanged += textBox1_TextChanged;
-            textBox1.KeyPress += textBox1_KeyPress;
+            CloseToolStripMenuItem.Name = "CloseToolStripMenuItem";
+            CloseToolStripMenuItem.Size = new Size(108, 22);
+            CloseToolStripMenuItem.Text = "Close";
+            CloseToolStripMenuItem.Click += CloseToolStripMenuItem_Click;
             // 
-            // textBox2
+            // splitContainer1
             // 
-            textBox2.Dock = DockStyle.Fill;
-            textBox2.Location = new Point(0, 48);
-            textBox2.Multiline = true;
-            textBox2.Name = "textBox2";
-            textBox2.Size = new Size(800, 402);
-            textBox2.TabIndex = 2;
+            splitContainer1.Dock = DockStyle.Fill;
+            splitContainer1.Location = new Point(0, 25);
+            splitContainer1.Name = "splitContainer1";
             // 
-            // 关闭ToolStripMenuItem
+            // splitContainer1.Panel1
             // 
-            关闭ToolStripMenuItem.Name = "关闭ToolStripMenuItem";
-            关闭ToolStripMenuItem.Size = new Size(180, 22);
-            关闭ToolStripMenuItem.Text = "关闭";
-            关闭ToolStripMenuItem.Click += 关闭ToolStripMenuItem_Click;
+            splitContainer1.Panel1.Controls.Add(treeView1);
+            // 
+            // splitContainer1.Panel2
+            // 
+            splitContainer1.Panel2.Controls.Add(button1);
+            splitContainer1.Panel2.Controls.Add(button2);
+            splitContainer1.Panel2.Controls.Add(dataGridView1);
+            splitContainer1.Size = new Size(1251, 625);
+            splitContainer1.SplitterDistance = 226;
+            splitContainer1.TabIndex = 3;
+            // 
+            // treeView1
+            // 
+            treeView1.Dock = DockStyle.Fill;
+            treeView1.Location = new Point(0, 0);
+            treeView1.Name = "treeView1";
+            treeView1.Size = new Size(226, 625);
+            treeView1.TabIndex = 0;
+            treeView1.NodeMouseClick += treeView1_NodeMouseClick;
+            // 
+            // button1
+            // 
+            button1.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            button1.Location = new Point(5, 589);
+            button1.Name = "button1";
+            button1.Size = new Size(131, 24);
+            button1.TabIndex = 4;
+            button1.Text = "previous page";
+            button1.UseVisualStyleBackColor = true;
+            button1.Click += button1_Click_1;
+            // 
+            // button2
+            // 
+            button2.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            button2.Location = new Point(142, 589);
+            button2.Name = "button2";
+            button2.Size = new Size(131, 25);
+            button2.TabIndex = 5;
+            button2.Text = "next page";
+            button2.UseVisualStyleBackColor = true;
+            button2.Click += button2_Click_1;
+            // 
+            // dataGridView1
+            // 
+            dataGridView1.AllowUserToAddRows = false;
+            dataGridView1.AllowUserToDeleteRows = false;
+            dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView1.Dock = DockStyle.Fill;
+            dataGridView1.Location = new Point(0, 0);
+            dataGridView1.Name = "dataGridView1";
+            dataGridView1.ReadOnly = true;
+            dataGridView1.SelectionMode = DataGridViewSelectionMode.CellSelect;
+            dataGridView1.Size = new Size(1021, 625);
+            dataGridView1.TabIndex = 0;
             // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
-            Controls.Add(textBox2);
-            Controls.Add(textBox1);
+            ClientSize = new Size(1251, 650);
+            Controls.Add(splitContainer1);
             Controls.Add(menuStrip1);
             MainMenuStrip = menuStrip1;
             Name = "Form1";
             Text = "LumDbExplorer";
             menuStrip1.ResumeLayout(false);
             menuStrip1.PerformLayout();
+            splitContainer1.Panel1.ResumeLayout(false);
+            splitContainer1.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)splitContainer1).EndInit();
+            splitContainer1.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -108,8 +164,11 @@
         private MenuStrip menuStrip1;
         private ToolStripMenuItem 文件ToolStripMenuItem;
         private ToolStripMenuItem 打开ToolStripMenuItem;
-        private TextBox textBox1;
-        private TextBox textBox2;
-        private ToolStripMenuItem 关闭ToolStripMenuItem;
+        private ToolStripMenuItem CloseToolStripMenuItem;
+        private SplitContainer splitContainer1;
+        private TreeView treeView1;
+        private DataGridView dataGridView1;
+        private Button button1;
+        private Button button2;
     }
 }

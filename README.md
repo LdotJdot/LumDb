@@ -1,14 +1,18 @@
 # LumDb V1.1.4
+- database explorer (simple Winform UI) was added in the project, which could be find also in the github releases.
 - bug fixed: in certain situation, insert strVar valueType cause an ArgumentOutOfRangeException.
-- # LumDb V1.1.3
+
+# LumDb V1.1.3
 - fix a insert value bug with inconsistent order or column count.
 - add gothrough method to iterate the table data with custom action.
+
 # LumDb V1.1.2
 - add inner where and count method with 'limit' and 'skip' parameters.
 
 # LumDb V1.1.1
 - The logging system was added to the database to achieve the full ACID principle.
 - Remove db.Destory() method, and use db.SetDestoryOnDisposed() insterad.
+
 # LumDb V1.0.8
 - Timeout parameter was added in start a transaction during waiting.
 
@@ -19,9 +23,7 @@
 - Find data in empty table will not cause a exception, but return empty array.
 - Detail comments were added.
 
-
 # LumDb V1.0.2
-
 LumDb is a single-file database program based on C# for .NET 8. It boasts excellent performance, is 100% written in C#, has no dependencies on external component libraries, and supports AOT (Ahead-of-Time compilation) perfectly.
 
 ## Features

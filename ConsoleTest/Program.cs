@@ -16,8 +16,8 @@ namespace ConsoleTest
         /// <param name="args"></param>
         private static void Main(string[] args)
         {
-            Inserts500000Mem();
-
+            //Inserts500000Mem();
+            GetTableNames();
             ////
             //Debug();
 
@@ -28,15 +28,43 @@ namespace ConsoleTest
 
             //Inserts50();
             //WhereMethod();
-          //  Gothrough();
+            //  Gothrough();
 
             Console.WriteLine("All done.");
             Console.ReadLine();
         }
 
-        private static void WriteDataVarLot()
+        private static void GetTableNames()
         {
+            const string TABLENAME = "tableFirst";
+            {
+                using DbEngine eng = new DbEngine("d:\\xxxxTableName.db", true);
 
+                for(int i = 0; i < 1; i++)
+                {
+
+                using (var ts = eng.StartTransaction(0, false))
+                {
+                    var res = ts.Create(TABLENAME+i.ToString(), [("a", DbValueType.Int, true), ("b", DbValueType.Long, false), ("c", DbValueType.StrVar, false)]);
+
+                }
+                }
+                using var ts2 = eng.StartTransaction(0, false);
+                var re = ts2.GetTableNames();
+
+                foreach (var item in re.Values)
+                {
+                    Console.WriteLine(item.tableName);
+                    Console.WriteLine("{");
+                    foreach(var col in item.columns)
+                    {
+                        Console.WriteLine(col.columnName);
+                        Console.WriteLine(col.dataType);
+                        Console.WriteLine(col.isKey);
+                    }
+                    Console.WriteLine("}");
+                }
+            }
         }
 
         private static void Gothrough()

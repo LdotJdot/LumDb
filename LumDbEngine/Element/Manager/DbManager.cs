@@ -10,11 +10,29 @@ using LumDbEngine.Element.Value;
 using LumDbEngine.Utils.ByteUtils;
 using LumDbEngine.Utils.StringUtils;
 using System.Diagnostics;
+using System.Text;
+using System.Xml.Linq;
 
 namespace LumDbEngine.Element.Manager
 {
     internal class DbManager : IDbManager
     {
+        public IDbValues<(string tableName, (string columnName, string dataType, bool isKey)[])> GetTableNames(DbCache db)
+        {
+            var nds = TableRepoManager.IterateNodes(db);
+
+
+            var names = new List<(string tableName,(string columnName,string dataType, bool isKey)[])>(nds.Count);
+            for(int i = 0; i < nds.Count; i++)
+            {
+                if (nds[i].TargetLink.TargetPageID == 0) continue;
+                var tp = PageManager.GetPage<TablePage>(db,nds[i].TargetLink.TargetPageID);                
+                names.Add((nds[i].KeyToString().TrimEnd('\0'),tp.ColumnHeaders.Select(o=>(o.Name.TransformToToString(),o.ValueType.ToString(),o.IsKey)).ToArray()));
+            }
+
+            return new DbValues<(string tableName, (string columnName, string dataType, bool isKey)[])>(names);
+        }
+
         public unsafe IDbResult Create(DbCache db, string tableName, (string columnName, DbValueType type, bool isKey)[] tableHeader)
         {
             if (tableHeader.Length == 0)

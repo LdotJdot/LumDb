@@ -51,5 +51,8 @@ namespace LumDbEngine.Element.Manager
 
         public void GoThrough(DbCache db, string tableName, Func<object[], bool> action);
 
+        public IDbValues<(string tableName, (string columnName, string dataType, bool isKey)[])> GetTableNames(DbCache db);
+
+
     }
 }
