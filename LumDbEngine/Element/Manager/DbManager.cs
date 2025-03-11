@@ -22,11 +22,12 @@ namespace LumDbEngine.Element.Manager
             var nds = TableRepoManager.IterateNodes(db);
 
 
-            var names = new (string tableName,(string columnName,string dataType, bool isKey)[])[nds.Count];
+            var names = new List<(string tableName,(string columnName,string dataType, bool isKey)[])>(nds.Count);
             for(int i = 0; i < nds.Count; i++)
             {
+                if (nds[i].TargetLink.TargetPageID == 0) continue;
                 var tp = PageManager.GetPage<TablePage>(db,nds[i].TargetLink.TargetPageID);                
-                names[i] = (nds[i].KeyToString().TrimEnd('\0'),tp.ColumnHeaders.Select(o=>(o.Name.TransformToToString(),o.ValueType.ToString(),o.IsKey)).ToArray());
+                names.Add((nds[i].KeyToString().TrimEnd('\0'),tp.ColumnHeaders.Select(o=>(o.Name.TransformToToString(),o.ValueType.ToString(),o.IsKey)).ToArray()));
             }
 
             return new DbValues<(string tableName, (string columnName, string dataType, bool isKey)[])>(names);

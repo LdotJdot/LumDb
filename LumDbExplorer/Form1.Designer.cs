@@ -31,20 +31,18 @@
             menuStrip1 = new MenuStrip();
             文件ToolStripMenuItem = new ToolStripMenuItem();
             打开ToolStripMenuItem = new ToolStripMenuItem();
-            关闭ToolStripMenuItem = new ToolStripMenuItem();
+            CloseToolStripMenuItem = new ToolStripMenuItem();
             splitContainer1 = new SplitContainer();
             treeView1 = new TreeView();
-            dataGridView1 = new DataGridView();
-            panel1 = new Panel();
             button1 = new Button();
             button2 = new Button();
+            dataGridView1 = new DataGridView();
             menuStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
             splitContainer1.Panel1.SuspendLayout();
             splitContainer1.Panel2.SuspendLayout();
             splitContainer1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
-            panel1.SuspendLayout();
             SuspendLayout();
             // 
             // menuStrip1
@@ -58,24 +56,24 @@
             // 
             // 文件ToolStripMenuItem
             // 
-            文件ToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { 打开ToolStripMenuItem, 关闭ToolStripMenuItem });
+            文件ToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { 打开ToolStripMenuItem, CloseToolStripMenuItem });
             文件ToolStripMenuItem.Name = "文件ToolStripMenuItem";
-            文件ToolStripMenuItem.Size = new Size(44, 21);
-            文件ToolStripMenuItem.Text = "文件";
+            文件ToolStripMenuItem.Size = new Size(39, 21);
+            文件ToolStripMenuItem.Text = "File";
             // 
             // 打开ToolStripMenuItem
             // 
             打开ToolStripMenuItem.Name = "打开ToolStripMenuItem";
-            打开ToolStripMenuItem.Size = new Size(180, 22);
-            打开ToolStripMenuItem.Text = "打开";
-            打开ToolStripMenuItem.Click += 打开ToolStripMenuItem_Click;
+            打开ToolStripMenuItem.Size = new Size(108, 22);
+            打开ToolStripMenuItem.Text = "Open";
+            打开ToolStripMenuItem.Click += OpenToolStripMenuItem_Click;
             // 
-            // 关闭ToolStripMenuItem
+            // CloseToolStripMenuItem
             // 
-            关闭ToolStripMenuItem.Name = "关闭ToolStripMenuItem";
-            关闭ToolStripMenuItem.Size = new Size(180, 22);
-            关闭ToolStripMenuItem.Text = "关闭";
-            关闭ToolStripMenuItem.Click += 关闭ToolStripMenuItem_Click;
+            CloseToolStripMenuItem.Name = "CloseToolStripMenuItem";
+            CloseToolStripMenuItem.Size = new Size(108, 22);
+            CloseToolStripMenuItem.Text = "Close";
+            CloseToolStripMenuItem.Click += CloseToolStripMenuItem_Click;
             // 
             // splitContainer1
             // 
@@ -89,10 +87,11 @@
             // 
             // splitContainer1.Panel2
             // 
-            splitContainer1.Panel2.Controls.Add(panel1);
+            splitContainer1.Panel2.Controls.Add(button1);
+            splitContainer1.Panel2.Controls.Add(button2);
             splitContainer1.Panel2.Controls.Add(dataGridView1);
             splitContainer1.Size = new Size(1251, 625);
-            splitContainer1.SplitterDistance = 227;
+            splitContainer1.SplitterDistance = 226;
             splitContainer1.TabIndex = 3;
             // 
             // treeView1
@@ -100,8 +99,31 @@
             treeView1.Dock = DockStyle.Fill;
             treeView1.Location = new Point(0, 0);
             treeView1.Name = "treeView1";
-            treeView1.Size = new Size(227, 625);
+            treeView1.Size = new Size(226, 625);
             treeView1.TabIndex = 0;
+            treeView1.NodeMouseClick += treeView1_NodeMouseClick;
+            // 
+            // button1
+            // 
+            button1.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            button1.Location = new Point(5, 589);
+            button1.Name = "button1";
+            button1.Size = new Size(131, 24);
+            button1.TabIndex = 4;
+            button1.Text = "previous page";
+            button1.UseVisualStyleBackColor = true;
+            button1.Click += button1_Click_1;
+            // 
+            // button2
+            // 
+            button2.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            button2.Location = new Point(142, 589);
+            button2.Name = "button2";
+            button2.Size = new Size(131, 25);
+            button2.TabIndex = 5;
+            button2.Text = "next page";
+            button2.UseVisualStyleBackColor = true;
+            button2.Click += button2_Click_1;
             // 
             // dataGridView1
             // 
@@ -112,36 +134,9 @@
             dataGridView1.Location = new Point(0, 0);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.ReadOnly = true;
-            dataGridView1.Size = new Size(1020, 625);
+            dataGridView1.SelectionMode = DataGridViewSelectionMode.CellSelect;
+            dataGridView1.Size = new Size(1021, 625);
             dataGridView1.TabIndex = 0;
-            // 
-            // panel1
-            // 
-            panel1.Controls.Add(button2);
-            panel1.Controls.Add(button1);
-            panel1.Dock = DockStyle.Bottom;
-            panel1.Location = new Point(0, 573);
-            panel1.Name = "panel1";
-            panel1.Size = new Size(1020, 52);
-            panel1.TabIndex = 1;
-            // 
-            // button1
-            // 
-            button1.Location = new Point(542, 16);
-            button1.Name = "button1";
-            button1.Size = new Size(69, 24);
-            button1.TabIndex = 0;
-            button1.Text = "<";
-            button1.UseVisualStyleBackColor = true;
-            // 
-            // button2
-            // 
-            button2.Location = new Point(646, 15);
-            button2.Name = "button2";
-            button2.Size = new Size(69, 25);
-            button2.TabIndex = 1;
-            button2.Text = ">";
-            button2.UseVisualStyleBackColor = true;
             // 
             // Form1
             // 
@@ -160,7 +155,6 @@
             ((System.ComponentModel.ISupportInitialize)splitContainer1).EndInit();
             splitContainer1.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
-            panel1.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
         }
@@ -170,12 +164,11 @@
         private MenuStrip menuStrip1;
         private ToolStripMenuItem 文件ToolStripMenuItem;
         private ToolStripMenuItem 打开ToolStripMenuItem;
-        private ToolStripMenuItem 关闭ToolStripMenuItem;
+        private ToolStripMenuItem CloseToolStripMenuItem;
         private SplitContainer splitContainer1;
         private TreeView treeView1;
-        private Panel panel1;
-        private Button button2;
-        private Button button1;
         private DataGridView dataGridView1;
+        private Button button1;
+        private Button button2;
     }
 }

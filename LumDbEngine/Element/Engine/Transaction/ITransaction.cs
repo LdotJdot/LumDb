@@ -1,6 +1,7 @@
 ﻿using LumDbEngine.Element.Engine.Results;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Value;
+using TableInfo = (string tableName, (string columnName, string dataType, bool isKey));
 
 namespace LumDbEngine.Element.Engine.Transaction
 {
