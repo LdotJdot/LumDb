@@ -17,7 +17,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch
             {
-                db = new DbCache(iof, cachePages, dynamicCache);
+                db.Reset();
                 throw;
             }
         }
@@ -32,7 +32,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch
             {
-                db = new DbCache(iof, cachePages, dynamicCache);
+                db.Reset();
                 throw;
             }
         }
@@ -47,7 +47,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch
             {
-                db = new DbCache(iof, cachePages, dynamicCache);
+                db.Reset();
                 throw;
             }
         }
@@ -62,7 +62,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch
             {
-                db = new DbCache(iof, cachePages, dynamicCache);
+                db.Reset();
                 throw;
             }
         }
@@ -77,7 +77,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch
             {
-                db = new DbCache(iof, cachePages, dynamicCache);
+                db.Reset();
                 throw;
             }
         }

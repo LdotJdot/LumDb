@@ -14,24 +14,29 @@ namespace UnitTestLumDb.BaseFunction
             var path = Configuration.GetRandomPath();
             using (DbEngine eng = Configuration.GetDbEngineForTest(path))
             {
+                eng.DisposeMillisecondsTimeout = 100;
                 using var ts = eng.StartTransaction();
 
                 var t = Task.Factory.StartNew(() =>
                 {
-                    try
-                    {
-                        using var ts2 = eng.StartTransaction(millisecondsTimeout:500);
-                    }
-                    catch (Exception ex)
-                    {
-                        Assert.IsTrue(ex.Message ==LumExceptionMessage.TransactionTimeout);
-                    }
-                });
 
-                Thread.Sleep(1000);
+                    //try
+                    //{
+                    using var ts2 = eng.StartTransaction();
+                    Thread.Sleep(2000);
+
+                    //}
+                    //catch (Exception ex)
+                    //{
+                    //    Assert.IsTrue(ex.Message ==LumExceptionMessage.TransactionTimeout);
+                    //}
+                });
                 eng.SetDestoryOnDisposed();
             }
-        } 
+        Thread.Sleep(5000);
+        }
+
+
         
      
     }

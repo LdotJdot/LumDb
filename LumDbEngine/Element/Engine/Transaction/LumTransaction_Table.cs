@@ -12,14 +12,14 @@ namespace LumDbEngine.Element.Engine.Transaction
         {
             CheckTransactionState();
             using var lk = LockTransaction.StartWrite(rwLock);
-            //try
+            try
             {
                 return dbManager.Create(db, tableName, tableHeader);
             }
-            //catch
+            catch
             {
-               // db = new DbCache(iof, cachePages, dynamicCache);
-              //  throw;
+                db.Reset();
+                throw;
             }
         }
 
@@ -34,7 +34,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch
             {
-                db = new DbCache(iof, cachePages, dynamicCache);
+                db.Reset();
                 throw;
             }
         }
@@ -49,7 +49,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch
             {
-                db = new DbCache(iof, cachePages, dynamicCache);
+                db.Reset();
                 throw;
             }
         }

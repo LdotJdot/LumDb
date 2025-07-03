@@ -7,9 +7,15 @@ using LumDbEngine.Element.Structure;
 using LumDbEngine.IO;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Threading;
 
 namespace LumDbEngine.Element.Engine
 {
+    public enum TransactionPolicy
+    {
+        ReadCommitted = 1,
+        Serializable=2
+    }
     /// <summary>
     /// The main db engine
     /// </summary>
@@ -24,9 +30,16 @@ namespace LumDbEngine.Element.Engine
         private readonly ThreadLocal<int> callCount = new ThreadLocal<int>(() => 0);
 
         /// <summary>
+        /// Global lock for the db engine, which is used to make sure only one thread can write the db at a time.
+        /// </summary>
+        public ReaderWriterLockSlim ReadWriteLock { get; }= new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
+
+        /// <summary>
         /// Database file path.
         /// </summary>
         public string Path { get => path; }
+
+        public TransactionPolicy TransactionPolicy = TransactionPolicy.ReadCommitted;
 
         /// <summary>
         /// Create a memory based db engine.
@@ -78,15 +91,15 @@ namespace LumDbEngine.Element.Engine
 
         }
 
-        private readonly AutoResetEvent autoResetEvent = new AutoResetEvent(true); // make sure serializable
+        private readonly ManualResetEventSlim resetEvent = new ManualResetEventSlim(true); 
 
         private void InitializeNew(string path)
         {
 
             try
             {
-                var ck = new STChecker(autoResetEvent, callCount, -1);
-                using var ts = new LumTransaction(null, ck, DbCache.DEFAULT_CACHE_PAGES, true, this);
+               // var ck = new STChecker(autoResetEvent, callCount, -1);
+                using var ts = new LumTransaction(null, DbCache.DEFAULT_CACHE_PAGES, true, this);
                 ts.SaveAs(path);
                 ts.Discard();
             }
@@ -110,16 +123,13 @@ namespace LumDbEngine.Element.Engine
         /// </summary>
         /// <param name="initialCachePages">Initial cache page size. The minimal page shoud be large than 128</param>
         /// <param name="dynamicCache">System manage the cache page automatically</param>
-        /// <param name="millisecondsTimeout">Milliseconds timeout waiting for different thread transaction done.</param>
         /// <returns></returns>
-        public ITransaction StartTransaction(int initialCachePages = DbCache.DEFAULT_CACHE_PAGES, bool dynamicCache = true, int millisecondsTimeout = -1)
+        public ITransaction StartTransaction(int initialCachePages = DbCache.DEFAULT_CACHE_PAGES, bool dynamicCache = true)
         {
 
             try
             {
-
-                var ck = new STChecker(autoResetEvent, callCount, millisecondsTimeout);
-                return new LumTransaction(iof, ck, initialCachePages, dynamicCache, this);
+                return new LumTransaction(iof, initialCachePages, dynamicCache, this);
             }
             catch (Exception ex)
             {
@@ -129,13 +139,35 @@ namespace LumDbEngine.Element.Engine
                 }
                 else
                 {
-                    throw LumException.Raise("Transaction start failed, since DbEngine might be disposed.");
+                    throw LumException.Raise("Transaction start failed, and the dbEngine might have been disposed.");
                 }
             }
 
         }
 
-        internal ConcurrentDictionary<Guid, ITransaction> transactionsPool = new();
+        private Dictionary<Guid, ITransaction> transactionsPool = new();
+        
+        internal void RegisterTransaction(Guid guid, ITransaction ts)
+        {
+            lock (transactionsPool)
+            {
+                resetEvent.Reset();
+                transactionsPool.TryAdd(guid, ts);
+            }
+        }
+
+        internal void UnregisterTransaction(Guid guid)
+        {
+            lock (transactionsPool)
+            {
+                transactionsPool.Remove(guid, out _);
+                if(transactionsPool.Count == 0)
+                {
+                    resetEvent.Set();
+                }
+            }
+
+        }
 
         /// <summary>
         /// Get transaction id.
@@ -143,7 +175,7 @@ namespace LumDbEngine.Element.Engine
         /// <param name="id"></param>
         /// <param name="ts"></param>
         /// <returns></returns>
-        public bool GetById(Guid id, out ITransaction ts)
+        internal bool GetById(Guid id, out ITransaction ts)
         {
             return transactionsPool.TryGetValue(id, out ts);
         }
@@ -161,25 +193,36 @@ namespace LumDbEngine.Element.Engine
         {
             if (disposed == false)
             {
-                if (DisposeMillisecondsTimeout > 0)
-                {
-                    autoResetEvent.WaitOne(DisposeMillisecondsTimeout);
-                    if (transactionsPool.Count > 0)
-                    {
-                        LumException.Throw($"{LumExceptionMessage.DbEngDisposedTimeOut} Living transactions: " +
-                            $"{string.Join(';', transactionsPool.Values.Select(o => o.Id.ToString()).ToArray())}");
-                    }
-                }
 
-                iof?.Dispose();
-                iof = null;
-                autoResetEvent?.Dispose();
-                disposed = true;
-                if (DesrotyOnDispose)
-                {
-                    if (File.Exists(path))
+                    if (DisposeMillisecondsTimeout > 0)
                     {
-                        File.Delete(path);
+
+                        resetEvent.Wait(DisposeMillisecondsTimeout);
+                        if (transactionsPool.Count > 0)
+                        {
+                            LumException.Throw($"{LumExceptionMessage.DbEngDisposedTimeOut} Living transactions: " +
+                                $"{string.Join(';', transactionsPool.Values.Select(o => o.Id.ToString()).ToArray())}");
+                        }
+
+                    }
+
+                if (resetEvent.Wait(DisposeMillisecondsTimeout))
+                {
+                    lock (transactionsPool)
+                    {
+                        ReadWriteLock?.Dispose();
+
+                        iof?.Dispose();
+                        iof = null;
+                        resetEvent?.Dispose();
+                        disposed = true;
+                        if (DesrotyOnDispose)
+                        {
+                            if (File.Exists(path))
+                            {
+                                File.Delete(path);
+                            }
+                        }
                     }
                 }
             }
