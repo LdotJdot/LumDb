@@ -24,7 +24,7 @@ namespace UnitTestLumDb.BaseFunction
                         Thread.Sleep(10000);
                     });
                     Thread.Sleep(100);
-                    eng.DisposeMillisecondsTimeout = 500;
+                    eng.TimeoutMilliseconds = 500;
                     eng.SetDestoryOnDisposed();
                     eng.Dispose();
                 }

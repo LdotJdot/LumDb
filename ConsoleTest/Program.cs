@@ -273,7 +273,7 @@ namespace ConsoleTest
                 }
             });
             Thread.Sleep(500);
-            eng.DisposeMillisecondsTimeout = 0;
+            eng.TimeoutMilliseconds = 0;
             eng.SetDestoryOnDisposed();
             eng.Dispose();
         }

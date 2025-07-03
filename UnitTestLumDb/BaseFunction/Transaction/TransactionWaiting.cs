@@ -14,7 +14,7 @@ namespace UnitTestLumDb.BaseFunction
             var path = Configuration.GetRandomPath();
             using (DbEngine eng = Configuration.GetDbEngineForTest(path))
             {
-                eng.DisposeMillisecondsTimeout = 100;
+                eng.TimeoutMilliseconds = 10000;
                 using var ts = eng.StartTransaction();
 
                 var t = Task.Factory.StartNew(() =>

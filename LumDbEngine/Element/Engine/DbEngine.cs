@@ -183,9 +183,9 @@ namespace LumDbEngine.Element.Engine
         internal bool disposed;
 
         /// <summary>
-        /// The milliseconds timeout when the dbEngine dispose waiting for the transaction end. Default value is 0, which means not waiting.
+        /// The milliseconds timeout when the dbEngine dispose waiting for the transaction end. Default value is 3000ms, 0 which means not waiting.
         /// </summary>
-        public int DisposeMillisecondsTimeout { get; set; } = 0;
+        public int TimeoutMilliseconds { get; set; } = 3000;
         /// <summary>
         /// Dispose the current engine and free the db file usage (if have).
         /// </summary>
@@ -194,10 +194,10 @@ namespace LumDbEngine.Element.Engine
             if (disposed == false)
             {
 
-                    if (DisposeMillisecondsTimeout > 0)
+                    if (TimeoutMilliseconds > 0)
                     {
 
-                        resetEvent.Wait(DisposeMillisecondsTimeout);
+                        resetEvent.Wait(TimeoutMilliseconds);
                         if (transactionsPool.Count > 0)
                         {
                             LumException.Throw($"{LumExceptionMessage.DbEngDisposedTimeOut} Living transactions: " +
@@ -206,7 +206,7 @@ namespace LumDbEngine.Element.Engine
 
                     }
 
-                if (resetEvent.Wait(DisposeMillisecondsTimeout))
+                if (resetEvent.Wait(TimeoutMilliseconds))
                 {
                     lock (transactionsPool)
                     {
