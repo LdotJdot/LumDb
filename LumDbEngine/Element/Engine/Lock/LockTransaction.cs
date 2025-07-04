@@ -43,12 +43,12 @@
 
         internal static LockTransaction StartRead(ReaderWriterLockSlim writerLockSlim)
         {
-            return new LockTransaction(writerLockSlim, State.Write);
+            return new LockTransaction(writerLockSlim, State.Read);
         }
 
         internal static LockTransaction StartWrite(ReaderWriterLockSlim writerLockSlim)
         {
-            return new LockTransaction(writerLockSlim, State.Read);
+            return new LockTransaction(writerLockSlim, State.Write);
         }
 
         internal static LockTransaction StartUpgradeableRead(ReaderWriterLockSlim writerLockSlim)
@@ -73,28 +73,6 @@
             }
         }
 
-        //public void UpgradeToWrite()
-        //{
-        //    lock (this)
-        //    {
-        //        if (isWrite == State.UpgradeableRead)
-        //        {
-        //            readerWriterLockSlim.EnterWriteLock();
-        //            isWrite++;
-        //        }
-        //    }
-        //}
-        //public void DegradeToRead()
-        //{
-        //    lock (this)
-        //    {
-        //        if (isWrite == State.WriteAfterUpgradeableRead)
-        //        {
-        //            readerWriterLockSlim.ExitWriteLock();
-        //            isWrite--;
-        //        }
-        //    }
-        //}
 
         public void Dispose()
         {

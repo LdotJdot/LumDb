@@ -5,20 +5,20 @@ using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Manager;
 using LumDbEngine.Element.Structure.Page;
 using LumDbEngine.IO;
+using System.Linq.Expressions;
 using System.Text;
 
 namespace LumDbEngine.Element.Engine.Transaction
 {
     internal partial class LumTransaction : ITransaction
     {
-        private static IDbManager dbManager = new DbManager();
-        private readonly DbCache db; // Unique for every single transaction.
+        protected private static IDbManager dbManager = new DbManager();
+        protected private DbCache db; // Unique for every single transaction.
 
-        //private readonly STChecker checker;
-        private readonly LockTransaction rwLockLockTransaction;
-        private ReaderWriterLockSlim rwLock { get; } = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
+        protected private LockTransaction rwLockLockTransaction;
+        protected private ReaderWriterLockSlim rwLock { get; } = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
 
-        public Guid Id { get; } = Guid.NewGuid();
+        public Guid Id { get; protected set; } = Guid.NewGuid();
 
         internal int PagesCount => db.pages.Count;
 
@@ -26,34 +26,48 @@ namespace LumDbEngine.Element.Engine.Transaction
         {
             var sb = new StringBuilder();
 
-            rwLockLockTransaction.WriteAction(() =>
-            {
-                sb.AppendLine("*******************************************");
-                sb.AppendLine("total: " + db.pages.Values.Count());
-                sb.AppendLine("table: " + db.pages.Values.Count(o => o.Type == PageType.Table));
-                sb.AppendLine("data: " + db.pages.Values.Count(o => o.Type == PageType.Data));
-                sb.AppendLine("index: " + db.pages.Values.Count(o => o.Type == PageType.Index));
-                sb.AppendLine("repo: " + db.pages.Values.Count(o => o.Type == PageType.Respository));
-                sb.AppendLine("dataVar: " + db.pages.Values.Count(o => o.Type == PageType.DataVar));
-            });
+            sb.AppendLine("*******************************************");
+            sb.AppendLine("total: " + db.pages.Values.Count());
+            sb.AppendLine("table: " + db.pages.Values.Count(o => o.Type == PageType.Table));
+            sb.AppendLine("data: " + db.pages.Values.Count(o => o.Type == PageType.Data));
+            sb.AppendLine("index: " + db.pages.Values.Count(o => o.Type == PageType.Index));
+            sb.AppendLine("repo: " + db.pages.Values.Count(o => o.Type == PageType.Respository));
+            sb.AppendLine("dataVar: " + db.pages.Values.Count(o => o.Type == PageType.DataVar));
             return sb.ToString();
         }
 
-        private readonly IOFactory? iof;
-        private readonly long cachePages;
-        private readonly bool dynamicCache;
-        private readonly DbEngine dbEngine;
-        internal LumTransaction(IOFactory? iof,  long cachePages, bool dynamicCache, DbEngine dbEngine)
+        protected private DbEngine dbEngine;
+        protected LumTransaction()
         {
-            //this.checker=check;
-            Id = Guid.NewGuid();
-            this.dbEngine = dbEngine;
-            rwLockLockTransaction = LockTransaction.StartUpgradeableRead(dbEngine.ReadWriteLock);
 
-            db = new DbCache(iof, cachePages, dynamicCache);
-            this.iof = iof;
-            this.dynamicCache = dynamicCache;
-            this.dbEngine.RegisterTransaction(Id, this);
+        }
+        internal  LumTransaction(IOFactory? iof, long cachePages, bool dynamicCache, DbEngine dbEngine)
+        {
+            this.dbEngine = dbEngine;
+            Id = Guid.NewGuid();
+            if (this.dbEngine.RegisterTransaction(Id, this))
+            {
+
+                rwLockLockTransaction = LockTransaction.StartUpgradeableRead(dbEngine.ReadWriteLock);
+
+
+                if (dbEngine.disposed)
+                {
+                    LumException.Throw(LumExceptionMessage.DbEngDisposedEarly);
+                }
+
+                db = new DbCache(iof, cachePages, dynamicCache);
+
+#if DEBUG
+                LumException.ThrowIfTrue(dbEngine.disposed, "");
+#endif
+            }
+            else
+            {
+                throw LumException.Raise(LumExceptionMessage.DbEngDisposedEarly);
+            }
+
+
         }
 
         private void CheckTransactionState()
@@ -92,35 +106,36 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
         }
 
-        private bool disposed = false;
+        protected private bool disposed = false;
 
-        public void Dispose()
+        void IDisposable.Dispose()
         {
+            using var lk = LockTransaction.StartWrite(rwLock);
+
             if (disposed == false)
             {
-                using var lk = LockTransaction.StartWrite(rwLock);
-
                 disposed = true;
                 try
                 {
-                    lock (dbEngine)
+                    if (dbEngine.disposed)
                     {
-                        if (dbEngine.disposed)
-                        {
-                            LumException.Throw($"{LumExceptionMessage.DbEngDisposedEarly}:{Id.ToString()}");
-                        }
-
-                        rwLockLockTransaction.WriteAction(() => db?.Dispose(dbEngine));
-                        rwLockLockTransaction.Dispose();
-                        dbEngine.UnregisterTransaction(Id);
+                        LumException.Throw(LumExceptionMessage.DbEngDisposedEarly);
                     }
+
+                    rwLockLockTransaction.WriteAction(() => db?.Dispose(dbEngine));
+                    rwLockLockTransaction.Dispose();
                 }
                 catch (Exception ex)
                 {
                     throw;
                 }
-                
-             }
+                finally
+                {
+                    dbEngine.UnregisterTransaction(Id);
+                }
+
+            }
         }
+
     }
 }

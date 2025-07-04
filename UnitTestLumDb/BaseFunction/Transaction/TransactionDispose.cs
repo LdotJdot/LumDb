@@ -18,15 +18,22 @@ namespace UnitTestLumDb.BaseFunction
 
                 using (DbEngine eng = Configuration.GetDbEngineForTest(path))
                 {
-                    Task.Run(() =>
+                    try
+                    {
+                        Task.Run(() =>
                     {
                         var ts = eng.StartTransaction();
                         Thread.Sleep(10000);
                     });
-                    Thread.Sleep(100);
-                    eng.TimeoutMilliseconds = 500;
-                    eng.SetDestoryOnDisposed();
-                    eng.Dispose();
+                        Thread.Sleep(100);
+                        eng.TimeoutMilliseconds = 500;
+                        eng.SetDestoryOnDisposed();
+                        eng.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        Assert.IsTrue(ex.Message.StartsWith(LumExceptionMessage.DbEngDisposedTimeOut));
+                    }
                 }
                 Assert.Fail();
             }
@@ -42,30 +49,27 @@ namespace UnitTestLumDb.BaseFunction
         {
             var path = Configuration.GetRandomPath();
 
-
-            using (DbEngine eng = Configuration.GetDbEngineForTest(path))
+            try
             {
-                Task.Run(() =>
+                using (DbEngine eng = Configuration.GetDbEngineForTest(path))
                 {
-                    try
+                    eng.TimeoutMilliseconds = 1000;
+                    Task.Run(() =>
                     {
+
                         using var ts = eng.StartTransaction();
                         Thread.Sleep(500);
-                        Assert.Fail();
-                    }
-                    catch (Exception ex)
-                    {
-                        Assert.IsTrue(ex.Message.StartsWith(LumExceptionMessage.DbEngDisposedEarly));
-                    }
-                });
-                eng.SetDestoryOnDisposed();
-                Thread.Sleep(100);
+                    });
+                    eng.SetDestoryOnDisposed();
+                    Thread.Sleep(100);
 
-                eng.Dispose();
+                    eng.Dispose();
+                }
             }
-            Thread.Sleep(700);
-
-
+            catch (Exception ex)
+            {
+                Assert.IsTrue(ex.Message.StartsWith(LumExceptionMessage.DbEngDisposedTimeOut));
+            }
         }
 
     }

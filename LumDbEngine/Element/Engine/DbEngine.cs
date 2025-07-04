@@ -1,10 +1,12 @@
 ﻿using LumDbEngine.Element.Engine.Cache;
 using LumDbEngine.Element.Engine.Checker;
 using LumDbEngine.Element.Engine.Transaction;
+using LumDbEngine.Element.Engine.Transaction.AsNoTracking;
 using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.LogStructure;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.IO;
+using LumDbEngine.Utils.SemaphoreUtils;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
@@ -27,7 +29,7 @@ namespace LumDbEngine.Element.Engine
         public uint Version => DbHeader.VERSION;
         private string path = "";
         private IOFactory? iof = null;
-        private readonly ThreadLocal<int> callCount = new ThreadLocal<int>(() => 0);
+        //private readonly ThreadLocal<int> callCount = new ThreadLocal<int>(() => 0);
 
         /// <summary>
         /// Global lock for the db engine, which is used to make sure only one thread can write the db at a time.
@@ -91,11 +93,12 @@ namespace LumDbEngine.Element.Engine
 
         }
 
-        private readonly ManualResetEventSlim resetEvent = new ManualResetEventSlim(true); 
+        private const int MaxSemaphoreCount = 32;
+        //ivate readonly Semaphore resetEvent = new Semaphore(0,1000); 
+        private readonly SemaphoreSlim resetEvent = new SemaphoreSlim(MaxSemaphoreCount, MaxSemaphoreCount); 
 
         private void InitializeNew(string path)
         {
-
             try
             {
                // var ck = new STChecker(autoResetEvent, callCount, -1);
@@ -132,41 +135,70 @@ namespace LumDbEngine.Element.Engine
                 return new LumTransaction(iof, initialCachePages, dynamicCache, this);
             }
             catch (Exception ex)
+            {       
+                 throw;
+             
+            }
+        }
+
+        public ITransactionAsNoTracking StartTransactionAsNoTracking(int initialCachePages = DbCache.DEFAULT_CACHE_PAGES, bool dynamicCache = true)
+        {
+
+            try
             {
-                if (ex.Message == LumExceptionMessage.SingleThreadMultiTransaction || ex.Message == LumExceptionMessage.TransactionTimeout)
+                return new LumTransactionAsNoTracking(iof, initialCachePages, dynamicCache, this);
+            }
+            catch (Exception ex)
+            {       
+                 throw;
+             
+            }
+        }
+
+        private ConcurrentDictionary<Guid, ITransaction> transactionsPool = new();
+
+        internal bool RegisterTransaction(Guid guid, ITransaction ts)
+        {
+            try
+            {
+#if DEBUG
+                LumException.ThrowIfTrue(disposed, "dnengine");
+#endif
+                if (resetEvent.Wait(TimeoutMilliseconds))
                 {
-                    throw;
+                    if (transactionsPool.TryAdd(guid, ts))
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        throw LumException.Raise(LumExceptionMessage.InternalError);
+                    }
+
                 }
                 else
                 {
-                    throw LumException.Raise("Transaction start failed, and the dbEngine might have been disposed.");
+                    return false;
                 }
             }
-
-        }
-
-        private Dictionary<Guid, ITransaction> transactionsPool = new();
-        
-        internal void RegisterTransaction(Guid guid, ITransaction ts)
-        {
-            lock (transactionsPool)
+            catch
             {
-                resetEvent.Reset();
-                transactionsPool.TryAdd(guid, ts);
+                throw LumException.Raise(LumExceptionMessage.TransactionTimeout);
             }
         }
 
-        internal void UnregisterTransaction(Guid guid)
+        internal bool UnregisterTransaction(Guid guid)
         {
-            lock (transactionsPool)
-            {
-                transactionsPool.Remove(guid, out _);
-                if(transactionsPool.Count == 0)
+
+                if (transactionsPool.Remove(guid, out _))
                 {
-                    resetEvent.Set();
+                    resetEvent.Release();
+                    return true;
                 }
-            }
-
+                else
+                {
+                    return false;
+                }
         }
 
         /// <summary>
@@ -189,33 +221,23 @@ namespace LumDbEngine.Element.Engine
         /// <summary>
         /// Dispose the current engine and free the db file usage (if have).
         /// </summary>
+      
         public void Dispose()
         {
             if (disposed == false)
             {
-
-                    if (TimeoutMilliseconds > 0)
+                    if (resetEvent.WaitAll(MaxSemaphoreCount,TimeoutMilliseconds))
                     {
+                        disposed = true;
+#if DEBUG
+                        LumException.ThrowIfTrue(transactionsPool.Count > 0, "readwriteLock未释放");
+#endif
 
-                        resetEvent.Wait(TimeoutMilliseconds);
-                        if (transactionsPool.Count > 0)
-                        {
-                            LumException.Throw($"{LumExceptionMessage.DbEngDisposedTimeOut} Living transactions: " +
-                                $"{string.Join(';', transactionsPool.Values.Select(o => o.Id.ToString()).ToArray())}");
-                        }
-
-                    }
-
-                if (resetEvent.Wait(TimeoutMilliseconds))
-                {
-                    lock (transactionsPool)
-                    {
                         ReadWriteLock?.Dispose();
 
                         iof?.Dispose();
                         iof = null;
-                        resetEvent?.Dispose();
-                        disposed = true;
+                        resetEvent.Dispose();
                         if (DesrotyOnDispose)
                         {
                             if (File.Exists(path))
@@ -224,9 +246,16 @@ namespace LumDbEngine.Element.Engine
                             }
                         }
                     }
-                }
+                    else
+                    {
+                        LumException.Throw($"{LumExceptionMessage.DbEngDisposedTimeOut} Living transactions: " +
+                            $"{string.Join(';', transactionsPool.Values.Select(o => o.Id.ToString()).ToArray())}");
+                    }
             }
+
         }
+
+
 
         /// <summary>
         /// Set desrotyOnDispose to be true and physically delete the current db file on disk when disposed.

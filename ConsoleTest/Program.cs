@@ -17,7 +17,9 @@ namespace ConsoleTest
         private static void Main(string[] args)
         {
             //Inserts500000Mem();
-            GetTableNames();
+            //Inserts500000();
+
+            AsyncRead();
             ////
             //Debug();
 
@@ -32,6 +34,72 @@ namespace ConsoleTest
 
             Console.WriteLine("All done.");
             Console.ReadLine();
+        }
+
+        private static void AsyncRead()
+        {
+            const string TABLENAME = "tableFirst";
+            {
+                using DbEngine eng = new DbEngine("d:\\xxxxAsyncRead.db", true);
+
+
+                using (var ts = eng.StartTransaction(0, false))
+                {
+                    var res = ts.Create(TABLENAME, [("a", DbValueType.Int, true), ("b", DbValueType.Long, false), ("c", DbValueType.StrVar, false)]);
+
+                }
+
+                {
+                    using ITransaction ts = eng.StartTransaction();
+
+                    for (int i = 0; i < 1000; i++)
+                    {
+                        var ds = ts.Insert(TABLENAME, [("a", i + 500), ("b", (long)i * i), ("c", "thirteen thousand one hundred fifty three")]);
+                    }
+                }
+
+                {
+                    var t1=Task.Run(()=>
+                    {
+
+                        using ITransaction ts = eng.StartTransaction();
+                        Console.WriteLine("t1 started");
+                        Task.Delay(1000).Wait();
+
+                        var res=ts.Find(TABLENAME, 1);
+                        Console.WriteLine("t1" + res.Value[0]);
+                        ts.SaveChanges();
+                        Console.WriteLine("t1 saves complete");
+                        Task.Delay(5000).Wait();
+                        Console.WriteLine("t1complete");
+                    });
+
+                    var t2 = Task.Run(() =>
+                    {
+                        Task.Delay(500).Wait();
+
+                        using var ts = eng.StartTransactionAsNoTracking();
+                        Console.WriteLine("t2 started");
+                        Task.Delay(3000).Wait();
+
+                        var res = ts.Find(TABLENAME, 2);
+                        Console.WriteLine("t2" + res.Value[0]);
+                        Task.Delay(1000).Wait();
+                        Console.WriteLine("t2complete");
+                    });
+
+                    Task.WaitAll(t1,t2);
+
+
+                }
+
+                eng.SetDestoryOnDisposed();
+
+
+            }
+
+
+
         }
 
         private static void GetTableNames()
@@ -338,7 +406,7 @@ namespace ConsoleTest
             {
                 // The following code would be block due to the singularity of transaction. And should be not called in same thread.
 
-                using var ts3 = eng.StartTransaction(millisecondsTimeout:1000);
+                using var ts3 = eng.StartTransaction();
                // ts3.Insert(TABLENAME, [("a", 55), ("b", (long)233), ("c", "thirteen thousand one hundred fifty three")]);
                 var res3 = ts3.Find(TABLENAME, 2);
                 Console.WriteLine("r3"+res3.Value[0].ToString());

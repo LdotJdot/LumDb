@@ -20,20 +20,20 @@ namespace UnitTestLumDb.BaseFunction
                 var t = Task.Factory.StartNew(() =>
                 {
 
-                    //try
-                    //{
+                try
+                {
                     using var ts2 = eng.StartTransaction();
-                    Thread.Sleep(2000);
+                        Thread.Sleep(2000);
 
-                    //}
-                    //catch (Exception ex)
-                    //{
-                    //    Assert.IsTrue(ex.Message ==LumExceptionMessage.TransactionTimeout);
-                    //}
+                    }
+                    catch (Exception ex)
+                    {
+                        Assert.IsTrue(ex.Message == LumExceptionMessage.DbEngDisposedEarly);
+                    }
                 });
                 eng.SetDestoryOnDisposed();
-            }
-        Thread.Sleep(5000);
+                Thread.Sleep(500);
+            }            
         }
 
 
