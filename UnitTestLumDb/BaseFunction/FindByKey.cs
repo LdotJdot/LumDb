@@ -26,7 +26,7 @@ namespace UnitTestLumDb.BaseFunction
 
             {
                 using DbEngine eng = Configuration.GetDbEngineForTest(path);
-                using var ts = eng.StartTransaction();
+                using var ts = eng.StartTransactionReadonly();
                 var idRes = ts.Find("tableFirst", 499);
                 Assert.IsTrue(idRes.IsSuccess == true);
                 Debug.Assert((int)idRes.Value[0] == 49800);

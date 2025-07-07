@@ -11,7 +11,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             CheckTransactionState();
             try
             {
-                using var lk = LockTransaction.StartWrite(rwLock);
+                using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
                 return dbManager.Delete(db, tableName, id);
             }
             catch (Exception ex)
@@ -26,7 +26,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             CheckTransactionState();
             try
             {
-                using var lk = LockTransaction.StartWrite(rwLock);
+                using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
                 return dbManager.Delete(db, tableName, keyName, keyValue);
             }
             catch

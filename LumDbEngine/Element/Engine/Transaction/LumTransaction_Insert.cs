@@ -11,7 +11,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         {
             // todo
             CheckTransactionState();
-            using var lk = LockTransaction.StartWrite(rwLock);
+            using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
             try
             {
                 return dbManager.Insert(db, tableName, values);
@@ -26,7 +26,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         public IDbValue<uint> Insert<T>(string tableName, T t) where T : IDbEntity, new()
         {
             CheckTransactionState();
-            using var lk = LockTransaction.StartWrite(rwLock);
+            using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
             try
             {
                 return dbManager.Insert(db, tableName, t);

@@ -11,7 +11,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         public IDbResult Create(string tableName, (string columnName, DbValueType type, bool isKey)[] tableHeader)
         {
             CheckTransactionState();
-            using var lk = LockTransaction.StartWrite(rwLock);
+            using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
             try
             {
                 return dbManager.Create(db, tableName, tableHeader);
@@ -27,7 +27,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         public IDbResult Drop(string tableName)
         {
             CheckTransactionState();
-            using var lk = LockTransaction.StartWrite(rwLock);
+            using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
             try
             {
                 return dbManager.Drop(db, tableName);
@@ -41,7 +41,7 @@ namespace LumDbEngine.Element.Engine.Transaction
 
         public IDbValues<(string tableName, (string columnName, string dataType, bool isKey)[] columns)> GetTableNames()
         {
-            using var lk = LockTransaction.StartRead(rwLock);
+            using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
             try
             {
                 return dbManager.GetTableNames(db);

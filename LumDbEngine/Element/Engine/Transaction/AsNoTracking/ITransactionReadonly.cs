@@ -1,15 +1,16 @@
 ﻿using LumDbEngine.Element.Engine.Results;
-using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Value;
-using TableInfo = (string tableName, (string columnName, string dataType, bool isKey));
 
 namespace LumDbEngine.Element.Engine.Transaction.AsNoTracking
 {
     /// <summary>
     /// The transaction derived from db engine.<br/>
-    /// Multiple transactions can be executed concurrently under the read-write lock model.
+    /// This function ensures thread safety while allowing multiple threads to execute simultaneously.
+    /// It uses read-write locks) to allow
+    /// concurrent access to shared resources, improving performance while maintaining data integrity.<br/>
+    /// Recommended for use in read-only scenarios to maximize performance.
     /// </summary>
-    public interface ITransactionAsNoTracking : IDisposable
+    public interface ITransactionReadonly : IDisposable
     {
         /// <summary>
         /// Transaction unique id.

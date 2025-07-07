@@ -11,28 +11,34 @@ using System.Text;
 
 namespace LumDbEngine.Element.Engine.Transaction
 {
-    internal class LumTransactionAsNoTracking : LumTransaction, ITransactionAsNoTracking
+    internal class TransactionReadonly : LumTransaction, ITransactionReadonly
     {
-        public LumTransactionAsNoTracking(IOFactory? iof, long cachePages, bool dynamicCache, DbEngine dbEngine)
+        public TransactionReadonly(IOFactory? iof, long cachePages, bool dynamicCache, DbEngine dbEngine)
         {
             this.dbEngine = dbEngine;
             Id = Guid.NewGuid();
 
             if (this.dbEngine.RegisterTransaction(Id, this))
             {
-
-                rwLockLockTransaction = LockTransaction.StartRead(dbEngine.ReadWriteLock);
-
-                if (dbEngine.disposed)
+                try
                 {
-                    LumException.Throw(LumExceptionMessage.DbEngDisposedEarly);
-                }
+                    rwLockLockTransaction = LockTransaction.TryStartRead(dbEngine.ReadWriteLock, dbEngine.TimeoutMilliseconds);
 
-                db = new DbCache(iof, cachePages, dynamicCache);
+                    if (dbEngine.disposed)
+                    {
+                        LumException.Throw(LumExceptionMessage.DbEngDisposedEarly);
+                    }
 
+                    db = new DbCache(iof, cachePages, dynamicCache);
 #if DEBUG
-                LumException.ThrowIfTrue(dbEngine.disposed, "");
+                    LumException.ThrowIfTrue(dbEngine.disposed, "");
 #endif
+                }
+                catch
+                {
+                    this.dbEngine.UnregisterTransaction(Id);        // 构造函数异常时，确保事务被注销
+                    throw;
+                }
             }
             else
             {
@@ -50,7 +56,10 @@ namespace LumDbEngine.Element.Engine.Transaction
                     if (dbEngine.disposed)
                     {
                         LumException.Throw(LumExceptionMessage.DbEngDisposedEarly);
-                    }                 
+                        db.Dispose();
+                    }
+                    rwLockLockTransaction.Dispose();
+
                 }
                 catch (Exception ex)
                 {

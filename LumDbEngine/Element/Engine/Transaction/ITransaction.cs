@@ -1,13 +1,16 @@
 ﻿using LumDbEngine.Element.Engine.Results;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Value;
-using TableInfo = (string tableName, (string columnName, string dataType, bool isKey));
+using LumDbEngine.Element.Engine.Transaction.AsNoTracking;
 
 namespace LumDbEngine.Element.Engine.Transaction
 {
     /// <summary>
     /// The transaction derived from db engine.<br/>
-    /// Multiple transactions can be executed concurrently under the read-write lock model.
+    /// This kind of transaction ensures thread safety by using a regular mutex lock, which guarantees
+    /// that only one thread can execute the function at a time. This ensures data consistency
+    /// but may limit performance due to its sequential nature.<br/>
+    /// The readonly transaction <see cref="ITransactionReadonly"/> is recommended for use in read-only scenarios to maximize performance.
     /// </summary>
     public interface ITransaction : IDisposable
     {

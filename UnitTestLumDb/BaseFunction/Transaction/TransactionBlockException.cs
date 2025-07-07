@@ -22,7 +22,7 @@ namespace UnitTestLumDb.BaseFunction
                 }
                 catch (Exception ex)
                 {
-                    Assert.IsTrue(ex.Message == LumExceptionMessage.SingleThreadMultiTransaction);
+                    Assert.IsTrue(ex.Message == LumExceptionMessage.IllegaTransaction);
                 }
 
              

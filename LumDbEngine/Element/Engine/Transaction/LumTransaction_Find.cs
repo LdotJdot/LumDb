@@ -11,7 +11,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             CheckTransactionState();
             try
             {
-                using var lk = LockTransaction.StartRead(rwLock);
+                using var lk = LockTransaction.TryStartRead(rwLock,dbEngine.TimeoutMilliseconds);
                 return dbManager.Find(db, tableName, id);
             }
             catch
@@ -25,7 +25,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             CheckTransactionState();
             try
             {
-                using var lk = LockTransaction.StartRead(rwLock);
+                using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
                 return dbManager.Find(db, tableName, keyName, keyValue);
             }
             catch
@@ -39,7 +39,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             CheckTransactionState();
             try
             {
-                using var lk = LockTransaction.StartRead(rwLock);
+                using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
                 return dbManager.Find(db, tableName, condition, isBackward);
             }
             catch
@@ -53,7 +53,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             CheckTransactionState();
             try
             {
-                using var lk = LockTransaction.StartRead(rwLock);
+                using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
                 return dbManager.Find(db, tableName, condition, isBackward);
             }
             catch
@@ -67,7 +67,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             CheckTransactionState();
             try
             {
-                using var lk = LockTransaction.StartRead(rwLock);
+                using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
                 return dbManager.Find<T>(db, tableName, keyName, keyValue);
             }
             catch
@@ -81,7 +81,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             CheckTransactionState();
             try
             {
-                using var lk = LockTransaction.StartRead(rwLock);
+                using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
                 return dbManager.FindById<T>(db, tableName, id);
             }
             catch

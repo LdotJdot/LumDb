@@ -47,20 +47,23 @@ namespace LumDbEngine.Element.Engine.Transaction
             Id = Guid.NewGuid();
             if (this.dbEngine.RegisterTransaction(Id, this))
             {
-
-                rwLockLockTransaction = LockTransaction.StartUpgradeableRead(dbEngine.ReadWriteLock);
-
-
-                if (dbEngine.disposed)
+                try
                 {
-                    LumException.Throw(LumExceptionMessage.DbEngDisposedEarly);
+                    rwLockLockTransaction = LockTransaction.TryStartUpgradeableRead(dbEngine.ReadWriteLock, dbEngine.TimeoutMilliseconds);
+
+                    if (dbEngine.disposed)
+                    {
+                        LumException.Throw(LumExceptionMessage.DbEngDisposedEarly);
+                    }
+
+                    db = new DbCache(iof, cachePages, dynamicCache);
+                }
+                catch
+                {
+                    this.dbEngine.UnregisterTransaction(Id);        // 构造函数异常时，确保事务被注销
+                    throw;
                 }
 
-                db = new DbCache(iof, cachePages, dynamicCache);
-
-#if DEBUG
-                LumException.ThrowIfTrue(dbEngine.disposed, "");
-#endif
             }
             else
             {
@@ -78,7 +81,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         public void SaveChanges()
         {
             CheckTransactionState();
-            using var lk = LockTransaction.StartWrite(rwLock);
+            using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
             rwLockLockTransaction.WriteAction(() => db.SaveCurrentPageCache(dbEngine));
 
         }
@@ -86,7 +89,7 @@ namespace LumDbEngine.Element.Engine.Transaction
         internal void SaveAs(string path)
         {
             CheckTransactionState();
-            using var lk = LockTransaction.StartWrite(rwLock);
+            using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
             rwLockLockTransaction.WriteAction(() => db.SaveCurrentPageCache(path));
         }
 
@@ -96,7 +99,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             CheckTransactionState();
             try
             {
-                using var lk = LockTransaction.StartWrite(rwLock);
+                using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
                 rwLockLockTransaction.WriteAction(db.Reset); 
             }
             catch (Exception ex)
@@ -110,7 +113,7 @@ namespace LumDbEngine.Element.Engine.Transaction
 
         void IDisposable.Dispose()
         {
-            using var lk = LockTransaction.StartWrite(rwLock);
+            using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
 
             if (disposed == false)
             {

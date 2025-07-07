@@ -139,6 +139,15 @@ namespace LumDbEngine.Element.Engine.Cache
                 disposed = true;                
             }
         }
+        public void Dispose()
+        {
+            if (!disposed)
+            {
+                PagesClear();
+                pages = null;
+                disposed = true;                
+            }
+        }
 
         public void Reset()
         {

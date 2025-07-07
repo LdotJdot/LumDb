@@ -1,4 +1,6 @@
-﻿namespace LumDbEngine.Element.Engine.Lock
+﻿using LumDbEngine.Element.Exceptions;
+
+namespace LumDbEngine.Element.Engine.Lock
 {  
     internal class LockTransaction:IDisposable
     {
@@ -12,48 +14,89 @@
             UpgradeableRead = 2,
             WriteAfterUpgradeableRead = 3
         }
-
-        private LockTransaction(ReaderWriterLockSlim readerWriterLockSlim, State isWrite)
+        private int timeoutMillionSeconds = -1;
+        private LockTransaction(ReaderWriterLockSlim readerWriterLockSlim, State initialLockState, int timeoutMillionSeconds)
         {
             this.readerWriterLockSlim = readerWriterLockSlim;
-            this.isWrite = isWrite;
+            this.isWrite = initialLockState;
+            this.timeoutMillionSeconds = timeoutMillionSeconds;
 
             try
             {
-                switch (isWrite)
-                {
+                switch (initialLockState)
+                {              
+
                     case State.Read:
-                        readerWriterLockSlim.EnterReadLock();
-                        break;
+
+                        if (readerWriterLockSlim.TryEnterReadLock(this.timeoutMillionSeconds))
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            goto default;
+                        }
                     case State.Write:
-                        readerWriterLockSlim.EnterWriteLock();
-                        break;
+                        if (readerWriterLockSlim.TryEnterWriteLock(this.timeoutMillionSeconds))
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            goto default;
+                        }
                     case State.UpgradeableRead:
-                        readerWriterLockSlim.EnterUpgradeableReadLock();
-                        break;
+                        if (readerWriterLockSlim.TryEnterUpgradeableReadLock(this.timeoutMillionSeconds))
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            goto default;
+                        }
                     default:
-                        throw new InvalidOperationException("unknow lock state");
+                        throw LumException.Raise(LumExceptionMessage.TransactionTimeout);
                 }
             }
-            catch (LockRecursionException ex)
+            catch (LockRecursionException)
             {
-                throw new ArgumentException(ex.Message);
+                throw LumException.Raise(LumExceptionMessage.IllegaTransaction);
             }
+            catch
+            {
+                throw;
+            }
+
         }
 
         internal static LockTransaction StartRead(ReaderWriterLockSlim writerLockSlim)
         {
-            return new LockTransaction(writerLockSlim, State.Read);
+            return new LockTransaction(writerLockSlim, State.Read, -1);
         }
 
         internal static LockTransaction StartWrite(ReaderWriterLockSlim writerLockSlim)
         {
-            return new LockTransaction(writerLockSlim, State.Write);
+            return new LockTransaction(writerLockSlim, State.Write, -1);
         }
 
         internal static LockTransaction StartUpgradeableRead(ReaderWriterLockSlim writerLockSlim)
         {
-            return new LockTransaction(writerLockSlim, State.UpgradeableRead);
+            return new LockTransaction(writerLockSlim, State.UpgradeableRead, -1);
+        }
+
+        internal static LockTransaction TryStartRead(ReaderWriterLockSlim writerLockSlim,int timeoutMilliseconds)
+        {
+            return new LockTransaction(writerLockSlim, State.Read, timeoutMilliseconds);
+        }
+
+        internal static LockTransaction TryStartWrite(ReaderWriterLockSlim writerLockSlim, int timeoutMilliseconds)
+        {
+            return new LockTransaction(writerLockSlim, State.Write, timeoutMilliseconds);
+        }
+
+        internal static LockTransaction TryStartUpgradeableRead(ReaderWriterLockSlim writerLockSlim, int timeoutMilliseconds)
+        {
+            return new LockTransaction(writerLockSlim, State.UpgradeableRead, timeoutMilliseconds);
         }
 
         public void WriteAction(Action act)
@@ -62,9 +105,15 @@
             {
                 if (isWrite == State.UpgradeableRead)
                 {
-                    readerWriterLockSlim.EnterWriteLock();
-                    act();
-                    readerWriterLockSlim.ExitWriteLock();
+                    if (readerWriterLockSlim.TryEnterWriteLock(timeoutMillionSeconds))
+                    {
+                        act();
+                        readerWriterLockSlim.ExitWriteLock();
+                    }
+                    else
+                    {
+                        throw LumException.Raise(LumExceptionMessage.TransactionTimeout);
+                    }
                 }
                 else if (isWrite== State.WriteAfterUpgradeableRead || isWrite == State.Write)
                 {

@@ -40,7 +40,7 @@ namespace UnitTestLumDb.BaseFunction
             using (DbEngine eng = Configuration.GetDbEngineForTest(path))
             {
 
-                using ITransaction ts1 = eng.StartTransaction();
+                using var ts1 = eng.StartTransactionReadonly();
 
                 var ds = ts1.Find(TABLENAME, o => (o.Where(l => ((long)l[1]) % 3 == 0)));
                 var count = ds.Values.Count;
@@ -85,7 +85,7 @@ namespace UnitTestLumDb.BaseFunction
             int res2 = 0;
             using (DbEngine eng = Configuration.GetDbEngineForTest(path))
             {
-                using ITransaction ts = eng.StartTransaction();
+                using var ts = eng.StartTransactionReadonly();
 
                 var t2 = Stopwatch.GetTimestamp();
 
@@ -95,7 +95,7 @@ namespace UnitTestLumDb.BaseFunction
 
             using (DbEngine eng = Configuration.GetDbEngineForTest(path))
             {
-                using ITransaction ts = eng.StartTransaction();
+                using var ts = eng.StartTransactionReadonly();
 
                 var t = Stopwatch.GetTimestamp();
                 var ds2 = ts.Where(TABLENAME, false, 5, 300, ("a", (o) => ((int)o % 3) == 0));

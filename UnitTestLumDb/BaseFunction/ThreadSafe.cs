@@ -37,7 +37,7 @@ namespace UnitTestLumDb.BaseFunction
 
                 Parallel.For(0, 1000, i =>
                     {
-                        using var ts = eng.StartTransaction();
+                        using var ts = eng.StartTransactionReadonly();
                         var res = ts.Find<TestVar>(TABLENAME, (uint)i + 1);
                         lock (lk)
                         {

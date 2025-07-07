@@ -17,7 +17,7 @@ namespace LumDbEngine.Element.Engine.Transaction
 
             try
             {
-                using var lk = LockTransaction.StartRead(rwLock);
+                using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
                 dbManager.GoThrough<T>(db, tableName, action);
             }
             catch
@@ -32,7 +32,7 @@ namespace LumDbEngine.Element.Engine.Transaction
 
             try
             {
-                using var lk = LockTransaction.StartRead(rwLock);
+                using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
                 dbManager.GoThrough(db, tableName, action);
             }
             catch

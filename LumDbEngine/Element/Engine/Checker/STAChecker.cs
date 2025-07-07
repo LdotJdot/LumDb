@@ -20,7 +20,7 @@ namespace LumDbEngine.Element.Engine.Checker
             if (callCount.Value != 0)
             {
 
-                LumException.Throw(LumExceptionMessage.SingleThreadMultiTransaction);
+                LumException.Throw(LumExceptionMessage.IllegaTransaction);
 
 
             }

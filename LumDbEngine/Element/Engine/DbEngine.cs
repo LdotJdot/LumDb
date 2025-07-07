@@ -108,7 +108,7 @@ namespace LumDbEngine.Element.Engine
             }
             catch (Exception ex)
             {
-                if (ex.Message == LumExceptionMessage.SingleThreadMultiTransaction || ex.Message == LumExceptionMessage.TransactionTimeout)
+                if (ex.Message == LumExceptionMessage.IllegaTransaction || ex.Message == LumExceptionMessage.TransactionTimeout)
                 {
                     throw;
                 }
@@ -141,12 +141,18 @@ namespace LumDbEngine.Element.Engine
             }
         }
 
-        public ITransactionAsNoTracking StartTransactionAsNoTracking(int initialCachePages = DbCache.DEFAULT_CACHE_PAGES, bool dynamicCache = true)
+        /// <summary>
+        /// Start a new readonly transaction to execute commands. A started transaction must be disposed when action is done, and should better use with "using" in case of not diosposing. 
+        /// </summary>
+        /// <param name="initialCachePages"></param>
+        /// <param name="dynamicCache"></param>
+        /// <returns></returns>
+        public ITransactionReadonly StartTransactionReadonly(int initialCachePages = DbCache.DEFAULT_CACHE_PAGES, bool dynamicCache = true)
         {
 
             try
             {
-                return new LumTransactionAsNoTracking(iof, initialCachePages, dynamicCache, this);
+                return new TransactionReadonly(iof, initialCachePages, dynamicCache, this);
             }
             catch (Exception ex)
             {       
@@ -172,6 +178,7 @@ namespace LumDbEngine.Element.Engine
                     }
                     else
                     {
+                        resetEvent.Release();
                         throw LumException.Raise(LumExceptionMessage.InternalError);
                     }
 

@@ -41,7 +41,7 @@ namespace ConsoleTest
             const string TABLENAME = "tableFirst";
             {
                 using DbEngine eng = new DbEngine("d:\\xxxxAsyncRead.db", true);
-
+                eng.TimeoutMilliseconds = 10000; // set timeout to 10 seconds
 
                 using (var ts = eng.StartTransaction(0, false))
                 {
@@ -49,51 +49,50 @@ namespace ConsoleTest
 
                 }
 
-                {
-                    using ITransaction ts = eng.StartTransaction();
+                //{
+                //    using ITransaction ts = eng.StartTransaction();
 
-                    for (int i = 0; i < 1000; i++)
+                //    for (int i = 0; i < 1000; i++)
+                //    {
+                //        var ds = ts.Insert(TABLENAME, [("a", i + 500), ("b", (long)i * i), ("c", "thirteen thousand one hundred fifty three")]);
+                //    }
+                //}
+
+
+
+
+
+                using (var tsWrite = eng.StartTransaction())
+                {
+                    tsWrite.SaveChanges();
+
+                    Console.WriteLine("tsW started");
+                    using (var tsWrite2 = eng.StartTransaction())
                     {
-                        var ds = ts.Insert(TABLENAME, [("a", i + 500), ("b", (long)i * i), ("c", "thirteen thousand one hundred fifty three")]);
+
+                        Console.WriteLine("tsW2 started");
+                        tsWrite2.SaveChanges();
+                        var resW2 = tsWrite2.Find(TABLENAME, 1);
+                        Console.WriteLine("tsW2" + resW2.Value[0]);
+                        
+                        Console.WriteLine("tsW2 complete");
+                        tsWrite2.SaveChanges();
+
                     }
+
+                    tsWrite.SaveChanges();
+
+                    var res = tsWrite.Find(TABLENAME, 2);
+                    Console.WriteLine("tsW" + res.Value[0]);
+                    Console.WriteLine("tsW complete");
+                   
                 }
 
-                {
-                    var t1=Task.Run(()=>
-                    {
 
-                        using ITransaction ts = eng.StartTransaction();
-                        Console.WriteLine("t1 started");
-                        Task.Delay(1000).Wait();
-
-                        var res=ts.Find(TABLENAME, 1);
-                        Console.WriteLine("t1" + res.Value[0]);
-                        ts.SaveChanges();
-                        Console.WriteLine("t1 saves complete");
-                        Task.Delay(5000).Wait();
-                        Console.WriteLine("t1complete");
-                    });
-
-                    var t2 = Task.Run(() =>
-                    {
-                        Task.Delay(500).Wait();
-
-                        using var ts = eng.StartTransactionAsNoTracking();
-                        Console.WriteLine("t2 started");
-                        Task.Delay(3000).Wait();
-
-                        var res = ts.Find(TABLENAME, 2);
-                        Console.WriteLine("t2" + res.Value[0]);
-                        Task.Delay(1000).Wait();
-                        Console.WriteLine("t2complete");
-                    });
-
-                    Task.WaitAll(t1,t2);
+                Console.WriteLine("All complete");
 
 
-                }
-
-                eng.SetDestoryOnDisposed();
+                //  eng.SetDestoryOnDisposed();
 
 
             }
