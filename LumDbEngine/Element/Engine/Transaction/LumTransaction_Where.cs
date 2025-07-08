@@ -14,7 +14,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             CheckTransactionState();
             try
             {
-                using var lk = LockTransaction.StartRead(rwLock);
+                using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
                 return dbManager.Where<T>(db, tableName, conditions, false, 0, 0);
             }
             catch
@@ -28,7 +28,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             CheckTransactionState();
             try
             {
-                using var lk = LockTransaction.StartRead(rwLock);
+                using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
                 return dbManager.Where(db, tableName, conditions, false, 0, 0);
             }
             catch
@@ -43,7 +43,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             CheckTransactionState();
             try
             {
-                using var lk = LockTransaction.StartRead(rwLock);
+                using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
                 return dbManager.Where<T>(db, tableName, conditions, isBackward, skip, limit);
             }
             catch
@@ -57,7 +57,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             CheckTransactionState();
             try
             {
-                using var lk = LockTransaction.StartRead(rwLock);
+                using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
                 return dbManager.Where(db, tableName, conditions, isBackward, skip, limit);
             }
             catch
@@ -70,7 +70,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             CheckTransactionState();
             try
             {
-                using var lk = LockTransaction.StartRead(rwLock);
+                using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
                 return dbManager.Count(db, tableName, conditions);
             }
             catch

@@ -11,15 +11,15 @@ namespace LumDbEngine.Element.Engine.Transaction
         public IDbResult Create(string tableName, (string columnName, DbValueType type, bool isKey)[] tableHeader)
         {
             CheckTransactionState();
-            using var lk = LockTransaction.StartWrite(rwLock);
-            //try
+            using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
+            try
             {
                 return dbManager.Create(db, tableName, tableHeader);
             }
-            //catch
+            catch
             {
-               // db = new DbCache(iof, cachePages, dynamicCache);
-              //  throw;
+                db.Reset();
+                throw;
             }
         }
 
@@ -27,21 +27,21 @@ namespace LumDbEngine.Element.Engine.Transaction
         public IDbResult Drop(string tableName)
         {
             CheckTransactionState();
-            using var lk = LockTransaction.StartWrite(rwLock);
+            using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
             try
             {
                 return dbManager.Drop(db, tableName);
             }
             catch
             {
-                db = new DbCache(iof, cachePages, dynamicCache);
+                db.Reset();
                 throw;
             }
         }
 
         public IDbValues<(string tableName, (string columnName, string dataType, bool isKey)[] columns)> GetTableNames()
         {
-            using var lk = LockTransaction.StartRead(rwLock);
+            using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
             try
             {
                 return dbManager.GetTableNames(db);
@@ -49,7 +49,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch
             {
-                db = new DbCache(iof, cachePages, dynamicCache);
+                db.Reset();
                 throw;
             }
         }

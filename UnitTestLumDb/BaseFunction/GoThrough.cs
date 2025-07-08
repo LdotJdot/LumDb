@@ -44,7 +44,7 @@ namespace UnitTestLumDb.BaseFunction
                 int count = 0;
 
                 {
-                    using ITransaction ts = eng.StartTransaction();
+                    using var ts = eng.StartTransactionReadonly();
 
                     ts.GoThrough(TABLENAME, (object[] objs) =>
                     {
@@ -85,7 +85,7 @@ namespace UnitTestLumDb.BaseFunction
                 int count = 0;
 
                 {
-                    using ITransaction ts = eng.StartTransaction();
+                    using var ts = eng.StartTransactionReadonly();
 
                     var res = ts.Find(TABLENAME,1);
 

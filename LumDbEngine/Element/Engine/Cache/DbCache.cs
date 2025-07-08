@@ -1,11 +1,11 @@
-﻿using LumDbEngine.Element.Exceptions;
+﻿using LumDbEngine.Element.Engine.Lock;
+using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.LogStructure;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Structure.Page;
 using LumDbEngine.Element.Structure.Page.Repo;
 using LumDbEngine.IO;
 using System.Collections.Concurrent;
-using System.IO;
 
 #nullable disable
 
@@ -56,118 +56,78 @@ namespace LumDbEngine.Element.Engine.Cache
             }
         }
 
-        private readonly object saveLock = new();
 
         /// <summary>
         /// save changes to file
         /// </summary>
         internal void SaveCurrentPageCache(DbEngine dbEngine)
         {
-            lock (saveLock)
+
+            if (iof?.IsValid() == true && disposed == false)
             {
-                if (iof?.IsValid() == true && disposed == false)
+                var dblog = DbLog.Create(dbEngine);
+
+                // write dblog.
                 {
-                    var dblog =DbLog.Create(dbEngine); 
-                    
-                    // write dblog.
-                    {
-                        dblog.WriteState(DbLogState.Writing);
-                        dblog.Write(header);
-                        foreach (var page in pages.Values)
-                        {
-                            if (page?.IsDirty == true)
-                            {
-                                dblog.Write(page);
-                                page.IsDirty = false;
-                            }
-                        }
-                        dblog.WriteState(DbLogState.Done);
-                    }
-
-                    dblog.DumpToDbEngine(iof.FileStream);
-
-                    dblog.Dispose();    // make sure the dblog file will remain when the process was abort.
-
-                    GarbageCollection();
-                    //pages.Clear();
-                }
-            }
-        }
-        
-        
-        /// <summary>
-        /// save changes to file
-        /// </summary>
-        internal void SaveCurrentPageCache()
-        {
-            lock (saveLock)
-            {
-                if (iof?.IsValid() == true && disposed == false)
-                {
-
-                    header.Write(iof.BinaryWriter);
-
+                    dblog.WriteState(DbLogState.Writing);
+                    dblog.Write(header);
                     foreach (var page in pages.Values)
                     {
                         if (page?.IsDirty == true)
                         {
-                            page.Write(iof.BinaryWriter);
+                            dblog.Write(page);
                             page.IsDirty = false;
                         }
                     }
-
-                    iof.BinaryWriter.Flush();
-
-                    GarbageCollection();
-                    //pages.Clear();
+                    dblog.WriteState(DbLogState.Done);
                 }
+
+                dblog.DumpToDbEngine(iof.FileStream);
+
+                dblog.Dispose();    // make sure the dblog file will remain when the process was abort.
+
+                GarbageCollection();
+                //pages.Clear();
             }
+
         }
 
-        
         /// <summary>
         /// save changes to a new file
         /// </summary>
         /// <param name="path"></param>
         internal void SaveCurrentPageCache(string path)
         {
-            lock (saveLock)
+            if (disposed == false)
             {
-                if (disposed == false)
+                LumException.ThrowIfTrue(File.Exists(path), "File already existed");
+
+                var dir = Path.GetDirectoryName(path);
+                if (!Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                using var fs = File.Create(path);
+                using BinaryWriter bw = new BinaryWriter(fs);
                 {
-                    LumException.ThrowIfTrue(File.Exists(path), "File already existed");
+                    header.Write(bw);
 
-                    var dir = Path.GetDirectoryName(path);
-                    if (!Directory.Exists(dir))
-                        Directory.CreateDirectory(dir);
-                    using var fs = File.Create(path);
-                    using BinaryWriter bw = new BinaryWriter(fs);
+                    foreach (var page in pages.Values)
                     {
-                        header.Write(bw);
-
-                        foreach (var page in pages.Values)
+                        if (page?.IsDirty == true)
                         {
-                            if (page?.IsDirty == true)
-                            {
-                                page.Write(bw);
-                                page.IsDirty = false;
-                            }
+                            page.Write(bw);
+                            page.IsDirty = false;
                         }
-
-                        bw.Flush();
-
-                        GarbageCollection();
                     }
+
+                    bw.Flush();
+
+                    GarbageCollection();
                 }
             }
+
         }
 
         private bool disposed = false;
-
-        public void Discard()
-        {
-            pages = new();
-        }
 
         public void Dispose(DbEngine dbEngine)
         {
@@ -176,18 +136,24 @@ namespace LumDbEngine.Element.Engine.Cache
                 SaveCurrentPageCache(dbEngine);
                 PagesClear();
                 pages = null;
-                disposed = true;
+                disposed = true;                
             }
         }
-        
         public void Dispose()
         {
             if (!disposed)
             {
-                SaveCurrentPageCache();
                 PagesClear();
                 pages = null;
-                disposed = true;
+                disposed = true;                
+            }
+        }
+
+        public void Reset()
+        {
+            if (!disposed)
+            {
+                PagesClear();
             }
         }
 

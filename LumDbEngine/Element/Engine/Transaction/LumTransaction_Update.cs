@@ -10,14 +10,14 @@ namespace LumDbEngine.Element.Engine.Transaction
         public IDbResult Update(string tableName, string keyName, object keyValue, string columnName, object value)
         {
             CheckTransactionState();
-            using var lk = LockTransaction.StartWrite(rwLock);
+            using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
             try
             {
                 return dbManager.Update(db, tableName, keyName, keyValue, columnName, value);
             }
             catch
             {
-                db = new DbCache(iof, cachePages, dynamicCache);
+                db.Reset();
                 throw;
             }
         }
@@ -25,14 +25,14 @@ namespace LumDbEngine.Element.Engine.Transaction
         public IDbResult Update<T>(string tableName, string keyName, object keyValue, T value) where T : IDbEntity, new()
         {
             CheckTransactionState();
-            using var lk = LockTransaction.StartWrite(rwLock);
+            using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
             try
             {
                 return dbManager.Update(db, tableName, keyName, keyValue, value);
             }
             catch
             {
-                db = new DbCache(iof, cachePages, dynamicCache);
+                db.Reset();
                 throw;
             }
         }
@@ -40,14 +40,14 @@ namespace LumDbEngine.Element.Engine.Transaction
         public IDbResult Update(string tableName, uint id, string columnName, object value)
         {
             CheckTransactionState();
-            using var lk = LockTransaction.StartWrite(rwLock);
+            using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
             try
             {
                 return dbManager.Update(db, tableName, id, columnName, value);
             }
             catch
             {
-                db = new DbCache(iof, cachePages, dynamicCache);
+                db.Reset();
                 throw;
             }
         }
@@ -55,14 +55,14 @@ namespace LumDbEngine.Element.Engine.Transaction
         public IDbResult Update<T>(string tableName, uint id, T value) where T : IDbEntity, new()
         {
             CheckTransactionState();
-            using var lk = LockTransaction.StartWrite(rwLock);
+            using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
             try
             {
                 return dbManager.Update(db, tableName, id, value);
             }
             catch
             {
-                db = new DbCache(iof, cachePages, dynamicCache);
+                db.Reset();
                 throw;
             }
         }
@@ -70,14 +70,14 @@ namespace LumDbEngine.Element.Engine.Transaction
         public IDbResult Update<T>(string tableName, Func<T, bool> condition, T value) where T : IDbEntity, new()
         {
             CheckTransactionState();
-            using var lk = LockTransaction.StartWrite(rwLock);
+            using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
             try
             {
                 return dbManager.Update(db, tableName, value, condition);
             }
             catch
             {
-                db = new DbCache(iof, cachePages, dynamicCache);
+                db.Reset();
                 throw;
             }
         }

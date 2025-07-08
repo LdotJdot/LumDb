@@ -26,7 +26,7 @@ namespace LumDbEngine.Element.Engine.Cache
         {
             if (!pages.ContainsKey(pageId))
             {
-                lock (pages)
+                lock (pages)    //不允许多线程同时加载同一页
                 {
                     if (!pages.ContainsKey(pageId))
                     {

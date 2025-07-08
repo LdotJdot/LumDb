@@ -1,3 +1,10 @@
+
+
+# LumDb V1.2.1
+- Optimized overall performance.
+- fixed thread safety issues during concurrent transaction execution.
+- added Readonly transactions to improve parallel efficiency of read-only transactions during concurrency.
+- 
 # LumDb V1.1.4
 - database explorer (simple Winform UI) was added in the project, which could be find also in the github releases.
 - bug fixed: in certain situation, insert strVar valueType cause an ArgumentOutOfRangeException.
@@ -16,7 +23,7 @@
 # LumDb V1.0.8
 - Timeout parameter was added in start a transaction during waiting.
 
-# LumDb V1.0.6 2025.01.13
+# LumDb V1.0.6
 - Exception for multi transactions start in single thread has been added to avoid a deadlock.
 - The recursive transaction was added to support some data find situation, e.g. called in linq loop search of data.
 - Removed the types map in value result, which improved the efficiency.
@@ -24,7 +31,7 @@
 - Detail comments were added.
 
 # LumDb V1.0.2
-LumDb is a single-file database program based on C# for .NET 8. It boasts excellent performance, is 100% written in C#, has no dependencies on external component libraries, and supports AOT (Ahead-of-Time compilation) perfectly.
+- LumDb is a single-file database program based on C# for .NET 8. It boasts excellent performance, is 100% written in C#, has no dependencies on external component libraries, and supports AOT (Ahead-of-Time compilation) perfectly.
 
 ## Features
 
@@ -38,10 +45,6 @@ LumDb is a single-file database program based on C# for .NET 8. It boasts excell
 - Thread Safety**: Ensures safe read and write operations across threads.
 - Memory-based Transaction Model**: Supports early storage and discard/rollback operations.
 - Platform Support**: Currently supports .NET 8 and has been tested on Windows. It is theoretically cross-platform capable.
-
-## Current Status
-
-LumDb is currently in version 1.0.0. We invite you to enjoy using this software and kindly ask for your valuable suggestions to help us improve.
 
 ## Getting Started
 
