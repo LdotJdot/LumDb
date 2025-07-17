@@ -102,7 +102,7 @@ class Program
             Console.WriteLine("All complete");
      }
 }
-```csharp
+
 
 Outputs:
 lj99 99
@@ -115,7 +115,7 @@ lj1 1
 69, 68lj,68
 86, 85lj,85
 All complete
-
+```
 
 ## Features
 
