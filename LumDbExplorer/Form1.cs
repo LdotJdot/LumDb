@@ -66,7 +66,7 @@ namespace LumDbExplorer
                 }
 
                 using var values = db.StartTransaction();
-                var res = values.Where(tableInfo.Value.tableName, false, (uint)countPerPage * (page), (uint)countPerPage);
+                var res = values.Find(tableInfo.Value.tableName, false, (uint)countPerPage * (page), (uint)countPerPage);
                 if (res.IsSuccess)
                 {
                     foreach (var val in res.Values)

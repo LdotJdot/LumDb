@@ -16,8 +16,8 @@ namespace UnitTestLumDb.BaseFunction
                 using var ts = eng.StartTransaction();
 
                 ts.Create("tableFirst", [("uid", DbValueType.Int, true), ("username", DbValueType.StrVar, false)]);
-                ts.Insert("tableFirst", new Test() { uid = 4 /*i * 100*/, username = strVarLong });
-                ts.Insert("tableFirst", new Test() { uid = 3 /*i * 100*/, username = "aa123" });
+                ts.Insert_Entity("tableFirst", new Test() { uid = 4 /*i * 100*/, username = strVarLong });
+                ts.Insert_Entity("tableFirst", new Test() { uid = 3 /*i * 100*/, username = "aa123" });
             }
 
             {

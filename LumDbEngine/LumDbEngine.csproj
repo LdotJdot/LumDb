@@ -40,6 +40,10 @@
     <IsAotCompatible>True</IsAotCompatible>
   </PropertyGroup>
 
+    <PropertyGroup Condition="'$(PublishAot)' == 'true'">
+	    <DefineConstants>$(DefineConstants);NATIVE_AOT</DefineConstants>
+    </PropertyGroup>
+	
   <ItemGroup>
     <None Include="..\..\..\..\..\..\工作文件\XX集团\合同前项目准备\20230810 FLOW\DOGGEblack.png">
       <Pack>True</Pack>

@@ -20,7 +20,7 @@ namespace UnitTestLumDb.BaseFunction
 
                 for (int i = 0; i < 500; i++)
                 {
-                    ts.Insert("tableFirst", new Test() { uid = i * 100, username = "anonymous" + (i + 2) });
+                    ts.Insert_Entity("tableFirst", new Test() { uid = i * 100, username = "anonymous" + (i + 2) });
                 }
             }
 
@@ -32,7 +32,7 @@ namespace UnitTestLumDb.BaseFunction
                 Debug.Assert((int)idRes.Value[0] == 49800);
                 Debug.Assert((string)idRes.Value[1] == "anonymous500");
 
-                var dr = ts.Find<Test2>("tableFirst", o => o.Where(l => l.uid == 4990000));
+                var dr = ts.Find_Entity<Test2>("tableFirst", o => o.Where(l => l.uid == 4990000));
                 Assert.IsTrue(dr.Values.Count == 0);
 
                 var res0 = ts.Find("tableFirst", "uid", "100");
@@ -41,7 +41,7 @@ namespace UnitTestLumDb.BaseFunction
                 var res = ts.Find("tableFirst", "username", "anonymous499");
                 Debug.Assert((string)res.Value[1] == "anonymous499");
 
-                var tRes = ts.Find<Test>("tableFirst", "username", "anonymous360");
+                var tRes = ts.Find_Entity<Test>("tableFirst", "username", "anonymous360");
                 Debug.Assert(tRes.Value.username == "anonymous360");
             }
         }

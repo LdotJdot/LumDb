@@ -1,6 +1,6 @@
 ﻿using LumDbEngine.Element.Engine.Lock;
 using LumDbEngine.Element.Engine.Results;
-using LumDbEngine.Element.Value;
+using LumDbEngine.Extension.DbEntity;
 
 namespace LumDbEngine.Element.Engine.Transaction
 {
@@ -48,13 +48,19 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
         }
 
-        public IDbValues<T> Find<T>(string tableName, Func<IEnumerable<T>, IEnumerable<T>> condition, bool isBackward) where T : IDbEntity, new()
+
+        public IDbValues Find(string tableName, params (string keyName, Func<object, bool> checkFunc)[]? conditions)
         {
+            if(conditions == null)
+            {
+                return new DbValues();
+            }
+
             CheckTransactionState();
             try
             {
                 using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
-                return dbManager.Find(db, tableName, condition, isBackward);
+                return dbManager.Find(db, tableName, conditions, false, 0, 0);
             }
             catch
             {
@@ -62,13 +68,20 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
         }
 
-        public IDbValue<T> Find<T>(string tableName, string keyName, object keyValue) where T : IDbEntity, new()
+
+
+        public IDbValues Find(string tableName, bool isBackward, uint skip, uint limit, params (string keyName, Func<object, bool> checkFunc)[]? conditions)
         {
+            if (conditions == null)
+            {
+                return new DbValues();
+            }
+
             CheckTransactionState();
             try
             {
                 using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
-                return dbManager.Find<T>(db, tableName, keyName, keyValue);
+                return dbManager.Find(db, tableName, conditions, isBackward, skip, limit);
             }
             catch
             {
@@ -76,13 +89,13 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
         }
 
-        public IDbValue<T> Find<T>(string tableName, uint id) where T : IDbEntity, new()
+        public IDbValue Count(string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions)
         {
             CheckTransactionState();
             try
             {
                 using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
-                return dbManager.FindById<T>(db, tableName, id);
+                return dbManager.Count(db, tableName, conditions);
             }
             catch
             {

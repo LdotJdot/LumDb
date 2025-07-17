@@ -1,37 +1,105 @@
 
 
-# LumDb V1.2.1
-- Optimized overall performance.
-- fixed thread safety issues during concurrent transaction execution.
-- added Readonly transactions to improve parallel efficiency of read-only transactions during concurrency.
-- 
-# LumDb V1.1.4
-- database explorer (simple Winform UI) was added in the project, which could be find also in the github releases.
-- bug fixed: in certain situation, insert strVar valueType cause an ArgumentOutOfRangeException.
+## LumDb V1.3.1
 
-# LumDb V1.1.3
-- fix a insert value bug with inconsistent order or column count.
-- add gothrough method to iterate the table data with custom action.
+## Demo
 
-# LumDb V1.1.2
-- add inner where and count method with 'limit' and 'skip' parameters.
+```csharp
+using LumDb;
 
-# LumDb V1.1.1
-- The logging system was added to the database to achieve the full ACID principle.
-- Remove db.Destory() method, and use db.SetDestoryOnDisposed() insterad.
+public record Student(string Name, int Age);
 
-# LumDb V1.0.8
-- Timeout parameter was added in start a transaction during waiting.
+class Program
+{
+    public class Student
+    {
+        public Student()
+        {
 
-# LumDb V1.0.6
-- Exception for multi transactions start in single thread has been added to avoid a deadlock.
-- The recursive transaction was added to support some data find situation, e.g. called in linq loop search of data.
-- Removed the types map in value result, which improved the efficiency.
-- Find data in empty table will not cause a exception, but return empty array.
-- Detail comments were added.
+        }
 
-# LumDb V1.0.2
-- LumDb is a single-file database program based on C# for .NET 8. It boasts excellent performance, is 100% written in C#, has no dependencies on external component libraries, and supports AOT (Ahead-of-Time compilation) perfectly.
+        public Student(string name, int age)
+        {
+            Name = name;
+            Age = age;
+        }
+
+        public string Name { get; set; } = "";
+        public int Age { get; set; } = 0;
+    }
+
+    static void Main()
+    {
+          // 1. Create database file and tables
+        
+           using (DbEngine engineCreate = new DbEngine("d:\\xxxxReflectorInsert.db", true))
+            {
+                engineCreate.TimeoutMilliseconds = 10000; // set timeout to 10 seconds
+
+                using (var tsCreate = engineCreate.StartTransaction(0, false))
+                {
+                    tsCreate.Create<Student>(TableNameFirst);
+                    tsCreate.Create<StudentInfo>(TableNameSecond);
+                }
+            }
+
+            // 2. Open existing database and insert 100 records
+            using DbEngine engine = new DbEngine("d:\\xxxxReflectorInsert.db");
+            using (ITransaction transaction = engine.StartTransaction())
+            {
+                for (int index = 0; index < 100; index++)
+                {
+                    transaction.Insert(TableNameFirst, new Student("lj" + index.ToString(), index));
+                    transaction.Insert(TableNameSecond, new StudentInfo(index.ToString() + "lj", index));
+                }
+
+                // ts.Dispose();  // manually committed.
+                    // ts.Discard();
+            } // transaction will be auto committed
+
+            // 3. Query data
+            using (ITransaction transactionQuery = engine.StartTransaction())
+            {
+                var result1 = transactionQuery.Find<Student>(TableNameFirst, o => o.Age > 98);
+
+                foreach (var value in result1.Values)
+                {
+                    Console.WriteLine(value.Name + " " + value.Age.ToString());
+                }
+
+                var result2 = transactionQuery.Find(TableNameFirst, ("Age", o => ((int)o) < 2));
+
+                foreach (var value in result2.Values)
+                {
+                    Console.WriteLine(value[0].ToString() + " " + value[1].ToString());
+                }
+
+                var result3 = transactionQuery.Find<StudentInfo>(TableNameSecond, o => o.Age % 17 == 0);
+
+                foreach (var value in result3.Values)
+                {
+                    Console.WriteLine($"{value.Id}, {value.Name},{value.Age}");
+                }
+            }
+
+            engine.SetDestoryOnDisposed();
+
+            Console.WriteLine("All complete");
+     }
+}
+
+Outputs:
+lj99 99
+lj0 0
+lj1 1
+1, 0lj,0
+18, 17lj,17
+35, 34lj,34
+52, 51lj,51
+69, 68lj,68
+86, 85lj,85
+All complete
+
 
 ## Features
 

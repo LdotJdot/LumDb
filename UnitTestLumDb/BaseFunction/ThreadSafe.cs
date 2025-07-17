@@ -1,6 +1,6 @@
 ﻿using LumDbEngine.Element.Engine;
 using LumDbEngine.Element.Structure;
-using LumDbEngine.Element.Value;
+using LumDbEngine.Extension.DbEntity;
 using UnitTestLumDb.Config;
 
 namespace UnitTestLumDb.BaseFunction
@@ -26,8 +26,8 @@ namespace UnitTestLumDb.BaseFunction
                 for (int i = 0; i < 1000; i++)
                 {
                     using var ts = eng.StartTransaction();
-                    ts.Insert<TestVar>(TABLENAME, new TestVar() { uid = i, username = i + ":123", content = i + "i" });
-                    var res = ts.Find<TestVar>(TABLENAME, (uint)i + 1);
+                    ts.Insert_Entity<TestVar>(TABLENAME, new TestVar() { uid = i, username = i + ":123", content = i + "i" });
+                    var res = ts.Find_Entity<TestVar>(TABLENAME, (uint)i + 1);
                     Assert.IsTrue(res.IsSuccess);
                 }
                 //);
@@ -38,7 +38,7 @@ namespace UnitTestLumDb.BaseFunction
                 Parallel.For(0, 1000, i =>
                     {
                         using var ts = eng.StartTransactionReadonly();
-                        var res = ts.Find<TestVar>(TABLENAME, (uint)i + 1);
+                        var res = ts.Find_Entity<TestVar>(TABLENAME, (uint)i + 1);
                         lock (lk)
                         {
                             sumi += res.Value.id;
@@ -64,14 +64,14 @@ namespace UnitTestLumDb.BaseFunction
 
                     Parallel.For(0, 1000, i =>
                     {
-                        ts.Insert<TestVar>(TABLENAME, new TestVar() { uid = i, username = i + ":123", content = i + "i" });
+                        ts.Insert_Entity<TestVar>(TABLENAME, new TestVar() { uid = i, username = i + ":123", content = i + "i" });
                     });
 
                     long sumi = 0;
                     var lk = new object();
                     Parallel.For(0, 1000, i =>
                     {
-                        var res = ts.Find<TestVar>(TABLENAME, (uint)i + 1);
+                        var res = ts.Find_Entity<TestVar>(TABLENAME, (uint)i + 1);
                         lock (lk)
                         {
                             sumi += res.Value.id;
@@ -102,7 +102,7 @@ namespace UnitTestLumDb.BaseFunction
 
                         Parallel.For(0, 1000, i =>
                         {
-                            ts.Insert<TestVar>(TABLENAME, new TestVar() { uid = i, username = i + ":123", content = i + "i" });
+                            ts.Insert_Entity<TestVar>(TABLENAME, new TestVar() { uid = i, username = i + ":123", content = i + "i" });
                         });
                     });
 
@@ -112,7 +112,7 @@ namespace UnitTestLumDb.BaseFunction
                         var lk = new object();
                         Parallel.For(0, 1000, i =>
                         {
-                            var res = ts.Find<TestVar>(TABLENAME, (uint)i + 1);
+                            var res = ts.Find_Entity<TestVar>(TABLENAME, (uint)i + 1);
                             if (res.IsSuccess)
                             {
                                 lock (lk)
@@ -130,7 +130,7 @@ namespace UnitTestLumDb.BaseFunction
                     var lk = new object();
                     Parallel.For(0, 1000, i =>
                     {
-                        var res = ts.Find<TestVar>(TABLENAME, (uint)i + 1);
+                        var res = ts.Find_Entity<TestVar>(TABLENAME, (uint)i + 1);
                         lock (lk)
                         {
                             sumi += res.Value.id;

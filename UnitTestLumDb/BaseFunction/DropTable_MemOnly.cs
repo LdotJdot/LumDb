@@ -1,7 +1,7 @@
 ﻿using LumDbEngine.Element.Engine;
 using LumDbEngine.Element.Engine.Transaction;
 using LumDbEngine.Element.Structure;
-using LumDbEngine.Element.Value;
+using LumDbEngine.Extension.DbEntity;
 using UnitTestLumDb.Config;
 
 namespace UnitTestLumDb.BaseFunction
@@ -21,8 +21,8 @@ namespace UnitTestLumDb.BaseFunction
 
             for (int i = 0; i < 1000; i++)
             {
-                ts.Insert("tableFirst", new Test() { uid = -i + 5, username = (-i).ToString() });
-                ts.Insert("tableFirst", new Test() { uid = -i + 5000, username = (-i + 5000).ToString() });
+                ts.Insert_Entity("tableFirst", new Test() { uid = -i + 5, username = (-i).ToString() });
+                ts.Insert_Entity("tableFirst", new Test() { uid = -i + 5000, username = (-i + 5000).ToString() });
                 var res = ts.Delete("tableFirst", (uint)i + 1);
             }
 
@@ -53,8 +53,8 @@ namespace UnitTestLumDb.BaseFunction
 
             for (int i = 0; i < 1000; i++)
             {
-                ts.Insert("tableSecond", new Test() { uid = -i + 5, username = (-i - 10).ToString() });
-                ts.Insert("tableSecond", new Test() { uid = -i + 5000, username = (-i + 5001).ToString() });
+                ts.Insert_Entity("tableSecond", new Test() { uid = -i + 5, username = (-i - 10).ToString() });
+                ts.Insert_Entity("tableSecond", new Test() { uid = -i + 5000, username = (-i + 5001).ToString() });
                 var res = ts.Delete("tableSecond", (uint)i + 1);
             }
 
@@ -91,8 +91,8 @@ namespace UnitTestLumDb.BaseFunction
 
             for (int i = 0; i < 1000; i++)
             {
-                ts.Insert("tableFirst", new Test() { uid = -i + 5, username = (-i).ToString() });
-                ts.Insert("tableFirst", new Test() { uid = -i + 5000, username = (-i + 5000).ToString() });
+                ts.Insert_Entity("tableFirst", new Test() { uid = -i + 5, username = (-i).ToString() });
+                ts.Insert_Entity("tableFirst", new Test() { uid = -i + 5000, username = (-i + 5000).ToString() });
                 var res = ts.Delete("tableFirst", (uint)i + 1);
             }
 
@@ -117,8 +117,8 @@ namespace UnitTestLumDb.BaseFunction
 
             for (int i = 0; i < 1000; i++)
             {
-                ts.Insert("tableSecond", new Test() { uid = -i + 5, username = (-i - 10).ToString() });
-                ts.Insert("tableSecond", new Test() { uid = -i + 5000, username = (-i + 5001).ToString() });
+                ts.Insert_Entity("tableSecond", new Test() { uid = -i + 5, username = (-i - 10).ToString() });
+                ts.Insert_Entity("tableSecond", new Test() { uid = -i + 5000, username = (-i + 5001).ToString() });
                 var res = ts.Delete("tableSecond", (uint)i + 1);
             }
 

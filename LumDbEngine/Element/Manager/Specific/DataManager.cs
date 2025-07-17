@@ -6,7 +6,7 @@ using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Structure.Page;
 using LumDbEngine.Element.Structure.Page.Data;
 using LumDbEngine.Element.Structure.Page.Key;
-using LumDbEngine.Element.Value;
+using LumDbEngine.Extension.DbEntity;
 using LumDbEngine.Utils.ByteUtils;
 using System.Buffers;
 using System.Collections.Generic;
@@ -15,7 +15,7 @@ using System.Runtime.CompilerServices;
 
 namespace LumDbEngine.Element.Manager.Specific
 {
-    internal class DataManager
+    internal partial class DataManager
     {
         public static void InitializeDataPage(TablePage tablePage, DataPage dataPage)
         {
@@ -624,35 +624,6 @@ namespace LumDbEngine.Element.Manager.Specific
             end:;
         }
 
-        internal static void GoThrough<T>(DbCache db, ColumnHeader[] headers, DataPage? page, Func<T, bool> action) where T : IDbEntity, new()
-        {
-            while (page != null)
-            {
-                for (int i = 0; i < page.MaxDataCount; i++)
-                {
-                    var dataNode = page.DataNodes[i];
-
-                    if (dataNode.IsAvailable)
-                    {
-                        var newEntity= (new T()).UnboxingWithId(dataNode.Id, GetValue(db, headers, dataNode.Data));
-
-                        if (!action((T)newEntity))
-                        {
-                            return;
-                        }
-                    }
-                }
-
-                if (db.IsValidPage(page.NextPageId))
-                {
-                    page = PageManager.GetPage<DataPage>(db, page.NextPageId);
-                }
-                else
-                {
-                    page = null;
-                }
-            }
-        }
         
         internal static void GoThrough(DbCache db, ColumnHeader[] headers, DataPage? page, Func<object[], bool>  action)
         {

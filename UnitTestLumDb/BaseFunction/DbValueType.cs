@@ -1,6 +1,6 @@
 ﻿using LumDbEngine.Element.Engine;
 using LumDbEngine.Element.Structure;
-using LumDbEngine.Element.Value;
+using LumDbEngine.Extension.DbEntity;
 using UnitTestLumDb.Config;
 
 namespace UnitTestLumDb.BaseFunction
@@ -27,7 +27,7 @@ namespace UnitTestLumDb.BaseFunction
 
                 for (int i = 0; i < 500; i++)
                 {
-                    ts.Insert(TABLENAME, new TestDecimalDateTime()
+                    ts.Insert_Entity(TABLENAME, new TestDecimalDateTime()
                     {
                         uid = i * 100,
                         username = "anonymous" + (i + 2),
@@ -40,7 +40,7 @@ namespace UnitTestLumDb.BaseFunction
             using (DbEngine eng2 = Configuration.GetDbEngineForTest(path))
             {
                 using var ts = eng2.StartTransaction();
-                var res = ts.Find<TestDecimalDateTime>(TABLENAME, "dec", new decimal(7.141592653));
+                var res = ts.Find_Entity<TestDecimalDateTime>(TABLENAME, "dec", new decimal(7.141592653));
                 Assert.IsTrue(res.Value.id == 5);
                 Assert.IsTrue(res.Value.uid == 400);
                 Assert.IsTrue(res.Value.username == "anonymous6");

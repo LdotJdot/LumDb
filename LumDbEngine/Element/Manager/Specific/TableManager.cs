@@ -6,13 +6,13 @@ using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Structure.Page.Data;
 using LumDbEngine.Element.Structure.Page.Key;
 using LumDbEngine.Element.Structure.Page.Table;
-using LumDbEngine.Element.Value;
+using LumDbEngine.Extension.DbEntity;
 using LumDbEngine.Utils.StringUtils;
 using System.Text;
 
 namespace LumDbEngine.Element.Manager.Specific
 {
-    internal static class TableManager
+    internal  static partial class TableManager
     {
         public static unsafe void InitializeTablePage(TablePage page, in TableHeaderInfo[] tableHeaders)
         {
@@ -79,39 +79,6 @@ namespace LumDbEngine.Element.Manager.Specific
 
         }
 
-        public static IDbValues<T> Traversal<T>(DbCache db, TablePage tablePage, Func<IEnumerable<T>, IEnumerable<T>> condition, bool isBackward) where T : IDbEntity, new()
-        {
-            if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
-            {
-                return new DbValues<T>([]);
-            }
-
-            var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
-            var values =isBackward? DataManager.GetValues_Backward(db, tablePage.ColumnHeaders, rootPage!) : DataManager.GetValues(db, tablePage.ColumnHeaders, rootPage!);
-            return new DbValues<T>(condition(values.Select(o => (T)(new T()).UnboxingWithId(o.node.Id, o.data))));
-        }
-
-        public static DataNode? FirstOrDefaultNode<T>(DbCache db, TablePage tablePage, Func<T, bool> condition) where T : IDbEntity, new()
-        {
-            if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
-            {
-                return null;
-            }
-
-            var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
-            var values = DataManager.GetValues(db, tablePage.ColumnHeaders, rootPage!);
-            var t = new T();
-
-            foreach (var tarGet in values)
-            {
-                t.Unboxing(tarGet.data);
-                if (condition(t))
-                {
-                    return tarGet.node;
-                }
-            }
-            return null;
-        }
 
         public static DataNode? FirstOrDefaultNode(DbCache db, TablePage tablePage, string columnName, object value)
         {
@@ -138,50 +105,6 @@ namespace LumDbEngine.Element.Manager.Specific
             Span<byte> key = stackalloc byte[4];
             id.SerializeObjectToBytes(key);
             return IndexManager.GetDataByIndex(db, tablePage, NodeManager.GetIndexNode(db, tablePage.PageHeader.RootIndexNode.TargetPageID, tablePage.PageHeader.RootIndexNode.TargetNodeIndex).Value, key);
-        }
-
-        public static IDbValue<T> Pick<T>(DbCache db, TablePage tablePage, uint id) where T : IDbEntity, new()
-        {
-            var node = FirstOrDefaultNode(db, tablePage, id);
-
-            if (node == null)
-            {
-                return new DbValue<T>(LumException.Raise($"{LumExceptionMessage.KeyNoFound}, id: {id}"));
-            }
-            else
-            {
-                return new DbValue<T>((T)new T().UnboxingWithId(node.Id, DataManager.GetValue(db, tablePage.ColumnHeaders, node.Data)));
-            }
-        }
-
-        public static IDbValue<T> Pick<T>(DbCache db, TablePage tablePage, string keyName, object keyValue) where T : IDbEntity, new()
-        {
-            var headerIndex = tablePage.GetTableHeaderIndex(keyName);
-            var columnHeader = tablePage.ColumnHeaders[headerIndex];
-
-            if (columnHeader.IsKey == false)
-            {
-                return new DbValue<T>(LumException.Raise($"{keyName} {LumExceptionMessage.NotKey}"));
-            }
-
-            if (!columnHeader.ValueType.CheckType(keyValue) || !columnHeader.ValueType.IsValidFix32())
-            {
-                return new DbValue<T>(LumException.Raise($"{LumExceptionMessage.DataTypeNotSupport}: {columnHeader.ValueType}"));
-            }
-
-            var len = columnHeader.ValueType.GetLength();
-            Span<byte> buffer = stackalloc byte[len];
-            keyValue.SerializeObjectToBytes(buffer);
-            var node = IndexManager.GetDataByIndex(db, tablePage, NodeManager.GetIndexNode(db, columnHeader.RootSubIndexNode.TargetPageID, columnHeader.RootSubIndexNode.TargetNodeIndex).Value, buffer);
-
-            if (node == null)
-            {
-                return new DbValue<T>(LumException.Raise($"{LumExceptionMessage.KeyNoFound}, {keyName}: {keyValue}"));
-            }
-            else
-            {
-                return new DbValue<T>((T)new T().UnboxingWithId(node.Id, DataManager.GetValue(db, tablePage.ColumnHeaders, node.Data)));
-            }
         }
 
         public static IDbValue Pick(DbCache db, TablePage tablePage, uint id)
@@ -377,11 +300,11 @@ namespace LumDbEngine.Element.Manager.Specific
             return new DbValue([value]);
         }
 
-        public static unsafe IDbValues Where(DbCache db, TablePage tablePage, (string keyName, Func<object, bool> checkFunc)[]? conditions,bool isBackforward,uint skip,uint limit)
+        public static unsafe IDbValues Find(DbCache db, TablePage tablePage, (string keyName, Func<object, bool> checkFunc)[]? conditions,bool isBackforward,uint skip,uint limit)
         {
             if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
             {
-                return new DbValues([]);
+                return new DbValues();
             }
 
             Func<object, bool>?[]? fullCondition = null;
@@ -414,51 +337,6 @@ namespace LumDbEngine.Element.Manager.Specific
             return new DbValues(values.Select(o => o.data));
         }
         
-        public static unsafe IDbValues<T> Where<T>(DbCache db, TablePage tablePage, (string keyName, Func<object, bool> checkFunc)[]? conditions,bool isBackforward,uint skip,uint limit) where T : IDbEntity, new()
-        {
-            if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
-            {
-                return new DbValues<T>([]);
-            }
-
-            Func<object, bool>?[]? fullCondition = null;
-
-            if (conditions?.Length > 0)
-            {
-                fullCondition = new Func<object, bool>?[tablePage.ColumnCount];
-                
-                var headerStringNames = tablePage.ColumnHeaders.Select(o => Encoding.UTF8.GetString(o.Name).TrimEnd('\0')).ToArray();
-                var keyStringNames = conditions.Select(o => o.keyName).ToArray();
-
-                // not done
-
-                for (int i = 0; i < fullCondition.Length; i++)
-                {
-                    for (int j = 0; j < conditions.Length; j++)
-                    {
-                        if (keyStringNames[j].Equals(headerStringNames[i], StringComparison.Ordinal))
-                        {
-                            fullCondition[i] = conditions[j].checkFunc;
-                            keyStringNames[j] = string.Empty;
-                            break;
-                        }
-                    }
-                }
-            }
-            var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
-            var values = isBackforward ? DataManager.GetValuesWithIdCondition_Backward(db, tablePage.ColumnHeaders, rootPage!, fullCondition, skip, limit):  DataManager.GetValuesWithIdCondition(db, tablePage.ColumnHeaders,rootPage!, fullCondition, skip, limit);
-            return new DbValues<T>(values.Select(o => (T)(new T()).UnboxingWithId(o.node.Id, o.data)));
-        }
-
-        public static void GoThrough<T>(DbCache db, TablePage tablePage, Func<T, bool> action) where T : IDbEntity, new()
-        {
-            if (db.IsValidPage(tablePage.PageHeader.RootDataPageId))
-            {
-                var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
-                DataManager.GoThrough(db, tablePage.ColumnHeaders, rootPage!,action);
-            }
-
-        }
         
         public static void GoThrough(DbCache db, TablePage tablePage, Func<object[], bool> action)
         {
