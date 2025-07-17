@@ -2,7 +2,7 @@
 using LumDbEngine.Element.Engine.Transaction;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Structure.Page.Key;
-using LumDbEngine.Element.Value;
+using LumDbEngine.Extension.DbEntity;
 using System.Diagnostics;
 using System.IO;
 using UnitTestLumDb.Config;
@@ -90,7 +90,7 @@ namespace UnitTestLumDb.BaseFunction
                     var res = ts.Find(TABLENAME,1);
 
 
-                    ts.GoThrough<Test>(TABLENAME, (Test objs) =>
+                    ts.GoThrough_Entity<Test>(TABLENAME, (Test objs) =>
                     {
                         Console.WriteLine(objs.uid);
                         count++;

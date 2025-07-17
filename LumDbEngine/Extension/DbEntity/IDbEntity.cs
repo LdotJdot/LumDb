@@ -1,6 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
-namespace LumDbEngine.Element.Value
+namespace LumDbEngine.Extension.DbEntity
 {
     /// <summary>
     /// Interface to wrapper class object for Db engine

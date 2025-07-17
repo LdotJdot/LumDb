@@ -98,7 +98,7 @@ namespace UnitTestLumDb.BaseFunction
                 using var ts = eng.StartTransactionReadonly();
 
                 var t = Stopwatch.GetTimestamp();
-                var ds2 = ts.Where(TABLENAME, false, 5, 300, ("a", (o) => ((int)o % 3) == 0));
+                var ds2 = ts.Find(TABLENAME, false, 5, 300, ("a", (o) => ((int)o % 3) == 0));
                 res2 = (int)ds2.Values[10][0];
             }
 

@@ -40,6 +40,7 @@ namespace LumDbEngine.Element.Engine.Results
 
         public DbValues()
         {
+            Values = [];
         }
 
         public DbValues(LumException ex) : base(ex)

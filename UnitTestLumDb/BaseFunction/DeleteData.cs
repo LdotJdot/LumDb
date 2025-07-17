@@ -22,8 +22,8 @@ namespace UnitTestLumDb.BaseFunction
 
                 for (int i = 0; i < 4; i++)
                 {
-                    ts.Insert("tableFirst", new Test() { uid = -i + 5, username = (-i).ToString() });
-                    ts.Insert("tableFirst", new Test() { uid = -i + 5000, username = (-i + 5000).ToString() });
+                    ts.Insert_Entity("tableFirst", new Test() { uid = -i + 5, username = (-i).ToString() });
+                    ts.Insert_Entity("tableFirst", new Test() { uid = -i + 5000, username = (-i + 5000).ToString() });
                     var res = ts.Delete("tableFirst", (uint)i + 1);
                 }
             }
@@ -59,8 +59,8 @@ namespace UnitTestLumDb.BaseFunction
 
             for (int i = 0; i < 1000; i++)
             {
-                ts.Insert("tableFirst", new Test() { uid = -i + 5, username = (-i).ToString() });
-                ts.Insert("tableFirst", new Test() { uid = -i + 5000, username = (-i + 5000).ToString() });
+                ts.Insert_Entity("tableFirst", new Test() { uid = -i + 5, username = (-i).ToString() });
+                ts.Insert_Entity("tableFirst", new Test() { uid = -i + 5000, username = (-i + 5000).ToString() });
                 //ts.Insert("tableFirst", new Test() { uid = (i + 1) * 100, username = (i+1).ToString() });
                 var res = ts.Delete("tableFirst", (uint)i + 1);
 

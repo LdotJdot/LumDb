@@ -1,8 +1,9 @@
+using LumDbEngine;
 using LumDbEngine.Element.Engine;
 using LumDbEngine.Element.Engine.Transaction;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Structure.Page.Key;
-using LumDbEngine.Element.Value;
+using LumDbEngine.Extension.DbEntity;
 using LumDbEngine.Utils.Test;
 using System.Diagnostics;
 
@@ -18,8 +19,8 @@ namespace ConsoleTest
         {
             //Inserts500000Mem();
             //Inserts500000();
-
-            AsyncRead();
+            ReflectorInsert();
+            //AsyncRead();
             ////
             //Debug();
 
@@ -34,6 +35,114 @@ namespace ConsoleTest
 
             Console.WriteLine("All done.");
             Console.ReadLine();
+        }
+
+        public class StudentInfo
+        {
+
+            public StudentInfo()
+            {
+
+            }
+
+            public StudentInfo(string name, int age)
+            {
+                Name = name;
+                Age = age;
+            }
+
+            [Id]
+            public uint Id { get; set; }
+
+            [Key]
+            [Str32B]
+            public string Name { get; set; } = "";
+
+            public int Age { get; set; } = 0;
+        }
+
+        public class Student
+        {
+
+            public Student()
+            {
+
+            }
+
+            public Student(string name, int age)
+            {
+                Name = name;
+                Age = age;
+            }
+
+            public string Name { get; set; } = "";
+            public int Age { get; set; } = 0;
+        }
+        private static void ReflectorInsert()
+        {
+            const string TABLENAME_1 = "tableFirst";
+            const string TABLENAME_2 = "tableSecond";
+            {
+                using (DbEngine eng1 = new DbEngine("d:\\xxxxReflectorInsert.db", true))
+                {
+
+                    eng1.TimeoutMilliseconds = 10000; // set timeout to 10 seconds
+
+                    using (var tsCreate = eng1.StartTransaction(0, false))
+                    {
+                        tsCreate.Create<Student>(TABLENAME_1);
+                        tsCreate.Create<StudentInfo>(TABLENAME_2);
+                    }
+                }
+
+                using DbEngine eng = new DbEngine("d:\\xxxxReflectorInsert.db");
+                using (ITransaction ts = eng.StartTransaction())
+                {
+                    for (int i = 0; i < 100; i++)
+                    {
+                        ts.Insert(TABLENAME_1, new Student("lj" + i.ToString(), i));
+                        ts.Insert(TABLENAME_2, new StudentInfo(i.ToString() + "lj", i));
+                    }
+
+                    // ts.Dispose();  // manually committed.
+                    // ts.Discard();
+                } // transaction will be auto committed
+
+
+
+                using (ITransaction ts2 = eng.StartTransaction())
+                {
+                    var ds1 = ts2.Find<Student>(TABLENAME_1, o => o.Age > 98);
+
+                    foreach (var val in ds1.Values)
+                    {
+                        Console.WriteLine(val.Name + " "+ val.Age.ToString());
+                    }
+
+                    var ds2 = ts2.Find(TABLENAME_1, ("Age", o => ((int)o) < 2));
+
+                    foreach (var val in ds2.Values)
+                    {
+                        Console.WriteLine(val[0].ToString() + " " + val[1].ToString());
+                    }
+
+                    var ds3 = ts2.Find<StudentInfo>(TABLENAME_2, o => o.Age % 17 == 0);
+
+                    foreach (var val in ds3.Values)
+                    {
+                        Console.WriteLine($"{val.Id}, {val.Name},{val.Age}");
+                    }
+                }
+
+                eng.SetDestoryOnDisposed();
+
+
+                Console.WriteLine("All complete");
+
+
+
+
+            }
         }
 
         private static void AsyncRead()
@@ -96,9 +205,6 @@ namespace ConsoleTest
 
 
             }
-
-
-
         }
 
         private static void GetTableNames()
@@ -225,7 +331,7 @@ namespace ConsoleTest
                 using ITransaction ts = eng.StartTransaction();
 
                 var t = Stopwatch.GetTimestamp();
-                var ds2 = ts.Where(TABLENAME, false, 0, 500);
+                var ds2 = ts.Find(TABLENAME, false, 0, 500);
                 Console.WriteLine(ds2.Values.Count);
                 Console.WriteLine("value");
                 Console.WriteLine(ds2.Values[0][0]);

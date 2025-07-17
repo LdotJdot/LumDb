@@ -19,5 +19,6 @@ namespace LumDbEngine.Element.Exceptions
         internal const string DbEngDisposedTimeOut = "Waiting living transactions  timeout when disposing DbEngine.";
         internal const string DbEngDisposedEarly = "Transaction cannot be accessed beacuse the dbEngine has already be disposed early.";
         internal const string InternalError = "InternalError";
+        internal const string DataReflectionError = "The data is not consistent with the properties of the type";
     }
 }

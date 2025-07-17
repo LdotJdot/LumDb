@@ -7,15 +7,14 @@ namespace LumDbEngine.Element.Engine.Transaction
 {
     internal partial class LumTransaction
     {
-        public IDbValue<uint> Insert(string tableName, (string columnName, object value)[] values)
+      
+        public IDbValue<uint> Insert_Entity<T>(string tableName, T t) where T : IDbEntity, new()
         {
-            if (values == null || values.Length == 0) return new DbValue<uint>(0);
-            // todo
             CheckTransactionState();
             using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
             try
             {
-                return dbManager.Insert(db, tableName, values);
+                return dbManager.Insert_Entity(db, tableName, t);
             }
             catch
             {

@@ -1,6 +1,6 @@
 ﻿using LumDbEngine.Element.Engine;
 using LumDbEngine.Element.Structure;
-using LumDbEngine.Element.Value;
+using LumDbEngine.Extension.DbEntity;
 using System.Diagnostics;
 using UnitTestLumDb.Config;
 
@@ -22,7 +22,7 @@ namespace UnitTestLumDb.BaseFunction
 
                 for (int i = 0; i < 1000; i++)
                 {
-                    ts.Insert("tableFirst", new Test() { uid = i * 100, username = "anonymous" + (i + 2) });
+                    ts.Insert_Entity("tableFirst", new Test() { uid = i * 100, username = "anonymous" + (i + 2) });
                 }
 
                 Debug.WriteLine("create done");
@@ -42,7 +42,7 @@ namespace UnitTestLumDb.BaseFunction
                     id++;
                 }
 
-                var dbResult = ts.Find<Test2>("tableFirst", o => o.Where(e => e.username2.EndsWith("5")).Take(1));
+                var dbResult = ts.Find_Entity<Test2>("tableFirst", o => o.Where(e => e.username2.EndsWith("5")).Take(1));
 
                 foreach (var v in dbResult.Values)
                 {
@@ -70,7 +70,7 @@ namespace UnitTestLumDb.BaseFunction
                 using DbEngine eng = Configuration.GetDbEngineForTest(path);
                 using var ts = eng.StartTransaction();
 
-                var res = ts.Find<Test>("tableFirst", "username", "luojin");
+                var res = ts.Find_Entity<Test>("tableFirst", "username", "luojin");
                 ;
             }
         }

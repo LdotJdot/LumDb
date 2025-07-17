@@ -9,22 +9,22 @@ namespace LumDbEngine.Element.Engine.Transaction
 {
     internal partial class LumTransaction
     {
+   
 
-        public void GoThrough(string tableName, Func<object[], bool> action)
+        public void GoThrough_Entity<T>(string tableName, Func<T, bool> action) where T : IDbEntity, new()
         {
             CheckTransactionState();
 
             try
             {
                 using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
-                dbManager.GoThrough(db, tableName, action);
+                dbManager.GoThrough_Entity<T>(db, tableName, action);
             }
             catch
             {
                 throw;
             }
         }
-
     }
 
 }
