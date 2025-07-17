@@ -7,8 +7,6 @@
 ```csharp
 using LumDb;
 
-public record Student(string Name, int Age);
-
 class Program
 {
   public class StudentInfo
