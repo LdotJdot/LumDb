@@ -11,12 +11,29 @@ public record Student(string Name, int Age);
 
 class Program
 {
+  public class StudentInfo
+  {
+      public StudentInfo(){}
+
+      public StudentInfo(string name, int age)
+      {
+          Name = name;
+          Age = age;
+      }
+
+      [Id]
+      public uint Id { get; set; }
+
+      [Key]
+      [Str32B]
+      public string Name { get; set; } = "";
+
+      public int Age { get; set; } = 0;
+   }
+
     public class Student
     {
-        public Student()
-        {
-
-        }
+        public Student(){}
 
         public Student(string name, int age)
         {
