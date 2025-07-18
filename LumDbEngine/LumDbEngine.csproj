@@ -20,8 +20,8 @@
 	<Copyright>MIT</Copyright>
 	<Description>A single file database (Aot support)</Description>
 	<PackageTags>database;single file;storage;aot;thread safe</PackageTags>
-	<PackageReleaseNotes>Comments were added for public methods.</PackageReleaseNotes>
-	<Version>1.2.1</Version>
+	<PackageReleaseNotes>Add method for common class as entity.</PackageReleaseNotes>
+	<Version>1.3.1.1</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
