@@ -17,9 +17,10 @@ namespace ConsoleTest
         /// <param name="args"></param>
         private static void Main(string[] args)
         {
+            MemTable();
             //Inserts500000Mem();
             //Inserts500000();
-            ReflectorInsert();
+            //ReflectorInsert();
             //AsyncRead();
             ////
             //Debug();
@@ -78,6 +79,34 @@ namespace ConsoleTest
             public string Name { get; set; } = "";
             public int Age { get; set; } = 0;
         }
+        private static void MemTable()
+        {
+            const string TABLENAME_1 = "tableFirst";
+            const string TABLENAME_2 = "tableSecond";
+            using (DbEngine eng = new DbEngine())
+
+            {
+                using (var tsCreate = eng.StartTransaction(0, false))
+                {
+                    tsCreate.Create<Student>(TABLENAME_1);
+                    tsCreate.Create<StudentInfo>(TABLENAME_2);
+                }
+
+                using (ITransaction ts = eng.StartTransaction())
+                {
+                    for (int i = 0; i < 1; i++)
+                    {
+                        var r1=ts.Insert(TABLENAME_1, new Student("lj" + i.ToString(), i));
+                        var r2=ts.Insert(TABLENAME_2, new StudentInfo(i.ToString() + "lj", i));
+                    }
+
+                    // ts.Dispose();  // manually committed.
+                    // ts.Discard();
+                } // transaction will be auto committed
+
+            }
+        }
+
         private static void ReflectorInsert()
         {
             const string TABLENAME_1 = "tableFirst";
