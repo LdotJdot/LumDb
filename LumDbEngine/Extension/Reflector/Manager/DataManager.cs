@@ -34,7 +34,7 @@ namespace LumDbEngine.Element.Manager.Specific
                     {
                         var newEntity = ReflectorUtils.Dump(new T(), dataNode.Id, GetValue(db, headers, dataNode.Data));
 
-                        if (!action((T)newEntity))
+                        if (!action(newEntity))
                         {
                             return;
                         }
@@ -61,6 +61,8 @@ namespace LumDbEngine.Element.Manager.Specific
             int currentCount = 0;
             int currentSkip = 0;
 
+            var t = new T();
+
             while (page != null)
             {
                 for (int i = 0; i < page.MaxDataCount; i++)
@@ -71,7 +73,6 @@ namespace LumDbEngine.Element.Manager.Specific
                     var data = GetValue(db, headers, dataNode.Data);
 
                     if (data == null) continue;
-                    var t = new T();
                     try
                     {
                         ReflectorUtils.Dump(t, dataNode.Id, data);
@@ -89,6 +90,7 @@ namespace LumDbEngine.Element.Manager.Specific
                         {
                             currentCount++;
                             yield return t;
+                            t = new T(); // Reset for the next iteration
                         }
                         else
                         {
@@ -135,6 +137,8 @@ end:;
 
             page = PageManager.GetPage<DataPage>(db, initPageId);
 
+            var t = new T();
+
             while (page != null)
             {
                 for (int i = page.MaxDataCount - 1; i >= 0; i--)
@@ -145,27 +149,28 @@ end:;
                     var data = GetValue(db, headers, dataNode.Data);
 
                     if (data == null) continue;
-                    var t = new T();
 
                     ReflectorUtils.Dump(t, dataNode.Id, data);
                     if (!condition(t)) continue;
 
                     if (skip == 0 || currentSkip >= skip)
+                    {
+                        if (limit == 0 || currentCount < limit)
                         {
-                            if (limit == 0 || currentCount < limit)
-                            {
-                                currentCount++;
-                                yield return t;
-                            }
-                            else
-                            {
-                                goto end;
-                            }
+                            currentCount++;
+                            yield return t;
+                            t = new T(); // Reset for the next iteration
+
                         }
                         else
                         {
-                            currentSkip++;
+                            goto end;
                         }
+                    }
+                    else
+                    {
+                        currentSkip++;
+                    }
                 }
 
                 if (db.IsValidPage(page.PrevPageId))

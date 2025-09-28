@@ -44,11 +44,12 @@ namespace LumDbEngine.Element.Manager.Specific
 
             var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
             var values = DataManager.GetValues(db, tablePage.ColumnHeaders, rootPage!);
+
             var t = new T();
 
             foreach (var tarGet in values)
             {
-                ReflectorUtils.Dump(new T(), tarGet.node.Id, tarGet.data);
+                ReflectorUtils.Dump(t, tarGet.node.Id, tarGet.data);
                 if (condition(t))
                 {
                     return tarGet.node;

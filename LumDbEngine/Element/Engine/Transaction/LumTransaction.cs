@@ -69,8 +69,6 @@ namespace LumDbEngine.Element.Engine.Transaction
             {
                 throw LumException.Raise(LumExceptionMessage.DbEngDisposedEarly);
             }
-
-
         }
 
         private void CheckTransactionState()
