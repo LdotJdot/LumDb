@@ -23,7 +23,8 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
             catch (Exception ex)
             {
-
+                db.Reset();
+                throw;
             }
 
             return Insert(tableName,values);

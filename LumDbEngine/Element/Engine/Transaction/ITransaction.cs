@@ -87,14 +87,14 @@ namespace LumDbEngine.Element.Engine.Transaction
 
         /// <returns>DbValues of T. The value is present only when the 'IsSuccess' is 'true'</returns>
         public IDbValues Find(string tableName, params (string keyName, Func<object, bool> checkFunc)[] conditions);
-        
+
         /// <summary>
         /// Count the results in table with specific condition
         /// </summary>
         /// <param name="tableName">table name</param>
         /// <param name="conditions">value filter condition</param>   
         /// <returns>DbValues of T. The value is present only when the 'IsSuccess' is 'true'</returns>
-        public IDbValue Count(string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions);
+        public IDbValue<uint> Count(string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions);
 
         /// <summary>
         /// Delete a data by default id.<br/>
