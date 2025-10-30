@@ -73,7 +73,7 @@ namespace LumDbEngine.Element.Engine.Transaction.AsNoTracking
         /// <param name="tableName">table name</param>
         /// <param name="conditions">value filter condition</param>   
         /// <returns>DbValues of T. The value is present only when the 'IsSuccess' is 'true'</returns>
-        public IDbValue Count(string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions);
+        public IDbValue<uint> Count(string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions);
 
        
       
