@@ -5,19 +5,40 @@ using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Structure.Page.Key;
 using LumDbEngine.Extension.DbEntity;
 using LumDbEngine.Utils.Test;
+using PNMessage;
+using System.ComponentModel.Design;
 using System.Diagnostics;
+using System.Xml.Linq;
 
 namespace ConsoleTest
 {
-       internal class Program
+   
+
+    internal class Program
     {
+
+
+        private static void Bug()
+        {
+            using DbEngine eng = new DbEngine("d:\\db.db", true);
+
+            using var ts = eng.StartTransactionReadonly();
+
+            ts.Insert<Message>("table", new Message(123, 321, 123, 321, 123, DateTime.UtcNow, "123", MessageType.Unknown));
+
+        }
+
         /// <summary>
         /// test start from here
         /// </summary>
         /// <param name="args"></param>
         private static void Main(string[] args)
         {
-            MemTable();
+
+            Bug();
+
+
+            //MemTable();
             //Inserts500000Mem();
             //Inserts500000();
             //ReflectorInsert();
