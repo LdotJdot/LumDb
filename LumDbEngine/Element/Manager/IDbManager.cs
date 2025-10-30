@@ -29,7 +29,7 @@ namespace LumDbEngine.Element.Manager
 
         public IDbValues Find(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[]? conditions, bool isBackward, uint skip, uint limit);
 
-        public IDbValue Count(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions);
+        public IDbValue<uint> Count(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions);
 
         public void GoThrough(DbCache db, string tableName, Func<object[], bool> action);
 

@@ -22,7 +22,7 @@ namespace ConsoleTest
         {
             using DbEngine eng = new DbEngine("d:\\db.db", true);
 
-            using var ts = eng.StartTransaction();
+            using var ts = eng.StartTransactionReadonly();
 
             ts.Insert<Message>("table", new Message(123, 321, 123, 321, 123, DateTime.UtcNow, "123", MessageType.Unknown));
 

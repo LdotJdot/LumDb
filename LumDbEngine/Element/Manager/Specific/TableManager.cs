@@ -267,11 +267,11 @@ namespace LumDbEngine.Element.Manager.Specific
         }
 
        
-        public static unsafe IDbValue CountCondition(DbCache db, TablePage tablePage, (string keyName, Func<object, bool> checkFunc)[] conditions )
+        public static unsafe IDbValue<uint> CountCondition(DbCache db, TablePage tablePage, (string keyName, Func<object, bool> checkFunc)[] conditions )
         {
             if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
             {
-                return new DbValue([0]);
+                return new DbValue<uint>(0);
             }
 
             var fullCondition = new Func<object, bool>?[tablePage.ColumnCount];
@@ -297,7 +297,7 @@ namespace LumDbEngine.Element.Manager.Specific
 
             var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
             var value = DataManager.CountWithCnditions(db, tablePage.ColumnHeaders, fullCondition, rootPage!);
-            return new DbValue([value]);
+            return new DbValue<uint>(value);
         }
 
         public static unsafe IDbValues Find(DbCache db, TablePage tablePage, (string keyName, Func<object, bool> checkFunc)[]? conditions,bool isBackforward,uint skip,uint limit)

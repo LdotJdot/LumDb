@@ -89,7 +89,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
         }
 
-        public IDbValue Count(string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions)
+        public IDbValue<uint> Count(string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions)
         {
             CheckTransactionState();
             try

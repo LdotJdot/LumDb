@@ -240,13 +240,13 @@ namespace LumDbEngine.Element.Manager
             return TableManager.Find(db, tablePage, conditions,isBackward,skip,limit);
         }
 
-        public IDbValue Count(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions)
+        public IDbValue<uint> Count(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions)
         {
             var tablePage = TableRepoManager.GetTablePage(db, tableName);
 
             if (tablePage == null)
             {
-                return new DbValue(DbResults.TableNotFound);
+                return new DbValue<uint>(DbResults.TableNotFound);
             }
             return TableManager.CountCondition(db, tablePage,conditions);
         }
