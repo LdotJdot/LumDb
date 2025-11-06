@@ -20,12 +20,7 @@ namespace ConsoleTest
 
         private static void Bug()
         {
-            using DbEngine eng = new DbEngine("d:\\db.db", true);
-
-            using var ts = eng.StartTransactionReadonly();
-
-            ts.Insert<Message>("table", new Message(123, 321, 123, 321, 123, DateTime.UtcNow, "123", MessageType.Unknown));
-
+            using DbEngine eng = new DbEngine("queryCache.db");
         }
 
         /// <summary>
@@ -435,7 +430,7 @@ namespace ConsoleTest
 
             var t = Stopwatch.GetTimestamp();
             var ds2 = ts.Count(TABLENAME, [("b", (o) => (long)o % 3 == 0), ("a", (o) => (int)o > 5000)]);
-            Console.WriteLine(ds2.Value[0]);
+           // Console.WriteLine(ds2.Value[0]);
 
             Console.WriteLine(Stopwatch.GetTimestamp() - t);
             eng.SetDestoryOnDisposed();

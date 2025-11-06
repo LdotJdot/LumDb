@@ -101,10 +101,18 @@ namespace LumDbEngine.Element.Engine
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(path))
+                {
+                    throw LumException.Raise("Wrong path");
+                }
                // var ck = new STChecker(autoResetEvent, callCount, -1);
                 using var ts = new LumTransaction(null, DbCache.DEFAULT_CACHE_PAGES, true, this);
                 ts.SaveAs(path);
                 ts.Discard();
+            }
+            catch (LumException)
+            {
+                throw;
             }
             catch (Exception ex)
             {

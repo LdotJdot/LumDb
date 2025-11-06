@@ -46,7 +46,7 @@ namespace UnitTestLumDb.BaseFunction
                 var count = ds.Values.Count;
 
                 var ds2 = ts1.Count(TABLENAME, [("b", (o) => (long)o % 3 == 0)]);
-                var count2 = ds2.Value[0];
+                var count2 = ds2.Value;
 
                 Assert.IsTrue(count == (uint)count2);
                 eng.SetDestoryOnDisposed();
