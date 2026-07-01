@@ -82,12 +82,18 @@ namespace LumDbEngine.Element.Engine
             {
                 case DbLogState.Writing:
                     var dblog = DbLog.OpenLogToRecoveryDbEngine(this);
-                    dblog.DumpToDbEngine(iof.FileStream);
-                    dblog.Dispose(); // make sure the log can be normally disposed when no exception was throw.
-
+                    try
+                    {
+                        dblog.DumpToDbEngine(iof.FileStream);
+                    }
+                    finally
+                    {
+                        dblog.Dispose();
+                    }
                     break;
                 case DbLogState.Done:
                 default:
+                    DbLog.PrepareForWrite(this, iof.FileStream);
                     break;
             }
 

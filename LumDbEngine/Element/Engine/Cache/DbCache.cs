@@ -65,26 +65,30 @@ namespace LumDbEngine.Element.Engine.Cache
 
             if (iof?.IsValid() == true && disposed == false)
             {
-                var dblog = DbLog.Create(dbEngine);
-
-                // write dblog.
+                var dblog = DbLog.Create(dbEngine, iof.FileStream);
+                try
                 {
+                    var dirtyPages = pages.Values.Where(page => page?.IsDirty == true).ToList();
+
                     dblog.WriteState(DbLogState.Writing);
                     dblog.Write(header);
-                    foreach (var page in pages.Values)
+                    foreach (var page in dirtyPages)
                     {
-                        if (page?.IsDirty == true)
-                        {
-                            dblog.Write(page);
-                            page.IsDirty = false;
-                        }
+                        dblog.Write(page);
                     }
                     dblog.WriteState(DbLogState.Done);
+
+                    dblog.DumpToDbEngine(iof.FileStream);
+
+                    foreach (var page in dirtyPages)
+                    {
+                        page.IsDirty = false;
+                    }
                 }
-
-                dblog.DumpToDbEngine(iof.FileStream);
-
-                dblog.Dispose();    // make sure the dblog file will remain when the process was abort.
+                finally
+                {
+                    dblog.Dispose();
+                }
 
                 GarbageCollection();
                 //pages.Clear();

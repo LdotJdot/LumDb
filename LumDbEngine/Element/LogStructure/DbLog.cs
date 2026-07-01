@@ -27,6 +27,7 @@ namespace LumDbEngine.Element.LogStructure
 
         BinaryWriter logBw;
         BinaryReader logBr;
+        bool disposed;
 
 
         public static DbLog OpenLogToRecoveryDbEngine(DbEngine dbEngine)
@@ -55,8 +56,44 @@ namespace LumDbEngine.Element.LogStructure
             return dblog;
         }
 
-        public static DbLog Create(DbEngine dbEngine)
+        /// <summary>
+        /// Recover or remove a stale log left from an interrupted save before opening a new one.
+        /// </summary>
+        internal static void PrepareForWrite(DbEngine dbEngine, Stream dbStream)
         {
+            var dblog = new DbLog(dbEngine);
+            dblog.LogFilePath = dbEngine.Path + ".log";
+
+            var state = DbLogUtils.CheckLogState(dblog);
+
+            switch (state)
+            {
+                case DbLogState.NotExisted:
+                    return;
+                case DbLogState.Done:
+                    var recoveryLog = OpenLogToRecoveryDbEngine(dbEngine);
+                    try
+                    {
+                        recoveryLog.DumpToDbEngine(dbStream);
+                    }
+                    finally
+                    {
+                        recoveryLog.Dispose();
+                    }
+                    return;
+                case DbLogState.Writing:
+                case DbLogState.Corrupted:
+                    DbLogUtils.Delete(dblog);
+                    return;
+                default:
+                    throw LumException.Throw("Unknown state in prepare Dblog");
+            }
+        }
+
+        public static DbLog Create(DbEngine dbEngine, Stream dbStream)
+        {
+            PrepareForWrite(dbEngine, dbStream);
+
             var dblog = new DbLog(dbEngine);
             dblog.LogFilePath = dbEngine.Path + ".log";
 
@@ -68,7 +105,6 @@ namespace LumDbEngine.Element.LogStructure
                     dblog.dbLogFileStream = DbLogUtils.Create(dblog, false);
                     break;
                 case DbLogState.Done:
-                    throw new Exception("Fatal error in log write");
                 case DbLogState.Writing:
                 case DbLogState.Corrupted:
                     dblog.dbLogFileStream = DbLogUtils.Create(dblog, true);
@@ -124,9 +160,41 @@ namespace LumDbEngine.Element.LogStructure
 
         public void Dispose()
         {
-            logBw.Dispose();
-            logBr.Dispose();
-            dbLogFileStream.Dispose();
+            if (disposed)
+            {
+                return;
+            }
+
+            disposed = true;
+
+            try
+            {
+                logBw?.Dispose();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                logBr?.Dispose();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                dbLogFileStream?.Dispose();
+            }
+            catch
+            {
+            }
+
+            logBw = null;
+            logBr = null;
+            dbLogFileStream = null;
+
             DbLogUtils.Delete(this);
         }
 
