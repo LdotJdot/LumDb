@@ -133,7 +133,7 @@ namespace LumDbEngine.Element.Manager.Specific
         {
             Span<byte> key = stackalloc byte[4];
 
-            dataNode.Id.SerializeObjectToBytes(key);
+            DbValueTypeUtils.WriteUInt32(dataNode.Id, key);
 
             var hash = LumHash.Create(key);
 
@@ -239,7 +239,7 @@ namespace LumDbEngine.Element.Manager.Specific
             // main index
             Span<byte> data = stackalloc byte[4];
 
-            dataNode.Id.SerializeObjectToBytes(data);
+            DbValueTypeUtils.WriteUInt32(dataNode.Id, data);
             var rootIndexNode = NodeManager.GetIndexNode(db, tablePage.PageHeader.RootIndexNode.TargetPageID, tablePage.PageHeader.RootIndexNode.TargetNodeIndex);
 
             var idNode = SearchAndDeleteKey(db, tablePage, rootIndexNode, data);

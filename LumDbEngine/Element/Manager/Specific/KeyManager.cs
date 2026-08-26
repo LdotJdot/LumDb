@@ -38,7 +38,7 @@ namespace LumDbEngine.Element.Manager.Specific
                 if (keyNode != null)
                 {
                     // Hash Collision
-                    LumException.ThrowIfTrue(keyNode.Value.IsKeyEqual(key), "Key already existed");
+                    LumException.ThrowIfTrue(keyNode.Value.IsKeyEqual(key), LumExceptionMessage.KeyAlreadyExisted);
                     lastNode = keyNode;
                     link = keyNode.Value.NextKeyNodeLink;
                 }

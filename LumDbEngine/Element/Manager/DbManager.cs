@@ -88,20 +88,6 @@ namespace LumDbEngine.Element.Manager
             return DbResults.Success;
         }
 
-        public IDbValues Find(DbCache db, string tableName, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition, bool isBackward)
-        {
-            var tablePage = TableRepoManager.GetTablePage(db, tableName);
-
-            if (tablePage == null)
-            {
-                return new DbValues(DbResults.TableNotFound);
-            }
-            else
-            {
-                return TableManager.Traversal(db, tablePage, condition,isBackward);
-            }
-        }
-
         public IDbValue<uint> Insert(DbCache db, string tableName, TableValue[] values)
         {
             var tablePage = TableRepoManager.GetTablePage(db, tableName);
@@ -116,18 +102,6 @@ namespace LumDbEngine.Element.Manager
             return new DbValue<uint>(id ?? 0);
         }
 
-        public IDbValue Find(DbCache db, string tableName, string keyName, object keyValue)
-        {
-            var tablePage = TableRepoManager.GetTablePage(db, tableName);
-
-            if (tablePage == null)
-            {
-                return new DbValue(DbResults.TableNotFound);
-            }
-
-            return TableManager.Pick(db, tablePage, keyName, keyValue);
-        }
-
         public IDbValue Delete(DbCache db, string tableName, uint id)
         {
             var tablePage = TableRepoManager.GetTablePage(db, tableName);
@@ -140,7 +114,7 @@ namespace LumDbEngine.Element.Manager
             return TableManager.Delete(db, tablePage, id);
         }
 
-        public IDbValue Delete(DbCache db, string tableName, string keyName, object keyValue)
+        public IDbValue Delete(DbCache db, string tableName, string keyName, DbCell keyValue)
         {
             var tablePage = TableRepoManager.GetTablePage(db, tableName);
 
@@ -164,8 +138,19 @@ namespace LumDbEngine.Element.Manager
             return TableManager.Pick(db, tablePage, id);
         }
 
- 
-        public IDbResult Update(DbCache db, string tableName, uint id, string columnName, object value)
+        public IDbValue Find(DbCache db, string tableName, string keyName, DbCell keyValue)
+        {
+            var tablePage = TableRepoManager.GetTablePage(db, tableName);
+
+            if (tablePage == null)
+            {
+                return new DbValue(DbResults.TableNotFound);
+            }
+
+            return TableManager.Pick(db, tablePage, keyName, keyValue);
+        }
+
+        public IDbResult Update(DbCache db, string tableName, uint id, string columnName, DbCell value)
         {
             var tablePage = TableRepoManager.GetTablePage(db, tableName);
 
@@ -173,8 +158,6 @@ namespace LumDbEngine.Element.Manager
             {
                 return DbResults.TableNotFound;
             }
-
-            Debug.Assert(tablePage != null);
 
             var dataNode = TableManager.FirstOrDefaultNode(db, tablePage, id);
 
@@ -188,7 +171,7 @@ namespace LumDbEngine.Element.Manager
             return DbResults.Success;
         }
 
-        public IDbResult Update(DbCache db, string tableName, string keyName, object keyValue, string columnName, object value)
+        public IDbResult Update(DbCache db, string tableName, string keyName, DbCell keyValue, string columnName, DbCell value)
         {
             var tablePage = TableRepoManager.GetTablePage(db, tableName);
 
@@ -209,7 +192,6 @@ namespace LumDbEngine.Element.Manager
             return DbResults.Success;
         }
 
-  
         public IDbResult Drop(DbCache db, string tableName)
         {
             var node = TableRepoManager.FindTableRepoNode(db, tableName);
@@ -228,31 +210,7 @@ namespace LumDbEngine.Element.Manager
             return DbResults.Success;
         }
 
-
-        public IDbValues Find(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[]? conditions, bool isBackward, uint skip, uint limit)
-        {
-            var tablePage = TableRepoManager.GetTablePage(db, tableName);
-
-            if (tablePage == null)
-            {
-                return new DbValues(DbResults.TableNotFound);
-            }
-            return TableManager.Find(db, tablePage, conditions,isBackward,skip,limit);
-        }
-
-        public IDbValue<uint> Count(DbCache db, string tableName, (string keyName, Func<object, bool> checkFunc)[] conditions)
-        {
-            var tablePage = TableRepoManager.GetTablePage(db, tableName);
-
-            if (tablePage == null)
-            {
-                return new DbValue<uint>(DbResults.TableNotFound);
-            }
-            return TableManager.CountCondition(db, tablePage,conditions);
-        }
-
-        
-        public void GoThrough(DbCache db, string tableName, Func<object[], bool> action)
+        public void GoThrough(DbCache db, string tableName, RowViewAction action)
         {
             var tablePage = TableRepoManager.GetTablePage(db, tableName);
 
@@ -260,8 +218,16 @@ namespace LumDbEngine.Element.Manager
             {
                 TableManager.GoThrough(db, tablePage, action);
             }
-
         }
 
+        public void GoThrough(DbCache db, string tableName, RowViewIdAction action)
+        {
+            var tablePage = TableRepoManager.GetTablePage(db, tableName);
+
+            if (tablePage != null)
+            {
+                TableManager.GoThrough(db, tablePage, action);
+            }
+        }
     }
 }

@@ -1,30 +1,22 @@
 ﻿using LumDbEngine.Element.Engine.Lock;
-using LumDbEngine.Element.Engine.Results;
-using LumDbEngine.Element.Manager;
-using LumDbEngine.Element.Structure.Page.Key;
-using LumDbEngine.Extension.DbEntity;
-using System.Collections.Generic;
+using LumDbEngine.Element.Structure;
 
 namespace LumDbEngine.Element.Engine.Transaction
 {
     internal partial class LumTransaction
     {
-
-        public void GoThrough(string tableName, Func<object[], bool> action)
+        public void GoThrough(string tableName, RowViewAction action)
         {
             CheckTransactionState();
-
-            try
-            {
-                using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
-                dbManager.GoThrough(db, tableName, action);
-            }
-            catch
-            {
-                throw;
-            }
+            using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
+            dbManager.GoThrough(db, tableName, action);
         }
 
+        public void GoThrough(string tableName, RowViewIdAction action)
+        {
+            CheckTransactionState();
+            using var lk = LockTransaction.TryStartRead(rwLock, dbEngine.TimeoutMilliseconds);
+            dbManager.GoThrough(db, tableName, action);
+        }
     }
-
 }

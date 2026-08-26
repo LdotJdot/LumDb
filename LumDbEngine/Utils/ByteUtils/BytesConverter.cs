@@ -6,17 +6,21 @@ namespace LumDbEngine.Utils.ByteUtils
     {
         public static decimal ToDecimal(this Span<byte> bytes)
         {
-            if (bytes.Length != 16)
+            return ToDecimalNoAlloc(bytes);
+        }
+
+        /// <summary>Decode decimal without heap allocation (uses stack for bit words).</summary>
+        public static decimal ToDecimalNoAlloc(ReadOnlySpan<byte> bytes)
+        {
+            if (bytes.Length < 16)
                 throw LumException.Raise("decimal should be 16 byte length");
 
-            // 将字节数组拆分为4个int32部分
-            int[] bits = new int[4];
+            Span<int> bits = stackalloc int[4];
             for (int i = 0; i < 4; i++)
             {
                 bits[i] = BitConverter.ToInt32(bytes.Slice(i * 4, 4));
             }
 
-            // 将4个int32部分组合成一个decimal
             return new decimal(bits);
         }
 

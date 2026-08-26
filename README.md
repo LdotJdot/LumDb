@@ -1,151 +1,105 @@
+# LumDb 2.1.0
 
+A single-file, thread-safe embedded database for .NET 10. 100% C#, AOT-friendly, no native dependencies.
 
-## LumDb V1.3.8
+On-disk format **1.3.9** (`DbHeader.VERSION = 1_003_009`). Packed as `major * 1_000_000 + minor * 1_000 + patch`. Bump that constant when the layout or engine contract changes — there is no runtime “append version” API. `DbEngine.Version` / `VersionString` expose the current value (`"1.3.9"`).
 
-## Demo
+## Engines
 
 ```csharp
-using LumDb;
+using var mem = new DbEngine();              // in-memory; same instance shares one committed image
+using var disk = new DbEngine(@"d:\app.db"); // file + WAL
 
-class Program
+using (var ts = mem.StartTransaction())
 {
-  public class StudentInfo
-  {
-      public StudentInfo(){}
+    ts.Create<Student>("students");
+    ts.Insert("students", new Student { Name = "lj", Age = 20 });
+} // Dispose commits. The next StartTransaction on this engine sees the data.
 
-      public StudentInfo(string name, int age)
-      {
-          Name = name;
-          Age = age;
-      }
+mem.SaveTo(@"d:\app.db");                    // dump committed image (not uncommitted dirty pages)
+```
 
-      [Id]
-      public uint Id { get; set; }
+| | Memory `new DbEngine()` | File `new DbEngine(path)` |
+|---|---|---|
+| Persistence | Process lifetime | Disk + `.log` WAL |
+| Cross-transaction | Same instance shares the committed image | Same, via the file |
+| `Discard` | Drops the current tx only | Same |
+| Crash recovery | N/A | Replay `.log` |
+| `SaveTo(path)` | Full committed dump | File copy of committed image |
 
-      [Key]
-      [Str32B]
-      public string Name { get; set; } = "";
+`SaveChanges` / `Dispose` commit. `Discard` rolls back the current transaction and reloads from the committed image. A following `Dispose` does not overwrite the image with an empty cache.
 
-      public int Age { get; set; } = 0;
-   }
+## LumEntity (source generator)
 
-    public class Student
-    {
-        public Student(){}
+Mark a **partial** class. Build generates `ILumEntity<T>` (works without PublishAOT — generation is compile-time).
 
-        public Student(string name, int age)
-        {
-            Name = name;
-            Age = age;
-        }
+```csharp
+using LumDbEngine;
+using LumDbEngine.Element.Engine;
+using LumDbEngine.Element.Engine.Transaction;
+using LumDbEngine.Element.Structure;
 
-        public string Name { get; set; } = "";
-        public int Age { get; set; } = 0;
-    }
-
-    static void Main()
-    {
-          // 1. Create database file and tables
-        
-           using (DbEngine engineCreate = new DbEngine("d:\\xxxxReflectorInsert.db", true))
-            {
-                engineCreate.TimeoutMilliseconds = 10000; // set timeout to 10 seconds
-
-                using (var tsCreate = engineCreate.StartTransaction(0, false))
-                {
-                    tsCreate.Create<Student>(TableNameFirst);
-                    tsCreate.Create<StudentInfo>(TableNameSecond);
-                }
-            }
-
-            // 2. Open existing database and insert 100 records
-            using DbEngine engine = new DbEngine("d:\\xxxxReflectorInsert.db");
-            using (ITransaction transaction = engine.StartTransaction())
-            {
-                for (int index = 0; index < 100; index++)
-                {
-                    transaction.Insert(TableNameFirst, new Student("lj" + index.ToString(), index));
-                    transaction.Insert(TableNameSecond, new StudentInfo(index.ToString() + "lj", index));
-                }
-
-                // ts.Dispose();  // manually committed.
-                    // ts.Discard();
-            } // transaction will be auto committed
-
-            // 3. Query data
-            using (ITransaction transactionQuery = engine.StartTransaction())
-            {
-                var result1 = transactionQuery.Find<Student>(TableNameFirst, o => o.Age > 98);
-
-                foreach (var value in result1.Values)
-                {
-                    Console.WriteLine(value.Name + " " + value.Age.ToString());
-                }
-
-                var result2 = transactionQuery.Find(TableNameFirst, ("Age", o => ((int)o) < 2));
-
-                foreach (var value in result2.Values)
-                {
-                    Console.WriteLine(value[0].ToString() + " " + value[1].ToString());
-                }
-
-                var result3 = transactionQuery.Find<StudentInfo>(TableNameSecond, o => o.Age % 17 == 0);
-
-                foreach (var value in result3.Values)
-                {
-                    Console.WriteLine($"{value.Id}, {value.Name},{value.Age}");
-                }
-            }
-
-            engine.SetDestoryOnDisposed();
-
-            Console.WriteLine("All complete");
-     }
+[LumEntity]
+public partial class Student
+{
+    [Id] public uint Id { get; set; }          // engine auto row id, not a column
+    [Key] [Str32B] public string Name { get; set; } = "";
+    public int Age { get; set; }
 }
 
+const string Table = "students";
 
-Outputs:
-lj99 99
-lj0 0
-lj1 1
-1, 0lj,0
-18, 17lj,17
-35, 34lj,34
-52, 51lj,51
-69, 68lj,68
-86, 85lj,85
-All complete
+using var eng = new DbEngine("demo.db");
+using (var ts = eng.StartTransaction())
+{
+    ts.Create<Student>(Table);
+    ts.Insert(Table, new Student { Name = "lj99", Age = 99 });
+    ts.Insert(Table, new Student { Name = "lj0", Age = 0 });
+}
+
+using (var ts = eng.StartTransaction())
+{
+    var byKey = ts.FindEntity<Student>(Table, "Name", "lj99");
+    Console.WriteLine($"{byKey.Value.Id}, {byKey.Value.Name}, {byKey.Value.Age}");
+
+    ts.GoThrough(Table, (ref RowView row) =>
+    {
+        if (row.GetInt(1) > 90)
+            Console.WriteLine(row.GetString(0));
+        return true; // continue
+    });
+}
 ```
+
+Tuple / `DbCell` API (no entity type):
+
+```csharp
+ts.Create("kv", [("k", DbValueType.Int, true), ("v", DbValueType.StrVar, false)]);
+ts.Insert("kv", [("k", 1), ("v", "hello")]);
+var row = ts.Find("kv", "k", 1);
+Console.WriteLine(row.Row.GetString(1));
+ts.Update("kv", 1u, "v", "world");   // by engine row id
+ts.Delete("kv", "k", 1);
+```
+
+Unsupported nested members on `[LumEntity]` are skipped with warning `LUMDB002`. `[Ignore]` is silent. DateTime columns are UTC (`DateTimeKind.Utc`).
 
 ## Features
 
-- Performance**: LumDb delivers high performance with its efficient design.
-- Language**: 100% C# language, ensuring consistency and ease of integration with other C# projects.
-- Dependencies**: No external component libraries are required, making it lightweight and easy to deploy.
-- AOT Support**: Perfectly supports Ahead-of-Time compilation, enhancing startup performance and reducing runtime overhead.
-- Database Structure**: LumDb is a relational database that allows for custom multi-key patterns.
-- Data Types**: Supports various data types including int, double, long, bool, decimal, datetime, fixed-length string, variable-length string, fixed-length bytes, and variable-length bytes.
-- KV Database Simulation**: Can simulate a KV database and handle file operations based on byte values within tables.
-- Thread Safety**: Ensures safe read and write operations across threads.
-- Memory-based Transaction Model**: Supports early storage and discard/rollback operations.
-- Platform Support**: Currently supports .NET 8 and has been tested on Windows. It is theoretically cross-platform capable.
+- Relational tables with optional multi-key secondary indexes
+- Types: bool, byte, int/uint, long/ulong, float/double, decimal, DateTime UTC, fixed/var string, fixed/var bytes
+- Read-committed: a readonly transaction sees the last commit, not another writer’s dirty pages
+- Thread-safe: one writer (upgradeable) + concurrent readers
+- Source-generated entities; `GoThrough` / `RowView` scan without allocating entities
+- AOT publish supported (`PublishAot`); daily `dotnet build` still runs the generator
+- Tools: **LumDbExplorer** (WinForms) to create/copy databases, create tables, CRUD rows, inspect schema and stats
 
-## Getting Started
+## Getting started
 
-To get started with LumDb, please follow these simple steps:
-
-1. **Installation**: Since LumDb is a single-file database, there is no installation process. Simply reference the LumDb library in your .NET 8 project.
-2. **Configuration**: Configure your database schema according to your application's needs.
-3. **Usage**: Start using LumDb to manage your data with the provided API.
-
-## Contribution
-
-We welcome contributions to LumDb. If you find any issues or have feature requests, please submit them through our issue tracker.
+1. Reference `LumDbEngine` (net10). For `[LumEntity]`, the analyzer is packed with the NuGet.
+2. `new DbEngine()` or `new DbEngine(path)`.
+3. `using var ts = engine.StartTransaction();` — dispose to commit, or `Discard()`.
 
 ## License
 
-LumDb is licensed under the MIT License. See the [LICENSE](LICENSE.txt) file for more information.
-
----
-
-Please enjoy using LumDb and help us make it even better by providing feedback and contributions!
+MIT. See [LICENSE.txt](LICENSE.txt).

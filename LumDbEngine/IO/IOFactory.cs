@@ -25,11 +25,24 @@ namespace LumDbEngine.IO
         public BinaryWriter BinaryWriter { get => binaryWriter; }
         public Stream FileStream { get => fileStream; }
 
+        internal bool IsMemory { get; }
+        internal MemoryDbBuffer? Memory { get; }
+
         public IOFactory(string path)
         {
             this.fileStream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
             readerPool = new BinaryReaderPool(path, readerPoolSize);
             this.binaryWriter = new BinaryWriter(fileStream);
+            IsMemory = false;
+        }
+
+        internal IOFactory(MemoryDbBuffer memory)
+        {
+            Memory = memory ?? throw new ArgumentNullException(nameof(memory));
+            this.fileStream = new MemoryCursorStream(memory, writable: true);
+            readerPool = new BinaryReaderPool(memory, readerPoolSize);
+            this.binaryWriter = new BinaryWriter(fileStream);
+            IsMemory = true;
         }
 
         private bool disposed = false;

@@ -53,6 +53,10 @@ namespace LumDbEngine.Element.Manager.Specific
 
             var valuesOrdered=values.OrderBy(val => tablePage.GetTableHeaderIndex(val.columnName)).ToArray();
 
+            // Validate fixed lengths / types and uniqueness BEFORE mutating pages (no dirty write on failure).
+            ValidateInsertValues(tablePage, valuesOrdered);
+            EnsureNoDuplicateBusinessKeys(db, tablePage, valuesOrdered);
+
             var dataPage = DataManager.RequestAvailableDataPage(db, tablePage);
             dataPage.MarkDirty();
             dataPage.CurrentDataCount++;
@@ -66,21 +70,46 @@ namespace LumDbEngine.Element.Manager.Specific
             return dataNode?.Id;
         }
 
-        public static IDbValues Traversal(DbCache db, TablePage tablePage, Func<IEnumerable<object[]>, IEnumerable<object[]>> condition, bool isBackward)
+        private static void ValidateInsertValues(TablePage tablePage, TableValue[] valuesOrdered)
         {
-            if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
+            for (int i = 0; i < valuesOrdered.Length; i++)
             {
-                return new DbValues([]);
+                var header = tablePage.ColumnHeaders[i];
+                var cell = valuesOrdered[i].value.WithColumnType(header.ValueType);
+                cell.EnsureFitsColumn(header.ValueType);
             }
-            var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
-            var values =isBackward? condition(DataManager.GetValues_Backward(db, tablePage.ColumnHeaders, rootPage!).Select(o => o.data)) : condition(DataManager.GetValues(db, tablePage.ColumnHeaders, rootPage!).Select(o => o.data));
+        }
 
-            return new DbValues(values);
+        private static void EnsureNoDuplicateBusinessKeys(DbCache db, TablePage tablePage, TableValue[] valuesOrdered, uint? excludeDataId = null)
+        {
+            // Fixed keys are at most 32 bytes (Str32B/Bytes32).
+            Span<byte> buffer = stackalloc byte[32];
+            for (int i = 0; i < valuesOrdered.Length; i++)
+            {
+                var header = tablePage.ColumnHeaders[i];
+                if (!header.IsKey)
+                    continue;
 
+                var cell = valuesOrdered[i].value.WithColumnType(header.ValueType);
+                var len = header.ValueType.GetLength();
+                var keySpan = buffer.Slice(0, len);
+                cell.Serialize(keySpan);
+
+                if (!db.IsValidPage(header.RootSubIndexNode.TargetPageID))
+                    continue;
+
+                var root = NodeManager.GetIndexNode(db, header.RootSubIndexNode.TargetPageID, header.RootSubIndexNode.TargetNodeIndex);
+                if (root == null)
+                    continue;
+
+                var existing = IndexManager.GetDataByIndex(db, tablePage, root.Value, keySpan);
+                if (existing != null && (!excludeDataId.HasValue || existing.Id != excludeDataId.Value))
+                    throw LumException.Raise($"{LumExceptionMessage.KeyAlreadyExisted}: {header.Name.TransformToToString()}");
+            }
         }
 
 
-        public static DataNode? FirstOrDefaultNode(DbCache db, TablePage tablePage, string columnName, object value)
+        public static DataNode? FirstOrDefaultNode(DbCache db, TablePage tablePage, string columnName, DbCell value)
         {
             var headerIndex = tablePage.GetTableHeaderIndex(columnName);
             var columnHeader = tablePage.ColumnHeaders[headerIndex];
@@ -89,41 +118,19 @@ namespace LumDbEngine.Element.Manager.Specific
                 return null;
             }
 
-            if (!columnHeader.ValueType.CheckType(value) || !columnHeader.ValueType.IsValidFix32())
+            var cell = value.WithColumnType(columnHeader.ValueType);
+            if (!columnHeader.ValueType.IsValidFix32())
             {
                 return null;
             }
 
             var len = columnHeader.ValueType.GetLength();
             Span<byte> buffer = stackalloc byte[len];
-            value.SerializeObjectToBytes(buffer);
+            cell.Serialize(buffer);
             return IndexManager.GetDataByIndex(db, tablePage, NodeManager.GetIndexNode(db, columnHeader.RootSubIndexNode.TargetPageID, columnHeader.RootSubIndexNode.TargetNodeIndex).Value, buffer);
         }
 
-        public static DataNode? FirstOrDefaultNode(DbCache db, TablePage tablePage, uint id)
-        {
-            Span<byte> key = stackalloc byte[4];
-            id.SerializeObjectToBytes(key);
-            return IndexManager.GetDataByIndex(db, tablePage, NodeManager.GetIndexNode(db, tablePage.PageHeader.RootIndexNode.TargetPageID, tablePage.PageHeader.RootIndexNode.TargetNodeIndex).Value, key);
-        }
-
-        public static IDbValue Pick(DbCache db, TablePage tablePage, uint id)
-        {
-            Span<byte> key = stackalloc byte[4];
-            id.SerializeObjectToBytes(key);
-            var node = FirstOrDefaultNode(db, tablePage, id);
-
-            if (node == null)
-            {
-                return new DbValue(LumException.Raise($"{LumExceptionMessage.KeyNoFound}, id: {id}"));
-            }
-            else
-            {
-                return new DbValue(DataManager.GetValue(db, tablePage.ColumnHeaders, node.Data));
-            }
-        }
-
-        public static IDbValue Pick(DbCache db, TablePage tablePage, string keyName, object keyValue)
+        public static IDbValue Pick(DbCache db, TablePage tablePage, string keyName, DbCell keyValue)
         {
             var headerIndex = tablePage.GetTableHeaderIndex(keyName);
             var columnHeader = tablePage.ColumnHeaders[headerIndex];
@@ -133,23 +140,46 @@ namespace LumDbEngine.Element.Manager.Specific
                 return new DbValue(LumException.Raise($"{keyName} {LumExceptionMessage.NotKey}"));
             }
 
-            if (!columnHeader.ValueType.CheckType(keyValue) || !columnHeader.ValueType.IsValidFix32())
+            if (!columnHeader.ValueType.IsValidFix32())
             {
                 return new DbValue(LumException.Raise($"{LumExceptionMessage.DataTypeNotSupport}: {columnHeader.ValueType}"));
             }
 
-            var len = columnHeader.ValueType.GetLength();
-            Span<byte> buffer = stackalloc byte[len];
-            keyValue.SerializeObjectToBytes(buffer);
-            var node = IndexManager.GetDataByIndex(db, tablePage, NodeManager.GetIndexNode(db, columnHeader.RootSubIndexNode.TargetPageID, columnHeader.RootSubIndexNode.TargetNodeIndex).Value, buffer);
+            var node = FirstOrDefaultNode(db, tablePage, keyName, keyValue);
+            if (node == null)
+            {
+                return new DbValue(LumException.Raise($"{LumExceptionMessage.KeyNoFound}, {keyName}: {keyValue.ToObject()}"));
+            }
+
+            return new DbValue(DataManager.CreateRowBuffer(db, tablePage.ColumnHeaders, node.Data));
+        }
+
+        public static IDbValue Delete(DbCache db, TablePage tablePage, string keyName, DbCell keyValue)
+        {
+            var dataNode = FirstOrDefaultNode(db, tablePage, keyName, keyValue);
+            return Delete(db, tablePage, dataNode);
+        }
+
+        public static DataNode? FirstOrDefaultNode(DbCache db, TablePage tablePage, uint id)
+        {
+            Span<byte> key = stackalloc byte[4];
+            DbValueTypeUtils.WriteUInt32(id, key);
+            return IndexManager.GetDataByIndex(db, tablePage, NodeManager.GetIndexNode(db, tablePage.PageHeader.RootIndexNode.TargetPageID, tablePage.PageHeader.RootIndexNode.TargetNodeIndex).Value, key);
+        }
+
+        public static IDbValue Pick(DbCache db, TablePage tablePage, uint id)
+        {
+            Span<byte> key = stackalloc byte[4];
+            DbValueTypeUtils.WriteUInt32(id, key);
+            var node = FirstOrDefaultNode(db, tablePage, id);
 
             if (node == null)
             {
-                return new DbValue(LumException.Raise($"{LumExceptionMessage.KeyNoFound}, {keyName}: {keyValue}"));
+                return new DbValue(LumException.Raise($"{LumExceptionMessage.KeyNoFound}, id: {id}"));
             }
             else
             {
-                return new DbValue(DataManager.GetValue(db, tablePage.ColumnHeaders, node.Data));
+                return new DbValue(DataManager.CreateRowBuffer(db, tablePage.ColumnHeaders, node.Data));
             }
         }
 
@@ -161,7 +191,7 @@ namespace LumDbEngine.Element.Manager.Specific
             }
             else
             {
-                var dbResult = new DbValue(DataManager.GetValue(db, tablePage.ColumnHeaders, dataNode.Data));
+                var dbResult = new DbValue(DataManager.CreateRowBuffer(db, tablePage.ColumnHeaders, dataNode.Data));
                 {
                     DataManager.DeleteDataNodeByIndex(db, tablePage, dataNode);
                     IndexManager.DeleteMainIndex(db, tablePage, dataNode);
@@ -177,27 +207,37 @@ namespace LumDbEngine.Element.Manager.Specific
             return Delete(db, tablePage, dataNode);
         }
 
-        public static IDbValue Delete(DbCache db, TablePage tablePage, string keyName, object keyValue)
-        {
-            var dataNode = FirstOrDefaultNode(db, tablePage, keyName, keyValue);
-            return Delete(db, tablePage, dataNode);
-        }
-
-        internal static void Update(DbCache db, TablePage tablePage, DataNode dataNode, string columnName, object value)
+        internal static void Update(DbCache db, TablePage tablePage, DataNode dataNode, string columnName, DbCell value)
         {
             var headerIndex = tablePage.GetTableHeaderIndex(columnName);
             var header = tablePage.ColumnHeaders[headerIndex];
 
             var valueSpan = dataNode.Data.Slice(DataManager.GetDataOffset(tablePage.ColumnHeaders, headerIndex), header.ValueType.GetLength());
+            var originCell = valueSpan.DeserializeBytesToCell(db, header.ValueType);
+            var newCell = value.WithColumnType(header.ValueType);
+            newCell.EnsureFitsColumn(header.ValueType);
 
-            object origin = valueSpan.DeserializeBytesToValue(db, header.ValueType);
+            if (header.IsKey && !CellsEqual(originCell, newCell, header.ValueType))
+            {
+                var staged = new TableValue[tablePage.ColumnHeaders.Length];
+                for (int i = 0; i < tablePage.ColumnHeaders.Length; i++)
+                {
+                    var h = tablePage.ColumnHeaders[i];
+                    if (i == headerIndex)
+                        staged[i] = (h.Name.TransformToToString(), newCell);
+                    else
+                    {
+                        var span = dataNode.Data.Slice(DataManager.GetDataOffset(tablePage.ColumnHeaders, i), h.ValueType.GetLength());
+                        staged[i] = (h.Name.TransformToToString(), span.DeserializeBytesToCell(db, h.ValueType));
+                    }
+                }
+                EnsureNoDuplicateBusinessKeys(db, tablePage, staged, dataNode.Id);
+            }
 
-            if (!Equals(value, origin))
+            if (!CellsEqual(originCell, newCell, header.ValueType))
             {
                 var oldKey = valueSpan.ToArray();
-
-                DataManager.UpdateSingleData(db, header, dataNode, value, headerIndex);
-
+                DataManager.UpdateSingleData(db, header, dataNode, newCell, headerIndex);
                 if (header.IsKey)
                 {
                     IndexManager.UpdateIndex(db, tablePage, dataNode, header, header.Name, oldKey);
@@ -205,32 +245,60 @@ namespace LumDbEngine.Element.Manager.Specific
             }
         }
 
-        internal static void Update(DbCache db, TablePage tablePage, DataNode dataNode, object[] values)
+        internal static void Update(DbCache db, TablePage tablePage, DataNode dataNode, DbCell[] cells)
         {
+            // Pre-check key uniqueness for changed key columns (edit allowed; collision with another row not).
+            var staged = new TableValue[tablePage.ColumnHeaders.Length];
             for (int i = 0; i < tablePage.ColumnHeaders.Length; i++)
             {
-                if (values[i] == null)
-                {
-                    continue;
-                }
+                var header = tablePage.ColumnHeaders[i];
+                var newCell = cells[i].WithColumnType(header.ValueType);
+                newCell.EnsureFitsColumn(header.ValueType);
+                staged[i] = (header.Name.TransformToToString(), newCell);
+            }
+            EnsureNoDuplicateBusinessKeys(db, tablePage, staged, dataNode.Id);
 
+            for (int i = 0; i < tablePage.ColumnHeaders.Length; i++)
+            {
                 var header = tablePage.ColumnHeaders[i];
                 var valueSpan = dataNode.Data.Slice(DataManager.GetDataOffset(tablePage.ColumnHeaders, i), header.ValueType.GetLength());
+                var originCell = valueSpan.DeserializeBytesToCell(db, header.ValueType);
+                var newCell = cells[i].WithColumnType(header.ValueType);
 
-                object origin = valueSpan.DeserializeBytesToValue(db, header.ValueType);
-
-                if (!Equals(values[i], origin))
+                if (!CellsEqual(originCell, newCell, header.ValueType))
                 {
                     var oldKey = valueSpan.ToArray();
-
-                    DataManager.UpdateData(db, tablePage, dataNode, values, i);
-
+                    DataManager.UpdateData(db, tablePage, dataNode, cells, i);
                     if (header.IsKey)
                     {
                         IndexManager.UpdateIndex(db, tablePage, dataNode, header, header.Name, oldKey);
                     }
                 }
             }
+        }
+
+        private static bool CellsEqual(in DbCell a, in DbCell b, DbValueType type)
+        {
+            var ca = a.WithColumnType(type);
+            var cb = b.WithColumnType(type);
+            return type switch
+            {
+                DbValueType.Bool => ca.AsBool() == cb.AsBool(),
+                DbValueType.Byte => ca.AsByte() == cb.AsByte(),
+                DbValueType.Int => ca.AsInt() == cb.AsInt(),
+                DbValueType.UInt => ca.AsUInt() == cb.AsUInt(),
+                DbValueType.Long => ca.AsLong() == cb.AsLong(),
+                DbValueType.ULong => ca.AsULong() == cb.AsULong(),
+                DbValueType.Float => ca.AsFloat().Equals(cb.AsFloat()),
+                DbValueType.Double => ca.AsDouble().Equals(cb.AsDouble()),
+                DbValueType.Decimal => ca.AsDecimal() == cb.AsDecimal(),
+                DbValueType.DateTimeUTC => ca.AsDateTimeUtc() == cb.AsDateTimeUtc(),
+                DbValueType.Str8B or DbValueType.Str16B or DbValueType.Str32B or DbValueType.StrVar
+                    => ca.AsString() == cb.AsString(),
+                DbValueType.Bytes8 or DbValueType.Bytes16 or DbValueType.Bytes32 or DbValueType.BytesVar
+                    => ca.AsBytes().AsSpan().SequenceEqual(cb.AsBytes()),
+                _ => false,
+            };
         }
 
         internal static void Drop(DbCache db, TablePage tablePage)
@@ -266,86 +334,22 @@ namespace LumDbEngine.Element.Manager.Specific
             PageManager.DropPages(db, pages);
         }
 
-       
-        public static unsafe IDbValue<uint> CountCondition(DbCache db, TablePage tablePage, (string keyName, Func<object, bool> checkFunc)[] conditions )
-        {
-            if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
-            {
-                return new DbValue<uint>(0);
-            }
-
-            var fullCondition = new Func<object, bool>?[tablePage.ColumnCount];
-
-            var headerStringNames=tablePage.ColumnHeaders.Select(o=> Encoding.UTF8.GetString(o.Name).TrimEnd('\0')).ToArray();
-            var keyStringNames=conditions.Select(o=>o.keyName).ToArray();
-
-            // not done
-
-            for (int i = 0; i < fullCondition.Length; i++)
-            {
-                for(int j = 0; j < conditions.Length; j++)
-                {
-                    if (keyStringNames[j].Equals(headerStringNames[i],StringComparison.Ordinal))
-                    {
-                        fullCondition[i] = conditions[j].checkFunc;
-                        keyStringNames[j] = string.Empty;
-                        break;
-                    }
-                }
-            }
-
-
-            var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
-            var value = DataManager.CountWithCnditions(db, tablePage.ColumnHeaders, fullCondition, rootPage!);
-            return new DbValue<uint>(value);
-        }
-
-        public static unsafe IDbValues Find(DbCache db, TablePage tablePage, (string keyName, Func<object, bool> checkFunc)[]? conditions,bool isBackforward,uint skip,uint limit)
-        {
-            if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
-            {
-                return new DbValues();
-            }
-
-            Func<object, bool>?[]? fullCondition = null;
-
-            if (conditions?.Length > 0)
-            {
-                fullCondition = new Func<object, bool>?[tablePage.ColumnCount];
-
-                var headerStringNames = tablePage.ColumnHeaders.Select(o => Encoding.UTF8.GetString(o.Name).TrimEnd('\0')).ToArray();
-                var keyStringNames = conditions.Select(o => o.keyName).ToArray();
-
-                // not done
-
-                for (int i = 0; i < fullCondition.Length; i++)
-                {
-                    for (int j = 0; j < conditions.Length; j++)
-                    {
-                        if (keyStringNames[j].Equals(headerStringNames[i], StringComparison.Ordinal))
-                        {
-                            fullCondition[i] = conditions[j].checkFunc;
-                            keyStringNames[j] = string.Empty;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
-            var values = isBackforward ? DataManager.GetValuesWithIdCondition_Backward(db, tablePage.ColumnHeaders, rootPage!, fullCondition, skip, limit):  DataManager.GetValuesWithIdCondition(db, tablePage.ColumnHeaders,rootPage!, fullCondition, skip, limit);
-            return new DbValues(values.Select(o => o.data));
-        }
-        
-        
-        public static void GoThrough(DbCache db, TablePage tablePage, Func<object[], bool> action)
+        public static void GoThrough(DbCache db, TablePage tablePage, RowViewAction action)
         {
             if (db.IsValidPage(tablePage.PageHeader.RootDataPageId))
             {
                 var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
-                DataManager.GoThrough(db, tablePage.ColumnHeaders, rootPage!,action);
+                DataManager.GoThrough(db, tablePage.ColumnHeaders, rootPage!, action);
             }
+        }
 
+        public static void GoThrough(DbCache db, TablePage tablePage, RowViewIdAction action)
+        {
+            if (db.IsValidPage(tablePage.PageHeader.RootDataPageId))
+            {
+                var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
+                DataManager.GoThrough(db, tablePage.ColumnHeaders, rootPage!, action);
+            }
         }
     }
 }

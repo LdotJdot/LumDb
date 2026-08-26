@@ -118,22 +118,22 @@ namespace LumDbEngine.Element.Manager.Specific
             for (int i = 0; i < valuesOrdered.Length; i++)
             {
                 var tableValue = valuesOrdered[i];
+                var headerType = tablePage.ColumnHeaders[i].ValueType;
+                var cell = tableValue.value.WithColumnType(headerType);
 
-                var typeCheck = DbValueTypeUtils.CheckType(tablePage.ColumnHeaders[i].ValueType, tableValue.value);
-
-                if (!typeCheck)
+                if (!headerType.CheckType(in cell))
                 {
                     LumException.Throw($"Wrong type inserted to column {tableValue.columnName}");
                 }
 
 #pragma warning disable CA2014
 
-                switch (tablePage.ColumnHeaders[i].ValueType)
+                switch (headerType)
                 {
                     case DbValueType.Decimal:
                         {
                             Span<byte> buffer = stackalloc byte[16];
-                            tableValue.value.SerializeObjectToBytes(buffer);
+                            cell.Serialize(buffer);
                             CopyToSpan(buffer, dataSpan, 16, ref offset);
                             break;
                         }
@@ -141,7 +141,7 @@ namespace LumDbEngine.Element.Manager.Specific
                     case DbValueType.Byte:
                         {
                             Span<byte> buffer = stackalloc byte[1];
-                            tableValue.value.SerializeObjectToBytes(buffer);
+                            cell.Serialize(buffer);
                             CopyToSpan(buffer, dataSpan, 1, ref offset);
                             break;
                         }
@@ -150,7 +150,7 @@ namespace LumDbEngine.Element.Manager.Specific
                     case DbValueType.Float:
                         {
                             Span<byte> buffer = stackalloc byte[4];
-                            tableValue.value.SerializeObjectToBytes(buffer);
+                            cell.Serialize(buffer);
                             CopyToSpan(buffer, dataSpan, 4, ref offset);
                             break;
                         }
@@ -162,7 +162,7 @@ namespace LumDbEngine.Element.Manager.Specific
                     case DbValueType.DateTimeUTC:
                         {
                             Span<byte> buffer = stackalloc byte[8];
-                            tableValue.value.SerializeObjectToBytes(buffer);
+                            cell.Serialize(buffer);
                             CopyToSpan(buffer, dataSpan, 8, ref offset);
                         }
                         break;
@@ -171,7 +171,7 @@ namespace LumDbEngine.Element.Manager.Specific
                     case DbValueType.Bytes16:
                         {
                             Span<byte> buffer = stackalloc byte[16];
-                            tableValue.value.SerializeObjectToBytes(buffer);
+                            cell.Serialize(buffer);
                             CopyToSpan(buffer, dataSpan, 16, ref offset);
                             break;
                         }
@@ -180,16 +180,17 @@ namespace LumDbEngine.Element.Manager.Specific
                     case DbValueType.Bytes32:
                         {
                             Span<byte> buffer = stackalloc byte[32];
-                            tableValue.value.SerializeObjectToBytes(buffer);
+                            cell.Serialize(buffer);
                             CopyToSpan(buffer, dataSpan, 32, ref offset);
                             break;
                         }
 
                     case DbValueType.StrVar:
                         {
-                            var len = System.Text.Encoding.UTF8.GetByteCount((string)tableValue.value);
+                            var s = cell.AsString();
+                            var len = System.Text.Encoding.UTF8.GetByteCount(s);
                             Span<byte> buffer = stackalloc byte[len];
-                            tableValue.value.SerializeObjectToBytes(buffer);
+                            cell.Serialize(buffer);
                             var link = DataVarManager.InsertDataVar(db, buffer);
                             var linkBytes = (new NodeLink() { TargetPageID = link.pageId, TargetNodeIndex = link.nodeIndex }).ToBytesAndSpan(bts);
                             CopyToSpan(linkBytes, dataSpan, NodeLink.Size, ref offset);
@@ -199,7 +200,7 @@ namespace LumDbEngine.Element.Manager.Specific
                         {
                             try
                             {
-                                var link = DataVarManager.InsertDataVar(db, ((byte[])tableValue.value).AsSpan());
+                                var link = DataVarManager.InsertDataVar(db, cell.AsBytes().AsSpan());
                                 var linkBytes = (new NodeLink() { TargetPageID = link.pageId, TargetNodeIndex = link.nodeIndex }).ToBytesAndSpan(bts);
                                 CopyToSpan(linkBytes, dataSpan, NodeLink.Size, ref offset);
                                 break;
@@ -224,116 +225,50 @@ namespace LumDbEngine.Element.Manager.Specific
             return node;
         }
 
-        internal static IEnumerable<(DataNode node, object[] data)> GetValues(DbCache db, ColumnHeader[] headers, DataPage? page)
+        internal static DbCell[] GetCells(DbCache db, ColumnHeader[] headers, Span<byte> value)
         {
-            while (page != null)
-            {
-                for (int i = 0; i < page.MaxDataCount; i++)
-                {
-                    var dataNode = page.DataNodes[i];
-
-                    if (dataNode.IsAvailable)
-                    {
-                        yield return (dataNode, GetValue(db, headers, dataNode.Data));
-                    }
-                }
-
-                if (db.IsValidPage(page.NextPageId))
-                {
-                    page = PageManager.GetPage<DataPage>(db, page.NextPageId);
-                }
-                else
-                {
-                    page = null;
-                }
-            }
-        }
-        
-        internal static IEnumerable<(DataNode node, object[] data)> GetValues_Backward(DbCache db, ColumnHeader[] headers, DataPage? page)
-        {
-            uint initPageId = page?.PageId ?? uint.MaxValue;
-            uint nextId = page?.NextPageId ?? uint.MaxValue;
-
-            while (db.IsValidPage(nextId))
-            {
-                initPageId = nextId;
-                nextId = GetNextPageId(db, PageType.Data, initPageId);
-            }
-
-            page = PageManager.GetPage<DataPage>(db, initPageId);
-
-            while (page != null)
-            {
-                for (int i = page.MaxDataCount - 1; i >= 0; i--)
-                {
-                    var dataNode = page.DataNodes[i];
-
-                    if (dataNode.IsAvailable)
-                    {
-                        yield return (dataNode, GetValue(db, headers, dataNode.Data));
-                    }
-                }
-
-                if (db.IsValidPage(page.PrevPageId))
-                {
-                    page = PageManager.GetPage<DataPage>(db, page.PrevPageId);
-                }
-                else
-                {
-                    page = null;
-                }
-            }
-        }
-
-      
-        private static uint GetNextPageId(DbCache db, PageType pageType, uint pageId)
-        {
-            using var reader = db.iof.RentReader();
-            return BasePage.ReadPageInfo(pageId,pageType, reader).nextPageId;
-        }
-
-        internal static object[] GetValue(DbCache db, ColumnHeader[] headers, Span<byte> value)
-        {
-            var objects = new object[headers.Length];
+            var cells = new DbCell[headers.Length];
 
             var dataOffset = 0;
 
             for (int i = 0; i < headers.Length; i++)
             {
                 var valueTypeLength = headers[i].ValueType.GetLength();
-                objects[i] = value.Slice(dataOffset, valueTypeLength).DeserializeBytesToValue(db, headers[i].ValueType);
+                cells[i] = value.Slice(dataOffset, valueTypeLength).DeserializeBytesToCell(db, headers[i].ValueType);
                 dataOffset += valueTypeLength;
             }
 
-            return objects;
+            return cells;
         }
 
-        private static bool CheckCondition(DbCache db, ColumnHeader[] fullColumnHeaders, Func<object,bool>? []? conditions, Span<byte> value)
+        /// <summary>
+        /// Copy row bytes once; fixed columns decode on demand; var columns resolved immediately.
+        /// </summary>
+        internal static DbRowBuffer CreateRowBuffer(DbCache db, ColumnHeader[] headers, Span<byte> value)
         {
-            if (conditions == null || conditions.Length == 0)
-            {
-                return true;
-            }
+            var types = new DbValueType[headers.Length];
+            var offsets = new int[headers.Length];
+            var varPayload = new object?[headers.Length];
 
             var dataOffset = 0;
-
-            for (int i = 0; i < fullColumnHeaders.Length; i++)
+            for (int i = 0; i < headers.Length; i++)
             {
-                var valueTypeLength = fullColumnHeaders[i].ValueType.GetLength();
+                var type = headers[i].ValueType;
+                var len = type.GetLength();
+                types[i] = type;
+                offsets[i] = dataOffset;
 
-                if (conditions[i] != null)
+                if (type == DbValueType.StrVar || type == DbValueType.BytesVar)
                 {
-                    var obj = value.Slice(dataOffset, valueTypeLength).DeserializeBytesToValue(db, fullColumnHeaders[i].ValueType);
-                    
-                    if (conditions[i]!(obj) == false) // keep the value with a conditions result of true
-                    {
-                        return false;
-                    }
+                    // Resolve var columns from the live page span before copying the row.
+                    var cell = value.Slice(dataOffset, len).DeserializeBytesToCell(db, type);
+                    varPayload[i] = type == DbValueType.StrVar ? cell.AsString() : cell.AsBytes();
                 }
 
-                dataOffset += valueTypeLength;
+                dataOffset += len;
             }
-            return true;
+
+            return new DbRowBuffer(value.ToArray(), types, offsets, varPayload);
         }
 
         internal static void DeleteDataNodeByIndex(DbCache db, TablePage tablePage, DataNode dataNode)
@@ -383,65 +318,53 @@ namespace LumDbEngine.Element.Manager.Specific
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void UpdateData(DbCache db, TablePage tablePage, DataNode dataNode, object[] values, int index)
+        internal static void UpdateData(DbCache db, TablePage tablePage, DataNode dataNode, DbCell[] cells, int index)
         {
-            UpdateSingleData(db, tablePage.ColumnHeaders[index], dataNode, values[index], index);
+            UpdateSingleData(db, tablePage.ColumnHeaders[index], dataNode, cells[index], index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static unsafe void UpdateSingleData(DbCache db, ColumnHeader header, DataNode dataNode, object value, int index)
+        internal static unsafe void UpdateSingleData(DbCache db, ColumnHeader header, DataNode dataNode, DbCell value, int index)
         {
             db.MarkDirtyAndCachePage(db, dataNode.HostPageId);
+            var cell = value.WithColumnType(header.ValueType);
+            LumException.ThrowIfNotTrue(header.ValueType.CheckType(in cell), "data type error");
 
             if ((byte)header.ValueType < DbValueTypeUtils.DataVarSplitter)
             {
-                LumException.ThrowIfNotTrue(DbValueTypeUtils.CheckType(header.ValueType, value), "data type error");
-
-                Span<byte> buffer = stackalloc byte[header.ValueType.GetLength()];
-                value.SerializeObjectToBytes(buffer);
-
                 var len = header.ValueType.GetLength();
+                Span<byte> buffer = stackalloc byte[len];
+                cell.Serialize(buffer);
+                int dataOffset = GetDataOffset(header.Page.ColumnHeaders, index);
 
-                if (value is string)
+                if (header.ValueType is DbValueType.Str8B or DbValueType.Str16B or DbValueType.Str32B
+                    or DbValueType.Bytes8 or DbValueType.Bytes16 or DbValueType.Bytes32)
                 {
                     Span<byte> paddingBuffer = stackalloc byte[len];
-
                     buffer.PaddingToBytes(paddingBuffer, len);
-                    int dataOffset = GetDataOffset(header.Page.ColumnHeaders, index);
                     paddingBuffer.CopyTo(dataNode.Data.Slice(dataOffset, len));
                 }
                 else
                 {
-                    int dataOffset = GetDataOffset(header.Page.ColumnHeaders, index);
                     buffer.CopyTo(dataNode.Data.Slice(dataOffset, len));
                 }
             }
             else
             {
                 int dataOffset = GetDataOffset(header.Page.ColumnHeaders, index);
-                NodeLink.Create(dataNode.Data.Slice(dataOffset, header.Page.ColumnHeaders[index].ValueType.GetLength()), out var link);
+                NodeLink.Create(dataNode.Data.Slice(dataOffset, header.ValueType.GetLength()), out var link);
 
-                int len;
-                if (header.ValueType == DbValueType.StrVar)
-                {
-                    len = System.Text.Encoding.UTF8.GetByteCount((string)value);
-                }
-                else
-                {
-                    len = ((byte[])value).Length;
-                }
+                int len = header.ValueType == DbValueType.StrVar
+                    ? System.Text.Encoding.UTF8.GetByteCount(cell.AsString())
+                    : cell.AsBytes().Length;
 
                 Span<byte> paddingBuffer = stackalloc byte[len];
-
-                value.SerializeObjectToBytes(paddingBuffer);
+                cell.Serialize(paddingBuffer);
                 DataVarManager.UpdateData(db, ref link, paddingBuffer);
 
-                unsafe
-                {
-                    Span<byte> bts = stackalloc byte[NodeLink.Size];
-                    var linkBytes = link.ToBytesAndSpan(bts);
-                    linkBytes.CopyTo(dataNode.Data.Slice(dataOffset, linkBytes.Length));
-                }
+                Span<byte> bts = stackalloc byte[NodeLink.Size];
+                var linkBytes = link.ToBytesAndSpan(bts);
+                linkBytes.CopyTo(dataNode.Data.Slice(dataOffset, linkBytes.Length));
             }
         }
 
@@ -494,139 +417,21 @@ namespace LumDbEngine.Element.Manager.Specific
             }
         }
 
-        internal static uint CountWithCnditions(DbCache db, ColumnHeader[] columnHeaders, Func<object, bool>?[] conditions, DataPage? page)
+        internal static void GoThrough(DbCache db, ColumnHeader[] headers, DataPage? page, RowViewAction action)
         {
-            uint sum = 0;
-
-            while (page != null)
-            {
-                for (int i = 0; i < page.MaxDataCount; i++)
-                {
-                    var dataNode = page.DataNodes[i];
-
-                    if (dataNode.IsAvailable && CheckCondition(db, columnHeaders, conditions, dataNode.Data))
-                    {
-                        sum++;
-                    }
-                }
-
-                if (db.IsValidPage(page.NextPageId))
-                {
-                    page = PageManager.GetPage<DataPage>(db, page.NextPageId);
-                }
-                else
-                {
-                    page = null;
-                }
-            }
-
-            return sum;
+            GoThrough(db, headers, page, (uint id, ref RowView view) => action(ref view));
         }
 
-        internal static IEnumerable<(DataNode node, object[] data)> GetValuesWithIdCondition(DbCache db, ColumnHeader[] headers, DataPage? page, Func<object, bool>?[]? conditions,uint skip,uint limit)
+        internal static void GoThrough(DbCache db, ColumnHeader[] headers, DataPage? page, RowViewIdAction action)
         {
-            int currentCount = 0;
-            int currentSkip = 0;
-
-            while (page != null)
+            Span<int> offsets = stackalloc int[headers.Length];
+            var pos = 0;
+            for (int c = 0; c < headers.Length; c++)
             {
-                for (int i = 0; i < page.MaxDataCount; i++)
-                {
-                    var dataNode = page.DataNodes[i];
-
-                    if (dataNode.IsAvailable && (CheckCondition(db, headers, conditions, dataNode.Data)))
-                    {
-                        if (skip == 0 || currentSkip >= skip)
-                        {
-                            if (limit == 0 || currentCount < limit)
-                            {
-                                currentCount++;
-                                yield return (dataNode, GetValue(db, headers, dataNode.Data));
-                            }
-                            else
-                            {
-                                goto end;
-                            }
-                        }
-                        else
-                        {
-                            currentSkip++;
-                        }
-                    }
-                }
-
-                if (db.IsValidPage(page.NextPageId))
-                {
-                    page = PageManager.GetPage<DataPage>(db, page.NextPageId);
-                }
-                else
-                {
-                    page = null;
-                }
+                offsets[c] = pos;
+                pos += headers[c].ValueType.GetLength();
             }
 
-            end:;
-        }
-
-        internal static IEnumerable<(DataNode node, object[] data)> GetValuesWithIdCondition_Backward(DbCache db, ColumnHeader[] headers, DataPage? page, Func<object, bool>?[]? conditions, uint skip, uint limit)
-        {
-            uint initPageId = page?.PageId ?? uint.MaxValue;
-            uint nextId = page?.NextPageId ?? uint.MaxValue;
-
-            while (db.IsValidPage(nextId))
-            {
-                initPageId = nextId;
-                nextId = GetNextPageId(db, PageType.Data, initPageId);
-            }
-
-
-            int currentCount = 0;
-            int currentSkip = 0;
-
-            page = PageManager.GetPage<DataPage>(db, initPageId);
-
-            while (page != null)
-            {
-                for (int i = page.MaxDataCount - 1; i >= 0; i--)
-                {
-                    var dataNode = page.DataNodes[i];
-
-                    if (dataNode.IsAvailable && (CheckCondition(db, headers, conditions, dataNode.Data)))
-                    {
-                        if (skip == 0 || currentSkip >= skip)
-                        {
-                            if (limit == 0 || currentCount < limit)
-                            {
-                                currentCount++;
-                                yield return (dataNode, GetValue(db, headers, dataNode.Data));
-                            }
-                            else
-                            {
-                                goto end;
-                            }
-                        }
-                        else
-                        {
-                            currentSkip++;
-                        }
-                    }
-                }
-
-                if (db.IsValidPage(page.PrevPageId))
-                {
-                    page = PageManager.GetPage<DataPage>(db, page.PrevPageId);
-                }
-                else
-                {
-                    page = null;
-                }
-            }
-            end:;
-        }
-
-        
-        internal static void GoThrough(DbCache db, ColumnHeader[] headers, DataPage? page, Func<object[], bool>  action)
-        {
             while (page != null)
             {
                 for (int i = 0; i < page.MaxDataCount; i++)
@@ -635,7 +440,8 @@ namespace LumDbEngine.Element.Manager.Specific
 
                     if (dataNode.IsAvailable)
                     {
-                        if(!action(GetValue(db, headers, dataNode.Data)))
+                        var view = new RowView(dataNode.Data, headers, offsets, db);
+                        if (!action(dataNode.Id, ref view))
                         {
                             return;
                         }

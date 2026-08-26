@@ -1,5 +1,5 @@
 ﻿//global using TableHeaderInfo = (byte* keyName, LumDbEngine.Element.Structure.DbValueType type, bool isKey);
-global using TableValue = (string columnName, object value);
+global using TableValue = (string columnName, LumDbEngine.Element.Structure.DbCell value);
 
 namespace LumDbEngine.Element.Structure.Page.Key
 {

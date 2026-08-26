@@ -5,6 +5,7 @@ using LumDbEngine.Element.Structure.Page;
 using LumDbEngine.Element.Structure.Page.Data;
 using Microsoft.IO;
 using System.Diagnostics;
+using System.Threading;
 
 namespace LumDbEngine.Element.Manager.Specific
 {
@@ -33,6 +34,14 @@ namespace LumDbEngine.Element.Manager.Specific
 
         public static (uint pageId, byte nodeIndex) InsertDataVar(DbCache db, Span<byte> data)
         {
+            // Safe hole reuse: only when the whole payload fits one dead node.
+            // Multi-page chaining is page-level (NextPageId) and only valid from the last
+            // node on a page — reusing a middle hole for a chain would corrupt GetDataVar.
+            if (TryReuseSingleNodeHole(db, data, out var reused))
+            {
+                return reused;
+            }
+
             var dataVarPage = RequestAvailableDataVarPage(db);
 
             if (dataVarPage.RestPageSize < DataVarNode.HEADER_SIZE + DataVarNode.REDUNDANCY_SIZE)
@@ -43,6 +52,54 @@ namespace LumDbEngine.Element.Manager.Specific
             SaveValueToDataVarPage(db, dataVarPage, data, 0);
 
             return (dataVarPage.PageId, (byte)(dataVarPage.TotalDataCount - 1));
+        }
+
+        /// <summary>
+        /// Best-fit reuse of a deleted (!IsAvailable) node on the current AvailableDataVarPage
+        /// when SpaceLength can hold the entire payload (no chaining).
+        /// </summary>
+        private static bool TryReuseSingleNodeHole(DbCache db, Span<byte> data, out (uint pageId, byte nodeIndex) result)
+        {
+            result = default;
+            if (!db.IsValidPage(db.AvailableDataVarPage))
+            {
+                return false;
+            }
+
+            var page = PageManager.GetPage<DataVarPage>(db, db.AvailableDataVarPage);
+            int bestIndex = -1;
+            int bestSpace = int.MaxValue;
+
+            for (int i = 0; i < page.TotalDataCount; i++)
+            {
+                var node = page.DataVarNodes[i];
+                if (node.IsAvailable || node.SpaceLength < data.Length)
+                {
+                    continue;
+                }
+
+                if (node.SpaceLength < bestSpace)
+                {
+                    bestSpace = node.SpaceLength;
+                    bestIndex = i;
+                }
+            }
+
+            if (bestIndex < 0)
+            {
+                return false;
+            }
+
+            db.MarkDirtyAndCachePage(page);
+            var reuse = page.DataVarNodes[bestIndex];
+            data.CopyTo(reuse.Data.Slice(0, data.Length));
+            reuse.DataLength = data.Length;
+            reuse.TotalDataRestLength = reuse.SpaceLength;
+            reuse.IsAvailable = true;
+            page.CurrentDataCount++;
+
+            result = (page.PageId, (byte)bestIndex);
+            return true;
         }
 
         private static void SaveValueToDataVarPage(DbCache db, DataVarPage dataVarPage, Span<byte> dataSpan, int offset = 0)
@@ -105,8 +162,12 @@ namespace LumDbEngine.Element.Manager.Specific
 
         internal static readonly RecyclableMemoryStreamManager recyclableMemoryStreamManager = new RecyclableMemoryStreamManager();
 
+        /// <summary>Test/bench instrumentation: increments on every Var payload materialization.</summary>
+        internal static long GetDataVarCallCount;
+
         public static byte[] GetDataVar(DbCache db, NodeLink nodeLink)
         {
+            Interlocked.Increment(ref GetDataVarCallCount);
             // copy nodeLink
             using var sharedMem = recyclableMemoryStreamManager.GetStream();
 
@@ -135,6 +196,55 @@ namespace LumDbEngine.Element.Manager.Specific
             }
         }
 
+        private static int GetChainCapacity(DbCache db, in NodeLink start)
+        {
+            var link = start;
+            int capacity = 0;
+
+            while (true)
+            {
+                var node = NodeManager.GetDataVarNode(db, link);
+                if (node == null)
+                    return capacity;
+
+                capacity += node.SpaceLength;
+
+                if (link.TargetNodeIndex == node.Page.DataVarNodes.Length - 1
+                    && db.IsValidPage(node.Page.NextPageId))
+                {
+                    var nextPage = PageManager.GetPage<DataVarPage>(db, node.Page.NextPageId);
+                    link.TargetPageID = nextPage.PageId;
+                    link.TargetNodeIndex = 0;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return capacity;
+        }
+
+        private static void UnlinkContinuationPage(DbCache db, DataVarPage page)
+        {
+            if (!db.IsValidPage(page.NextPageId))
+                return;
+
+            var nextPageId = page.NextPageId;
+            page.NextPageId = uint.MaxValue;
+            page.MarkDirty();
+
+            if (db.IsValidPage(nextPageId))
+            {
+                var nextPage = PageManager.GetPage<DataVarPage>(db, nextPageId);
+                if (nextPage.PrevPageId == page.PageId)
+                {
+                    nextPage.PrevPageId = uint.MaxValue;
+                    nextPage.MarkDirty();
+                }
+            }
+        }
+
         internal static void UpdateData(DbCache db, ref NodeLink nodeLink, Span<byte> data)
         {
             UpdateValueToNodeLink(db, ref nodeLink, data);
@@ -142,15 +252,14 @@ namespace LumDbEngine.Element.Manager.Specific
 
         private static void UpdateValueToNodeLink(DbCache db, ref NodeLink nodeLink, Span<byte> data, int offset = 0)
         {
-            var len = data.Length;
-
             var dataVarNode = NodeManager.GetDataVarNode(db, nodeLink);
+            LumException.ThrowIfNull(dataVarNode, "dataVar node internal error");
 
-            if (dataVarNode.TotalDataRestLength >= data.Length || dataVarNode.TotalDataRestLength >= data.Length) // case 1, enough space, use existed
+            if (GetChainCapacity(db, nodeLink) >= data.Length)
             {
-                UpdateValueToDataVarNode(db, dataVarNode, nodeLink.TargetNodeIndex, data);
+                UpdateValueToDataVarNode(db, dataVarNode!, nodeLink.TargetNodeIndex, data);
             }
-            else  // case 2, not enough space, create new and update the nodeLink
+            else
             {
                 DeleteDataVarNode(db, nodeLink);
                 var res = InsertDataVar(db, data);
@@ -169,38 +278,49 @@ namespace LumDbEngine.Element.Manager.Specific
         /// <param name="offset"></param>
         private static void UpdateValueToDataVarNode(DbCache db, DataVarNode dataVarNode, int nodeIndex, Span<byte> data, int offset = 0)
         {
-            var dataSpan = data;
             while (true)
             {
                 db.MarkDirtyAndCachePage(dataVarNode.Page);
 
-                if (dataVarNode.SpaceLength >= data.Length - offset)    // store in current node.
+                int remaining = data.Length - offset;
+
+                if (dataVarNode.SpaceLength >= remaining)
                 {
-                    dataSpan.CopyTo(dataVarNode.Data.Slice(0, dataSpan.Length));
-                    dataVarNode.DataLength = data.Length - offset;
+                    data.Slice(offset, remaining).CopyTo(dataVarNode.Data.Slice(0, remaining));
+                    dataVarNode.DataLength = remaining;
                     dataVarNode.TotalDataRestLength = dataVarNode.SpaceLength;
 
-                    if (nodeIndex == dataVarNode.Page.DataVarNodes.Length - 1 && db.IsValidPage(dataVarNode.Page.NextPageId))
+                    // Value ends here: unlink page chain first, then reclaim exclusive
+                    // continuation starting at next-page node0. Shared pages keep other
+                    // rows' nodes (Delete only marks node0 unavailable unless page empties).
+                    if (nodeIndex == dataVarNode.Page.DataVarNodes.Length - 1
+                        && db.IsValidPage(dataVarNode.Page.NextPageId))
                     {
-                        var nextPage = PageManager.GetPage<DataVarPage>(db, dataVarNode.Page.NextPageId);
-                        DeleteDataVarNode(db, new NodeLink() { TargetPageID = nextPage.PageId, TargetNodeIndex = 0 });
+                        var nextPageId = dataVarNode.Page.NextPageId;
+                        UnlinkContinuationPage(db, dataVarNode.Page);
+                        DeleteDataVarNode(db, new NodeLink
+                        {
+                            TargetPageID = nextPageId,
+                            TargetNodeIndex = 0,
+                        });
                     }
+
                     break;
                 }
-                else
-                {
-                    dataVarNode.DataLength = dataVarNode.SpaceLength;
-                    dataVarNode.TotalDataRestLength = data.Length - offset;
 
-                    dataSpan.Slice(offset, dataVarNode.DataLength).CopyTo(dataVarNode.Data);
-                    // Array.Copy(data, offset, dataVarNode.Data, 0, dataVarNode.DataLength);
-                    offset += dataVarNode.DataLength;
+                dataVarNode.DataLength = dataVarNode.SpaceLength;
+                dataVarNode.TotalDataRestLength = data.Length - offset;
 
-                    Debug.Assert(nodeIndex == dataVarNode.Page.DataVarNodes.Length - 1 && db.IsValidPage(dataVarNode.Page.NextPageId));
+                data.Slice(offset, dataVarNode.DataLength).CopyTo(dataVarNode.Data);
+                offset += dataVarNode.DataLength;
 
-                    var nextPage = PageManager.GetPage<DataVarPage>(db, dataVarNode.Page.NextPageId);
-                    dataVarNode = nextPage.DataVarNodes[0];
-                }
+                LumException.ThrowIfNotTrue(
+                    nodeIndex == dataVarNode.Page.DataVarNodes.Length - 1 && db.IsValidPage(dataVarNode.Page.NextPageId),
+                    "dataVar update chain exhausted");
+
+                var nextPage = PageManager.GetPage<DataVarPage>(db, dataVarNode.Page.NextPageId);
+                dataVarNode = nextPage.DataVarNodes[0];
+                nodeIndex = 0;
             }
         }
 

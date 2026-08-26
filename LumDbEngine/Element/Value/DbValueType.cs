@@ -40,25 +40,9 @@ namespace LumDbEngine.Element.Structure
     {
         public const byte DataVarSplitter = 100;
 
-        public static bool CheckType(this DbValueType type, object value)
+        public static bool CheckType(this DbValueType type, in DbCell value)
         {
-            return type switch
-            {
-                DbValueType.Unknow => false,
-                DbValueType.Bool => value is bool,
-                DbValueType.Byte => value is byte,
-                DbValueType.Int => value is int,
-                DbValueType.UInt => value is uint,
-                DbValueType.Float => value is float,
-                DbValueType.Long => value is long,
-                DbValueType.ULong => value is ulong,
-                DbValueType.Double => value is double,
-                DbValueType.DateTimeUTC => value is DateTime dt && dt.Kind == DateTimeKind.Utc,
-                DbValueType.Decimal => value is decimal,
-                DbValueType.Str8B or DbValueType.Str16B or DbValueType.Str32B or DbValueType.StrVar => value is string,
-                DbValueType.Bytes8 or DbValueType.Bytes16 or DbValueType.Bytes32 or DbValueType.BytesVar => value is IList<byte>,
-                _ => throw LumException.Raise($"{LumExceptionMessage.UnknownValType}: {type}"),
-            };
+            return value.MatchesColumn(type);
         }
 
         /// <summary>
@@ -73,41 +57,22 @@ namespace LumDbEngine.Element.Structure
 
         internal static object DeserializeBytesToValue(this Span<byte> value, DbCache db, DbValueType type)
         {
-            if (type == DbValueType.StrVar)
-            {
-                NodeLink.Create(value, out var link);
-                var outBytes = DataVarManager.GetDataVar(db, link);
-                return Encoding.UTF8.GetString(outBytes).TrimEnd('\0');
-            }
-            else if (type == DbValueType.BytesVar)
-            {
-                NodeLink.Create(value, out var link);
-                return DataVarManager.GetDataVar(db, link);
-            }
-            else
-            {
-                return DeserializeBytesToObject(value, type);
-            }
+            return DbCell.Deserialize(value, db, type).ToObject();
         }
 
         public static object DeserializeBytesToObject(this Span<byte> value, DbValueType type)
         {
-            return type switch
-            {
-                DbValueType.Bool => BitConverter.ToBoolean(value),
-                DbValueType.Byte => value[0],
-                DbValueType.Int => BitConverter.ToInt32(value),
-                DbValueType.UInt => BitConverter.ToUInt32(value),
-                DbValueType.Float => BitConverter.ToSingle(value),
-                DbValueType.Long => BitConverter.ToInt64(value),
-                DbValueType.ULong => BitConverter.ToUInt64(value),
-                DbValueType.Double => BitConverter.ToDouble(value),
-                DbValueType.DateTimeUTC => DateTime.FromBinary(BitConverter.ToInt64(value)),
-                DbValueType.Decimal => value.ToDecimal(),
-                DbValueType.Str8B or DbValueType.Str16B or DbValueType.Str32B => Encoding.UTF8.GetString(value).TrimEnd('\0'),
-                DbValueType.Bytes8 or DbValueType.Bytes16 or DbValueType.Bytes32 or DbValueType.BytesVar or DbValueType.StrVar => value.ToArray(),
-                _ => throw LumException.Raise(LumExceptionMessage.UnknownValType),
-            };
+            return DbCell.Deserialize(value, type).ToObject();
+        }
+
+        public static DbCell DeserializeBytesToCell(this Span<byte> value, DbValueType type)
+        {
+            return DbCell.Deserialize(value, type);
+        }
+
+        public static DbCell DeserializeBytesToCell(this Span<byte> value, DbCache db, DbValueType type)
+        {
+            return DbCell.Deserialize(value, db, type);
         }
 
         //[MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -136,110 +101,24 @@ namespace LumDbEngine.Element.Structure
         {
             try
             {
-                switch (value)
-                {
-                    case bool:
-                        if (BitConverter.TryWriteBytes(buffer, (bool)value))
-                        {
-                            return buffer;
-                        }
-                        else
-                        {
-                            return [];
-                        }
-                    case int:
-                        if (BitConverter.TryWriteBytes(buffer, (int)value))
-                        {
-                            return buffer;
-                        }
-                        else
-                        {
-                            return [];
-                        }
-                    case uint:
-                        if (BitConverter.TryWriteBytes(buffer, (uint)value))
-                        {
-                            return buffer;
-                        }
-                        else
-                        {
-                            goto default;
-                        }
-                    case long:
-                        if (BitConverter.TryWriteBytes(buffer, (long)value))
-                        {
-                            return buffer;
-                        }
-                        else
-                        {
-                            goto default;
-                        }
-                    case ulong:
-                        if (BitConverter.TryWriteBytes(buffer, (ulong)value))
-                        {
-                            return buffer;
-                        }
-                        else
-                        {
-                            goto default;
-                        };
-                    case float:
-                        if (BitConverter.TryWriteBytes(buffer, (float)value))
-                        {
-                            return buffer;
-                        }
-                        else
-                        {
-                            goto default;
-                        }
-                    case double:
-                        if (BitConverter.TryWriteBytes(buffer, (double)value))
-                        {
-                            return buffer;
-                        }
-                        else
-                        {
-                            goto default;
-                        }
-                    case byte:
-                        {
-                            buffer[0] = (byte)value;
-                            return buffer;
-                        }
-                    case DateTime:
-                        if (((DateTime)value).Kind != DateTimeKind.Utc)
-                        {
-                            throw LumException.Raise(LumExceptionMessage.DateTimeUtcError);
-                        }
-
-                        if (BitConverter.TryWriteBytes(buffer, ((DateTime)value).Ticks))
-                        {
-                            return buffer;
-                        }
-                        else
-                        {
-                            goto default;
-                        }
-                    case decimal:
-                        ((decimal)value).ToSpan(buffer);
-                        return buffer;
-
-                    case string:
-                        Encoding.UTF8.GetBytes((string)value, buffer);
-                        return buffer;
-
-                    case byte[]:
-                        ((byte[])value).CopyTo(buffer);
-                        return buffer;
-
-                    default:
-                        throw LumException.Raise(LumExceptionMessage.UnknownValType);
-                };
+                return DbCell.FromObject(value).Serialize(buffer);
             }
             catch (Exception ex)
             {
                 throw LumException.Raise($"{LumExceptionMessage.UnknownValType}: {ex.Message}");
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Span<byte> SerializeCellToBytes(this in DbCell cell, Span<byte> buffer)
+        {
+            return cell.Serialize(buffer);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void WriteUInt32(uint value, Span<byte> buffer)
+        {
+            BitConverter.TryWriteBytes(buffer, value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

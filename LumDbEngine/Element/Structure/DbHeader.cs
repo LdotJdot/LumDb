@@ -23,7 +23,16 @@ namespace LumDbEngine.Element.Structure
 
         private static readonly byte[] FileID = [76, 117, 109, 68, 66, 83];        // 6 bytes "LumDBS"
 
-        public const uint VERSION = 1_003_008;
+        /// <summary>
+        /// On-disk file format: major * 1_000_000 + minor * 1_000 + patch.
+        /// Bump this constant when shipping a new engine/layout (1_003_009 → 1.3.9).
+        /// There is no runtime "append" API — change this literal and rebuild.
+        /// </summary>
+        public const uint VERSION = 1_003_009;
+
+        /// <summary>Format a packed version (e.g. 1_003_009 → "1.3.9").</summary>
+        public static string FormatVersion(uint version)
+            => $"{version / 1_000_000}.{(version / 1000) % 1000}.{version % 1000}";
 
 
 
@@ -75,6 +84,7 @@ namespace LumDbEngine.Element.Structure
                 var pageBytes = stackalloc byte[HEADER_SIZE];
                 WriteBytes(pageBytes);
                 bw.Write(new Span<byte>(pageBytes, HEADER_SIZE));
+                IsDirty = false;
             }
         }
        
@@ -110,6 +120,7 @@ namespace LumDbEngine.Element.Structure
 
             br.BaseStream.Seek(STATE_POS, SeekOrigin.Begin);
             State = br.ReadByte();
+            IsDirty = false;
         }
     }
 }

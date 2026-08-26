@@ -31,11 +31,16 @@ namespace UnitTestLumDb.BaseFunction
             {
                 using DbEngine eng = Configuration.GetDbEngineForTest(path);
                 using var ts = eng.StartTransaction();
-                // obj
-                var dbResultObj = ts.Find("tableFirst", o => o.Where(l => (int)l[0] < 500));
+                var dbResultObj = new List<object[]>();
+                ts.GoThrough("tableFirst", (ref LumDbEngine.Element.Structure.RowView row) =>
+                {
+                    if (row.GetInt(0) < 500)
+                        dbResultObj.Add([row.GetInt(0), row.GetString(1)]);
+                    return true;
+                });
                 int id = 0;
-                Assert.IsTrue(dbResultObj.Values.Count == 5);
-                foreach (var v in dbResultObj.Values)
+                Assert.IsTrue(dbResultObj.Count == 5);
+                foreach (var v in dbResultObj)
                 {
                     Assert.IsTrue((int)v[0] == id * 100);
                     Assert.IsTrue((string)v[1] == "anonymous" + (id + 2));
@@ -81,16 +86,17 @@ namespace UnitTestLumDb.BaseFunction
         public string username2;
         public int uid;
 
-        public IDbEntity Unboxing(object[] obj)
+        public void WriteTo(ref RowWriter writer)
         {
-            username2 = (string)obj[1];
-            uid = (int)obj[0];
-            return this;
+            writer.WriteInt(uid);
+            writer.WriteString(username2);
         }
 
-        public object[] Boxing()
+        public bool TryReadFrom(IDbRow row)
         {
-            return [uid, username2];
+            uid = row.GetInt(0);
+            username2 = row.GetString(1);
+            return true;
         }
     }
 
@@ -100,16 +106,17 @@ namespace UnitTestLumDb.BaseFunction
         public uint id;
         public int uid;
 
-        public IDbEntity Unboxing(object[] obj)
+        public void WriteTo(ref RowWriter writer)
         {
-            username = (string)obj[1];
-            uid = (int)obj[0];
-            return this;
+            writer.WriteInt(uid);
+            writer.WriteString(username);
         }
 
-        public object[] Boxing()
+        public bool TryReadFrom(IDbRow row)
         {
-            return [uid, username];
+            uid = row.GetInt(0);
+            username = row.GetString(1);
+            return true;
         }
 
         public void GetId(uint id)

@@ -73,8 +73,7 @@ namespace UnitTestLumDb.BaseFunction
 
             var repoSize = ((LumTransaction)ts).DbState().Split("\r\n")[5].Split(' ')[1];
             Assert.AreEqual(repoSize, "37");
-            var resC = ts.Find("tableFirst", o => o);
-            Assert.AreEqual(resC.Values.Count, 1000);
+            Assert.AreEqual(UnitTestLumDb.Config.RowScan.Count(ts, "tableFirst"), 1000);
 
             var xx = ts.Find("tableFirst", 1004);
             Assert.AreEqual(xx.Value[0], 4499);

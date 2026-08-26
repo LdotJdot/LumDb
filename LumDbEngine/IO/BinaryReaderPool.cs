@@ -21,6 +21,19 @@ namespace LumDbEngine.IO
             }
         }
 
+        public BinaryReaderPool(MemoryDbBuffer memory, int poolSize)
+        {
+            this.poolSize = poolSize;
+            semaphore = new Semaphore(poolSize, poolSize);
+            buffers = new BinaryReaderInPool[poolSize];
+
+            for (int i = 0; i < poolSize; i++)
+            {
+                var stream = new MemoryCursorStream(memory, writable: false);
+                buffers[i] = new BinaryReaderInPool(stream, semaphore);
+            }
+        }
+
         private Semaphore semaphore;
 
         internal BinaryReader GetReader()

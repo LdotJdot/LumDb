@@ -91,6 +91,13 @@ namespace LumDbEngine.Element.Engine.Transaction
             rwLockLockTransaction.WriteAction(() => db.SaveCurrentPageCache(path));
         }
 
+        internal void SaveToMemory(LumDbEngine.IO.MemoryDbBuffer buffer)
+        {
+            CheckTransactionState();
+            using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
+            rwLockLockTransaction.WriteAction(() => db.WriteToMemory(buffer));
+        }
+
         
         public void Discard()
         {

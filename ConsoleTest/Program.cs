@@ -14,7 +14,7 @@ namespace ConsoleTest
 {
    
 
-    internal class Program
+    internal partial class Program
     {
 
 
@@ -29,32 +29,11 @@ namespace ConsoleTest
         /// <param name="args"></param>
         private static void Main(string[] args)
         {
-
-            Bug();
-
-
-            //MemTable();
-            //Inserts500000Mem();
-            //Inserts500000();
-            //ReflectorInsert();
-            //AsyncRead();
-            ////
-            //Debug();
-
-            //AtomicCheck();
-
-
-            //readWriteLock();
-
-            //Inserts50();
-            //WhereMethod();
-            //  Gothrough();
-
-            Console.WriteLine("All done.");
-            Console.ReadLine();
+            NexusMart.NexusMartSimulation.Run(args);
         }
 
-        public class StudentInfo
+        [LumEntity]
+        public partial class StudentInfo
         {
 
             public StudentInfo()
@@ -78,7 +57,8 @@ namespace ConsoleTest
             public int Age { get; set; } = 0;
         }
 
-        public class Student
+        [LumEntity]
+        public partial class Student
         {
 
             public Student()
@@ -157,21 +137,21 @@ namespace ConsoleTest
 
                 using (ITransaction ts2 = eng.StartTransaction())
                 {
-                    var ds1 = ts2.Find<Student>(TABLENAME_1, o => o.Age > 98);
+                    var ds1 = ts2.Find<Student>(TABLENAME_1, (ref RowView r) => r.GetInt(1) > 98);
 
                     foreach (var val in ds1.Values)
                     {
                         Console.WriteLine(val.Name + " "+ val.Age.ToString());
                     }
 
-                    var ds2 = ts2.Find(TABLENAME_1, ("Age", o => ((int)o) < 2));
-
-                    foreach (var val in ds2.Values)
+                    ts2.GoThrough(TABLENAME_1, (ref RowView r) =>
                     {
-                        Console.WriteLine(val[0].ToString() + " " + val[1].ToString());
-                    }
+                        if (r.GetInt(1) < 2)
+                            Console.WriteLine(r.GetString(0) + " " + r.GetInt(1));
+                        return true;
+                    });
 
-                    var ds3 = ts2.Find<StudentInfo>(TABLENAME_2, o => o.Age % 17 == 0);
+                    var ds3 = ts2.Find<StudentInfo>(TABLENAME_2, (ref RowView r) => r.GetInt(1) % 17 == 0);
 
                     foreach (var val in ds3.Values)
                     {
@@ -312,10 +292,10 @@ namespace ConsoleTest
                 {
                     using ITransaction ts = eng.StartTransaction();
 
-                        ts.GoThrough(TABLENAME, (object[] objs) =>
+                        ts.GoThrough(TABLENAME, (ref RowView r) =>
                         {
                             count++;
-                            Console.WriteLine(objs[0]);
+                            Console.WriteLine(r.GetInt(0));
                             if (count > 500) return false;
                             return true;
                         });
@@ -376,10 +356,16 @@ namespace ConsoleTest
                 using ITransaction ts = eng.StartTransaction();
 
                 var t = Stopwatch.GetTimestamp();
-                var ds2 = ts.Find(TABLENAME, false, 0, 500);
-                Console.WriteLine(ds2.Values.Count);
+                int taken = 0;
+                ts.GoThrough(TABLENAME, (ref RowView r) =>
+                {
+                    if (taken == 0)
+                        Console.WriteLine(r.GetInt(0));
+                    taken++;
+                    return taken < 500;
+                });
+                Console.WriteLine(taken);
                 Console.WriteLine("value");
-                Console.WriteLine(ds2.Values[0][0]);
 
                 Console.WriteLine(Stopwatch.GetTimestamp() - t);
                 eng.SetDestoryOnDisposed();
@@ -429,8 +415,8 @@ namespace ConsoleTest
             using ITransaction ts = eng.StartTransaction();
 
             var t = Stopwatch.GetTimestamp();
-            var ds2 = ts.Count(TABLENAME, [("b", (o) => (long)o % 3 == 0), ("a", (o) => (int)o > 5000)]);
-           // Console.WriteLine(ds2.Value[0]);
+            var ds2 = ts.Count(TABLENAME, (ref RowView r) => r.GetLong(1) % 3 == 0 && r.GetInt(0) > 5000);
+           // Console.WriteLine(ds2.Value);
 
             Console.WriteLine(Stopwatch.GetTimestamp() - t);
             eng.SetDestoryOnDisposed();
@@ -467,8 +453,11 @@ namespace ConsoleTest
                 using ITransaction ts = eng.StartTransaction();
 
 
-                var ds = ts.Find(TABLENAME, o => o);
-                Console.WriteLine(ds.Values[3][0]);
+                ts.GoThrough(TABLENAME, (ref RowView r) =>
+                {
+                    Console.WriteLine(r.GetInt(0));
+                    return false; // sample first row only
+                });
 
 
                 //  eng.SetDestoryOnDisposed();
@@ -518,18 +507,19 @@ namespace ConsoleTest
             //    ts.Insert(tb2, [("a", i)]);
             //}
 
-            var rr=ts.Find(tb2, o => o).Values;
-
-           
-            var res = ts.Find(tb1, o => o.Where(
-                v => ts.Find(tb2, o => o.Where(k => (int)k[2]>=0)).Values.Select(p => p[0]).Contains(v[0])
-
-                ));
-
-            foreach(var v in res.Values)
+            var set2 = new HashSet<int>();
+            ts.GoThrough(tb2, (ref RowView r) =>
             {
-                Console.WriteLine(v[0]);
-            }
+                set2.Add(r.GetInt(0));
+                return true;
+            });
+
+            ts.GoThrough(tb1, (ref RowView r) =>
+            {
+                if (set2.Contains(r.GetInt(0)))
+                    Console.WriteLine(r.GetInt(0));
+                return true;
+            });
 
         }
         private static void readWriteLock()
@@ -598,12 +588,11 @@ namespace ConsoleTest
             {
                 using ITransaction ts = eng.StartTransaction();
 
-                var res = ts.Find(TABLENAME, o => o);
-
-                foreach(var r in res.Values)
+                ts.GoThrough(TABLENAME, (ref RowView r) =>
                 {
-                    Console.WriteLine(r[0]);
-                }
+                    Console.WriteLine(r.GetInt(0));
+                    return true;
+                });
             }
 
             eng.SetDestoryOnDisposed();
@@ -618,9 +607,9 @@ namespace ConsoleTest
 
                 using (var ts = eng.StartTransaction())
                 {
-                    var res = ts.Find(TABLENAME, o => o.Where(o => (int)o[0] == 499999));
+                    var res = ts.Find(TABLENAME, "a", 499999);
                     //var res = ts.Find(TABLENAME, "a", 899999);
-                    Console.WriteLine(res.Values[0][1]);
+                    Console.WriteLine(res.Row.GetLong(1));
                     Console.WriteLine($"mem: {GetMem()} kb");
                 }
                 st.Stop();
@@ -670,9 +659,9 @@ namespace ConsoleTest
                         // Console.WriteLine($"mem: {GetMem()} kb");
                     }
 
-                    var res = ts.Find(TABLENAME, o => o.Where(o => (int)o[0] == 499999));
+                    var res = ts.Find(TABLENAME, "a", 499999);
                     //var res = ts.Find(TABLENAME, "a", 899999);
-                    Console.WriteLine(res.Values[0][1]);
+                    Console.WriteLine(res.Row.GetLong(1));
                 }
 
                 st.Stop();
@@ -781,16 +770,17 @@ namespace ConsoleTest
             public uint id;
             public int uid;
 
-            public IDbEntity Unboxing(object[] obj)
+            public void WriteTo(ref RowWriter writer)
             {
-                username = (string)obj[1];
-                uid = (int)obj[0];
-                return this;
+                writer.WriteInt(uid);
+                writer.WriteString(username);
             }
 
-            public object[] Boxing()
+            public bool TryReadFrom(IDbRow row)
             {
-                return [uid, username];
+                uid = row.GetInt(0);
+                username = row.GetString(1);
+                return true;
             }
 
             public void GetId(uint id)
@@ -812,17 +802,19 @@ namespace ConsoleTest
         public string content;
         public int uid;
 
-        IDbEntity IDbEntity.Unboxing(object[] obj)
+        public void WriteTo(ref RowWriter writer)
         {
-            uid = (int)obj[0];
-            username = (string)obj[1];
-            content = (string)obj[2];
-            return this;
+            writer.WriteInt(uid);
+            writer.WriteString(username);
+            writer.WriteString(content);
         }
 
-        object[] IDbEntity.Boxing()
+        public bool TryReadFrom(IDbRow row)
         {
-            return [uid, username, content];
+            uid = row.GetInt(0);
+            username = row.GetString(1);
+            content = row.GetString(2);
+            return true;
         }
 
         void IDbEntity.GetId(uint id)
@@ -844,18 +836,21 @@ namespace ConsoleTest
         public decimal dec;
         public DateTime time;
 
-        IDbEntity IDbEntity.Unboxing(object[] obj)
+        public void WriteTo(ref RowWriter writer)
         {
-            uid = (int)obj[0];
-            username = (string)obj[1];
-            dec = (decimal)obj[2];
-            time = (DateTime)obj[3];
-            return this;
+            writer.WriteInt(uid);
+            writer.WriteString(username);
+            writer.WriteDecimal(dec);
+            writer.WriteDateTimeUtc(time);
         }
 
-        object[] IDbEntity.Boxing()
+        public bool TryReadFrom(IDbRow row)
         {
-            return [uid, username, dec, time];
+            uid = row.GetInt(0);
+            username = row.GetString(1);
+            dec = row.GetDecimal(2);
+            time = row.GetDateTimeUtc(3);
+            return true;
         }
 
         void IDbEntity.GetId(uint id)

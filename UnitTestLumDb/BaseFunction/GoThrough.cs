@@ -46,9 +46,9 @@ namespace UnitTestLumDb.BaseFunction
                 {
                     using var ts = eng.StartTransactionReadonly();
 
-                    ts.GoThrough(TABLENAME, (object[] objs) =>
+                    ts.GoThrough(TABLENAME, (ref RowView row) =>
                     {
-                        Console.WriteLine(objs[2].ToString());
+                        Console.WriteLine(row.GetString(2));
                         count++;
                         if (count > 500) return false;
                         return true;
@@ -111,16 +111,17 @@ namespace UnitTestLumDb.BaseFunction
             public uint id;
             public int uid;
 
-            public IDbEntity Unboxing(object[] obj)
+            public void WriteTo(ref RowWriter writer)
             {
-                username = (string)obj[1];
-                uid = (int)obj[0];
-                return this;
+                writer.WriteInt(uid);
+                writer.WriteString(username);
             }
 
-            public object[] Boxing()
+            public bool TryReadFrom(IDbRow row)
             {
-                return [uid, username];
+                uid = row.GetInt(0);
+                username = row.GetString(1);
+                return true;
             }
 
             public void GetId(uint id)

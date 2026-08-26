@@ -57,18 +57,21 @@ namespace UnitTestLumDb.BaseFunction
             public decimal dec;
             public DateTime time;
 
-            IDbEntity IDbEntity.Unboxing(object[] obj)
+            public void WriteTo(ref RowWriter writer)
             {
-                uid = (int)obj[0];
-                username = (string)obj[1];
-                dec = (decimal)obj[2];
-                time = (DateTime)obj[3];
-                return this;
+                writer.WriteInt(uid);
+                writer.WriteString(username);
+                writer.WriteDecimal(dec);
+                writer.WriteDateTimeUtc(time);
             }
 
-            object[] IDbEntity.Boxing()
+            public bool TryReadFrom(IDbRow row)
             {
-                return [uid, username, dec, time];
+                uid = row.GetInt(0);
+                username = row.GetString(1);
+                dec = row.GetDecimal(2);
+                time = row.GetDateTimeUtc(3);
+                return true;
             }
 
             void IDbEntity.GetId(uint id)

@@ -7,25 +7,46 @@ namespace LumDbEngine.Element.Engine.Results
 {
     internal class DbValue : DbResult, IDbValue
     {
-        public object[] Value { get; } = null;
+        private object[] _objects;
+
+        public object[] Value => _objects ??= Row?.ToObjectArray();
+
+        public IDbRow Row { get; }
 
         public DbValue(object[] value)
         {
-            Value = value.ToArray();
+            _objects = value.ToArray();
+            var cells = new DbCell[_objects.Length];
+            for (int i = 0; i < _objects.Length; i++)
+                cells[i] = DbCell.FromObject(_objects[i]);
+            Row = new DbRow(cells);
+        }
+
+        public DbValue(DbCell[] cells)
+        {
+            Row = new DbRow(cells);
+        }
+
+        public DbValue(IDbRow row)
+        {
+            Row = row;
         }
 
         public DbValue()
         {
-            Value = null;
+            _objects = null;
+            Row = null;
         }
 
         public DbValue(DbResult dbResult) : base(dbResult.Exception)
         {
+            Row = null;
         }
 
         public DbValue(LumException ex) : base(ex)
         {
-        }       
+            Row = null;
+        }
     }
 
     internal class DbValue<T> : DbResult, IDbValue<T>

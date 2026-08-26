@@ -1,37 +1,27 @@
 ﻿using System.Runtime.CompilerServices;
+using LumDbEngine.Element.Structure;
 
 namespace LumDbEngine.Extension.DbEntity
 {
     /// <summary>
-    /// Interface to wrapper class object for Db engine
+    /// Optional hand-written entity mapping (prefer <c>[LumEntity]</c> source generation).
+    /// Must implement typed WriteTo / TryReadFrom — no object[] boxing path.
     /// </summary>
     public interface IDbEntity
     {
+        void WriteTo(ref RowWriter writer);
+
+        bool TryReadFrom(IDbRow row);
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal IDbEntity UnboxingWithId(uint id, object[] obj)
+        internal IDbEntity UnboxingWithId(uint id, IDbRow row)
         {
-            Unboxing(obj);
+            if (!TryReadFrom(row))
+                throw LumDbEngine.Element.Exceptions.LumException.Raise(LumDbEngine.Element.Exceptions.LumExceptionMessage.FailedToReadEntity);
             GetId(id);
             return this;
         }
 
-        /// <summary>
-        /// Unboxing the values
-        /// </summary>
-        /// <param name="obj"> The object array store in table with preset order</param>
-        /// <returns></returns>
-        public IDbEntity Unboxing(object[] obj);
-
-        /// <summary>
-        /// Boxing the values
-        /// </summary>
-        /// <returns> The object array with same order of that store in table</returns>
-        public object[] Boxing();
-
-        /// <summary>
-        /// Get the default id of data.
-        /// </summary>
-        /// <param name="id">the internal auto-incrementing id of each data</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void GetId(uint id)
         {

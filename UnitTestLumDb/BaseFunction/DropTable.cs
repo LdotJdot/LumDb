@@ -36,8 +36,7 @@ namespace UnitTestLumDb.BaseFunction
 
                 using var ts = eng.StartTransaction();
 
-                var resC = ts.Find("tableFirst", o => o);
-                Assert.AreEqual(resC.Values.Count, 1000);
+                Assert.AreEqual(UnitTestLumDb.Config.RowScan.Count(ts, "tableFirst"), 1000);
 
                 var xx = ts.Find("tableFirst", 1004);
                 Assert.AreEqual(xx.Value[0], 4499);
@@ -73,8 +72,7 @@ namespace UnitTestLumDb.BaseFunction
 
                 using var ts = eng.StartTransaction();
 
-                var resC = ts.Find("tableSecond", o => o);
-                Assert.AreEqual(resC.Values.Count, 1000);
+                Assert.AreEqual(UnitTestLumDb.Config.RowScan.Count(ts, "tableSecond"), 1000);
 
                 var xx = ts.Find("tableSecond", 1004);
                 Assert.AreEqual(xx.Value[0], 4499);
@@ -117,8 +115,7 @@ namespace UnitTestLumDb.BaseFunction
 
                 using var ts = eng.StartTransaction();
 
-                var resC = ts.Find("tableFirst", o => o);
-                Assert.AreEqual(resC.Values.Count, 1000);
+                Assert.AreEqual(UnitTestLumDb.Config.RowScan.Count(ts, "tableFirst"), 1000);
 
                 var xx = ts.Find("tableFirst", 1004);
                 Assert.AreEqual(xx.Value[0], 4499);
@@ -147,8 +144,7 @@ namespace UnitTestLumDb.BaseFunction
                     var res = ts.Delete("tableSecond", (uint)i + 1);
                 }
 
-                var resC = ts.Find("tableSecond", o => o);
-                Assert.AreEqual(resC.Values.Count, 1000);
+                Assert.AreEqual(UnitTestLumDb.Config.RowScan.Count(ts, "tableSecond"), 1000);
 
                 var xx = ts.Find("tableSecond", 1004);
                 Assert.AreEqual(xx.Value[0], 4499);
@@ -169,16 +165,17 @@ namespace UnitTestLumDb.BaseFunction
             public uint id;
             public int uid;
 
-            public IDbEntity Unboxing(object[] obj)
+            public void WriteTo(ref RowWriter writer)
             {
-                username = (string)obj[1];
-                uid = (int)obj[0];
-                return this;
+                writer.WriteInt(uid);
+                writer.WriteString(username);
             }
 
-            public object[] Boxing()
+            public bool TryReadFrom(IDbRow row)
             {
-                return [uid, username];
+                uid = row.GetInt(0);
+                username = row.GetString(1);
+                return true;
             }
 
             public void GetId(uint id)

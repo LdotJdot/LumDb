@@ -58,13 +58,19 @@ namespace LumDbEngine.Element.Engine.Cache
 
 
         /// <summary>
-        /// save changes to file
+        /// save changes to file or in-memory image
         /// </summary>
         internal void SaveCurrentPageCache(DbEngine dbEngine)
         {
 
             if (iof?.IsValid() == true && disposed == false)
             {
+                if (iof.IsMemory)
+                {
+                    WriteCommittedImage(iof.BinaryWriter, skipIfNoDirtyPages: true);
+                    return;
+                }
+
                 var dblog = DbLog.Create(dbEngine, iof.FileStream);
                 try
                 {
@@ -94,6 +100,45 @@ namespace LumDbEngine.Element.Engine.Cache
                 //pages.Clear();
             }
 
+        }
+
+        internal void WriteToMemory(MemoryDbBuffer buffer)
+        {
+            using var stream = new MemoryCursorStream(buffer, writable: true);
+            using var bw = new BinaryWriter(stream);
+            WriteCommittedImage(bw, skipIfNoDirtyPages: false);
+        }
+
+        private void WriteCommittedImage(BinaryWriter bw, bool skipIfNoDirtyPages)
+        {
+            if (disposed)
+                return;
+
+            var dirtyPages = pages?.Values.Where(page => page is { IsDirty: true }).ToList()
+                              ?? new List<BasePage>();
+
+            if (skipIfNoDirtyPages)
+            {
+                // Discard + Dispose must not clobber the committed image with an empty/reset cache.
+                if (pages == null || pages.Count == 0)
+                    return;
+                if (dirtyPages.Count == 0 && !header.IsDirty)
+                    return;
+            }
+
+            header.State = (byte)DbLogState.Done;
+            lock (bw.BaseStream)
+            {
+                header.Write(bw);
+                foreach (var page in dirtyPages)
+                    page.Write(bw);
+                bw.Flush();
+            }
+
+            foreach (var page in dirtyPages)
+                page.IsDirty = false;
+
+            GarbageCollection();
         }
 
         /// <summary>
@@ -165,6 +210,11 @@ namespace LumDbEngine.Element.Engine.Cache
             if (!disposed)
             {
                 PagesClear();
+                if (iof?.IsValid() == true)
+                {
+                    using var reader = iof.RentReader();
+                    header.Read(reader);
+                }
             }
         }
 

@@ -1,5 +1,6 @@
 ﻿using LumDbEngine.Element.Engine.Cache;
 using LumDbEngine.Element.Engine.Checker;
+using LumDbEngine.Element.Engine.Lock;
 using LumDbEngine.Element.Engine.Transaction;
 using LumDbEngine.Element.Engine.Transaction.AsNoTracking;
 using LumDbEngine.Element.Exceptions;
@@ -24,9 +25,19 @@ namespace LumDbEngine.Element.Engine
     public class DbEngine : IDisposable
     {
         /// <summary>
-        /// Version of LumDb
+        /// Packed on-disk format version (see <see cref="DbHeader.VERSION"/>).
         /// </summary>
         public uint Version => DbHeader.VERSION;
+
+        /// <summary>
+        /// Dotted file-format version, e.g. "1.3.9".
+        /// </summary>
+        public string VersionString => DbHeader.FormatVersion(DbHeader.VERSION);
+
+        /// <summary>
+        /// Dotted file-format version of this assembly (same as <see cref="VersionString"/>).
+        /// </summary>
+        public static string CurrentVersionString => DbHeader.FormatVersion(DbHeader.VERSION);
         private string path = "";
         private IOFactory? iof = null;
         //private readonly ThreadLocal<int> callCount = new ThreadLocal<int>(() => 0);
@@ -43,11 +54,16 @@ namespace LumDbEngine.Element.Engine
 
         public TransactionPolicy TransactionPolicy = TransactionPolicy.ReadCommitted;
 
+        private MemoryDbBuffer? memory;
+
         /// <summary>
         /// Create a memory based db engine.
+        /// The same instance shares one committed in-memory image across transactions.
         /// </summary>
         public DbEngine()
         {
+            memory = new MemoryDbBuffer();
+            InitializeMemory();
         }
 
         /// <summary>
@@ -132,6 +148,69 @@ namespace LumDbEngine.Element.Engine
                 }
             }
 
+        }
+
+        private void InitializeMemory()
+        {
+            try
+            {
+                using var ts = new LumTransaction(null, DbCache.DEFAULT_CACHE_PAGES, true, this);
+                ts.SaveToMemory(memory!);
+                ts.Discard();
+            }
+            catch (LumException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message == LumExceptionMessage.IllegaTransaction || ex.Message == LumExceptionMessage.TransactionTimeout)
+                {
+                    throw;
+                }
+                else
+                {
+                    throw LumException.Raise("Transaction start failed, since DbEngine might be disposed.");
+                }
+            }
+
+            iof = new IOFactory(memory!);
+        }
+
+        /// <summary>
+        /// Copy the committed database image to a physical file. Uncommitted changes in an open write
+        /// transaction are not included. The file can be opened with <see cref="DbEngine(string, bool)"/>.
+        /// </summary>
+        public void SaveTo(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                throw LumException.Raise("Wrong path");
+
+            using var lk = LockTransaction.TryStartRead(ReadWriteLock, TimeoutMilliseconds);
+
+            var dir = System.IO.Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+
+            if (memory != null)
+            {
+                File.WriteAllBytes(path, memory.ToArray());
+                return;
+            }
+
+            if (iof?.FileStream == null)
+                throw LumException.Raise("Wrong path");
+
+            lock (iof.FileStream)
+            {
+                iof.BinaryWriter?.Flush();
+                iof.FileStream.Flush();
+                var pos = iof.FileStream.Position;
+                iof.FileStream.Seek(0, SeekOrigin.Begin);
+                using (var dest = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read))
+                    iof.FileStream.CopyTo(dest);
+                iof.FileStream.Seek(pos, SeekOrigin.Begin);
+            }
         }
 
 

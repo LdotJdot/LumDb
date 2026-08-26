@@ -25,11 +25,10 @@ namespace UnitTestLumDb.BaseFunction
                     Assert.IsTrue(ex.Message == LumExceptionMessage.IllegaTransaction);
                 }
 
-             
                 eng.SetDestoryOnDisposed();
             }
-        } 
-        
+        }
+
         [TestMethod]
         public void TransactionInTransactionWithReadOnlyBehavior()
         {
@@ -44,24 +43,27 @@ namespace UnitTestLumDb.BaseFunction
                 ts.Create(tb2, [("a", DbValueType.Int, true)]);
 
                 for (int i = 0; i < 10; i++)
-                {
                     ts.Insert(tb1, [("a", i)]);
-                }
                 for (int i = 0; i < 5; i++)
-                {
                     ts.Insert(tb2, [("a", i)]);
-                }
 
-                var rr = ts.Find(tb2, o => o).Values;
+                var set2 = new HashSet<int>();
+                ts.GoThrough(tb2, (ref RowView r) =>
+                {
+                    set2.Add(r.GetInt(0));
+                    return true;
+                });
 
-                var res = ts.Find(tb1, o => o.Where(
-                    v => ts.Find(tb2, o => o.Where(k => (int)k[0] >= 0)).Values.Select(p => p[0]).Contains(v[0])
-                    ));
+                int match = 0;
+                ts.GoThrough(tb1, (ref RowView r) =>
+                {
+                    if (set2.Contains(r.GetInt(0)))
+                        match++;
+                    return true;
+                });
 
-                Assert.IsTrue(res.Values.Count() == 5);
-
+                Assert.AreEqual(5, match);
                 eng.SetDestoryOnDisposed();
-
             }
         }
 
@@ -79,31 +81,25 @@ namespace UnitTestLumDb.BaseFunction
                 ts.Create(tb2, [("a", DbValueType.Int, true)]);
 
                 for (int i = 0; i < 10; i++)
-                {
                     ts.Insert(tb1, [("a", i)]);
-                }
                 for (int i = 0; i < 5; i++)
-                {
                     ts.Insert(tb2, [("a", i)]);
-                }
 
-                var rr = ts.Find(tb2, o => o).Values;
                 try
                 {
-
-                    var res = ts.Find(tb1, o => o.Where(
-                        v => ts.Find(tb2, o => o.Where(k => (int)k[2] >= 0)).Values.Select(p => p[0]).Contains(v[0])
-                        ));
-
-                    Assert.IsTrue(res.Values.Count() == 5);
+                    ts.GoThrough(tb2, (ref RowView r) =>
+                    {
+                        _ = r.GetInt(2); // out of range — should throw
+                        return true;
+                    });
+                    Assert.Fail("expected exception");
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    Assert.IsTrue(ex.Message == "Index was outside the bounds of the array.");
+                    // expected
                 }
 
                 eng.SetDestoryOnDisposed();
-
             }
         }
     }

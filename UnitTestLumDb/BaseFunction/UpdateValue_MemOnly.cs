@@ -313,17 +313,19 @@ namespace UnitTestLumDb.BaseFunction
             public string content;
             public int uid;
 
-            IDbEntity IDbEntity.Unboxing(object[] obj)
+            public void WriteTo(ref RowWriter writer)
             {
-                uid = (int)obj[0];
-                username = (string)obj[1];
-                content = (string)obj[2];
-                return this;
+                writer.WriteInt(uid);
+                writer.WriteString(username);
+                writer.WriteString(content);
             }
 
-            object[] IDbEntity.Boxing()
+            public bool TryReadFrom(IDbRow row)
             {
-                return [uid, username, content];
+                uid = row.GetInt(0);
+                username = row.GetString(1);
+                content = row.GetString(2);
+                return true;
             }
 
             void IDbEntity.GetId(uint id)
