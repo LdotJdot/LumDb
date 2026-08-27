@@ -1,4 +1,4 @@
-﻿using System.Data.Common;
+using System.Data.Common;
 using System.Runtime.CompilerServices;
 
 namespace LumDbEngine.Element.Exceptions
@@ -23,5 +23,10 @@ namespace LumDbEngine.Element.Exceptions
         internal const string FixedLengthTooLong = "Value exceeds fixed column length";
         internal const string FailedToReadEntity = "failed to read entity";
         internal const string ColumnTypeMismatch = "DbCell type does not match column type";
+        internal const string UnsupportedLinq =
+            "Expression cannot be translated to RowView. Supported: comparisons, && || !, arithmetic, string/Math helpers, ordinary C# methods (int Add(int,int)), captured Func/delegates, generic helpers, captured constants. Or inject WhereCallback / Where(RowViewPredicate). Culture overloads, Split, Action, and BCL instance methods are not supported.";
+        internal const string OrderByAlreadyDefined = "ORDER BY already defined in this query";
+        internal const string QueryWrongThread =
+            "This query object can only be used by the thread that called Query(). Other threads must call Query() themselves.";
     }
 }

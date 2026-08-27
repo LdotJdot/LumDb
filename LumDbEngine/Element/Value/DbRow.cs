@@ -326,6 +326,10 @@ namespace LumDbEngine.Element.Structure
         }
 
         public DbCell this[int ordinal] => GetCell(ordinal);
+
+        internal Span<byte> RowSpan => _row;
+        internal ColumnHeader[] Headers => _headers;
+        internal DbCache Cache => _db;
     }
 
     /// <summary>Callback for zero-allocation scalar scan over <see cref="RowView"/>.</summary>

@@ -1,13 +1,15 @@
-﻿using LumDbEngine.Element.Engine.Cache;
+using LumDbEngine.Element.Engine.Cache;
 using LumDbEngine.Element.Engine.Results;
 using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Manager.Common;
 using LumDbEngine.Element.Manager.Specific;
+using LumDbEngine.Element.Query;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Structure.Page.Table;
 using LumDbEngine.Extension.DbEntity;
 using LumDbEngine.Utils.StringUtils;
 using System.Diagnostics;
+using System.Linq.Expressions;
 
 namespace LumDbEngine.Element.Manager
 {
@@ -32,15 +34,6 @@ namespace LumDbEngine.Element.Manager
 
             var id = TableManager.InsertData(db, tablePage, tbd);
             return new DbValue<uint>(id ?? 0);
-        }
-
-        public IDbValues<Entity> Find_Entity<Entity>(DbCache db, string tableName, Func<IEnumerable<Entity>, IEnumerable<Entity>> condition, bool isBackward)
-            where Entity : IDbEntity, new()
-        {
-            var tablePage = TableRepoManager.GetTablePage(db, tableName);
-            if (tablePage == null)
-                return new DbValues<Entity>(DbResults.TableNotFound);
-            return TableManager.Traversal_Entity(db, tablePage, condition, isBackward);
         }
 
         public IDbValue<Entity> Find_Entity<Entity>(DbCache db, string tableName, string keyName, DbCell keyValue)
@@ -68,14 +61,20 @@ namespace LumDbEngine.Element.Manager
             return cells;
         }
 
-        public IDbResult Update_Entity<Entity>(DbCache db, string tableName, Entity value, Func<Entity, bool> condition)
+        public IDbResult Update_Entity<Entity>(DbCache db, string tableName, Entity value, Expression<Func<Entity, bool>> condition)
             where Entity : IDbEntity, new()
         {
             var tablePage = TableRepoManager.GetTablePage(db, tableName);
             if (tablePage == null)
                 return DbResults.TableNotFound;
 
-            var dataNode = TableManager.FirstOrDefaultNode_Entity(db, tablePage, condition);
+            var map = EntityColumnMap.FromHeaders(tablePage.ColumnHeaders);
+            var where = LinqToRowExpr.Translate(condition, map);
+            var id = EntityQueryExecutor.FindFirstId(db, tablePage, where);
+            if (id == null)
+                return DbResults.DataNotFound;
+
+            var dataNode = TableManager.FirstOrDefaultNode(db, tablePage, id.Value);
             if (dataNode == null)
                 return DbResults.DataNotFound;
 

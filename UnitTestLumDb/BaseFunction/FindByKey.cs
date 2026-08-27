@@ -1,4 +1,4 @@
-﻿using LumDbEngine.Element.Engine;
+using LumDbEngine.Element.Engine;
 using LumDbEngine.Element.Structure;
 using System.Diagnostics;
 using UnitTestLumDb.Config;
@@ -32,7 +32,7 @@ namespace UnitTestLumDb.BaseFunction
                 Debug.Assert((int)idRes.Value[0] == 49800);
                 Debug.Assert((string)idRes.Value[1] == "anonymous500");
 
-                var dr = ts.Find_Entity<Test2>("tableFirst", o => o.Where(l => l.uid == 4990000));
+                var dr = ts.Find_Entity<Test2>("tableFirst", l => l.uid == 4990000);
                 Assert.IsTrue(dr.Values.Count == 0);
 
                 var res0 = ts.Find("tableFirst", "uid", "100");

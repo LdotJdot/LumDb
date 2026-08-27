@@ -1,4 +1,4 @@
-﻿using LumDbEngine.Element.Engine.Cache;
+using LumDbEngine.Element.Engine.Cache;
 using LumDbEngine.Element.Engine.Results;
 using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Manager.Common;
@@ -419,17 +419,60 @@ namespace LumDbEngine.Element.Manager.Specific
 
         internal static void GoThrough(DbCache db, ColumnHeader[] headers, DataPage? page, RowViewAction action)
         {
-            GoThrough(db, headers, page, (uint id, ref RowView view) => action(ref view));
+            GoThrough(db, headers, page, (uint id, ref RowView view) => action(ref view), backward: false);
         }
 
-        internal static void GoThrough(DbCache db, ColumnHeader[] headers, DataPage? page, RowViewIdAction action)
+        internal static void FillColumnOffsets(ColumnHeader[] headers, Span<int> offsets)
         {
-            Span<int> offsets = stackalloc int[headers.Length];
             var pos = 0;
             for (int c = 0; c < headers.Length; c++)
             {
                 offsets[c] = pos;
                 pos += headers[c].ValueType.GetLength();
+            }
+        }
+
+        internal static void GoThrough(DbCache db, ColumnHeader[] headers, DataPage? page, RowViewIdAction action)
+        {
+            GoThrough(db, headers, page, action, backward: false);
+        }
+
+        /// <summary>
+        /// Occupancy-order scan. Forward: Root → Next. Backward walks Next to the chain
+        /// end then Prev (does not use LastDataPageId). Page linking is unchanged.
+        /// </summary>
+        internal static void GoThrough(DbCache db, ColumnHeader[] headers, DataPage? page, RowViewIdAction action, bool backward)
+        {
+            if (page == null)
+                return;
+
+            Span<int> offsets = stackalloc int[headers.Length];
+            FillColumnOffsets(headers, offsets);
+
+            if (backward)
+            {
+                while (db.IsValidPage(page.NextPageId))
+                    page = PageManager.GetPage<DataPage>(db, page.NextPageId);
+
+                while (page != null)
+                {
+                    for (int i = page.MaxDataCount - 1; i >= 0; i--)
+                    {
+                        var dataNode = page.DataNodes[i];
+                        if (dataNode != null && dataNode.IsAvailable)
+                        {
+                            var view = new RowView(dataNode.Data, headers, offsets, db);
+                            if (!action(dataNode.Id, ref view))
+                                return;
+                        }
+                    }
+
+                    page = db.IsValidPage(page.PrevPageId)
+                        ? PageManager.GetPage<DataPage>(db, page.PrevPageId)
+                        : null;
+                }
+
+                return;
             }
 
             while (page != null)

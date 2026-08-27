@@ -1,7 +1,8 @@
-﻿using LumDbEngine.Element.Engine.Lock;
+using LumDbEngine.Element.Engine.Lock;
 using LumDbEngine.Element.Engine.Results;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.Extension.DbEntity;
+using System.Linq.Expressions;
 
 namespace LumDbEngine.Element.Engine.Transaction
 {
@@ -21,7 +22,7 @@ namespace LumDbEngine.Element.Engine.Transaction
             return dbManager.Update_Entity(db, tableName, id, value);
         }
 
-        public IDbResult Update_Entity<T>(string tableName, Func<T, bool> condition, T value) where T : IDbEntity, new()
+        public IDbResult Update_Entity<T>(string tableName, Expression<Func<T, bool>> condition, T value) where T : IDbEntity, new()
         {
             CheckTransactionState();
             using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);

@@ -1,6 +1,7 @@
 using LumDbEngine;
 using LumDbEngine.Element.Engine.Cache;
 using LumDbEngine.Element.Engine.Results;
+using LumDbEngine.Element.Query;
 using LumDbEngine.Element.Structure;
 
 namespace LumDbEngine.Element.Manager
@@ -23,5 +24,16 @@ namespace LumDbEngine.Element.Manager
             where T : ILumEntity<T>, new();
 
         IDbValue<uint> CountWhere(DbCache db, string tableName, RowViewPredicate predicate);
+
+        IDbValues<T> QueryLumEntity<T>(DbCache db, string tableName, Func<EntityColumnMap, EntityQueryPlan> build)
+            where T : ILumEntity<T>, new();
+
+        int CountLumEntity<T>(DbCache db, string tableName, Func<EntityColumnMap, RowExpr?> buildWhere)
+            where T : ILumEntity<T>, new();
+
+        bool ExistsLumEntity<T>(DbCache db, string tableName, Func<EntityColumnMap, RowExpr?> buildWhere, bool backward)
+            where T : ILumEntity<T>, new();
+
+        int DeleteByPlan(DbCache db, string tableName, Func<EntityColumnMap, EntityQueryPlan> build);
     }
 }

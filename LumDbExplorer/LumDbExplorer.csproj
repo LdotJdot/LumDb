@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationTitle>LumDb Explorer</ApplicationTitle>
     <Product>LumDb Explorer</Product>
-    <Version>2.1.0</Version>
+    <Version>2.2.0</Version>
     <Description>Browse, create, and edit LumDb databases.</Description>
   </PropertyGroup>
 

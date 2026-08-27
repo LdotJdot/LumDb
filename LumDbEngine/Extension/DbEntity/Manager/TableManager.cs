@@ -1,4 +1,4 @@
-﻿using LumDbEngine.Element.Engine.Cache;
+using LumDbEngine.Element.Engine.Cache;
 using LumDbEngine.Element.Engine.Results;
 using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Manager.Common;
@@ -18,25 +18,10 @@ namespace LumDbEngine.Element.Manager.Specific
             if (!db.IsValidPage(tablePage.PageHeader.RootDataPageId))
                 return new DbValues<Entity>([]);
 
-            var list = new List<Entity>();
             var rootPage = PageManager.GetPage<DataPage>(db, tablePage.PageHeader.RootDataPageId);
-            DataManager.GoThrough(db, tablePage.ColumnHeaders, rootPage, (uint id, ref RowView _) =>
-            {
-                var node = FirstOrDefaultNode(db, tablePage, id);
-                if (node == null)
-                    return true;
-                var row = DataManager.CreateRowBuffer(db, tablePage.ColumnHeaders, node.Data);
-                var entity = new Entity();
-                entity.UnboxingWithId(id, row);
-                list.Add(entity);
-                return true;
-            });
-
-            // isBackward: reverse list for simple parity with prior behavior
-            if (isBackward)
-                list.Reverse();
-
-            return new DbValues<Entity>(condition(list));
+            var stream = DataManager.EnumerateEntities<Entity>(db, tablePage.ColumnHeaders, rootPage, isBackward);
+            // DbValues.ToArray() pulls this iterator; LINQ Take/Where/Skip stop the pull.
+            return new DbValues<Entity>(condition(stream));
         }
 
         public static DataNode? FirstOrDefaultNode_Entity<Entity>(DbCache db, TablePage tablePage, Func<Entity, bool> condition)

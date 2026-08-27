@@ -1,4 +1,4 @@
-﻿using LumDbEngine.Element.Engine;
+using LumDbEngine.Element.Engine;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.Extension.DbEntity;
 using System.Diagnostics;
@@ -47,11 +47,11 @@ namespace UnitTestLumDb.BaseFunction
                     id++;
                 }
 
-                var dbResult = ts.Find_Entity<Test2>("tableFirst", o => o.Where(e => e.username2.EndsWith("5")).Take(1));
+                var dbResult = ts.Query_Entity<Test2>("tableFirst").Where(e => e.username.EndsWith("5")).Take(1).ToValues();
 
                 foreach (var v in dbResult.Values)
                 {
-                    Assert.IsTrue(v.username2 == "anonymous5");
+                    Assert.IsTrue(v.username == "anonymous5");
                     Assert.IsTrue(v.uid == 300);
                 }
             }
@@ -83,19 +83,19 @@ namespace UnitTestLumDb.BaseFunction
 
     public class Test2 : IDbEntity
     {
-        public string username2;
+        public string username;
         public int uid;
 
         public void WriteTo(ref RowWriter writer)
         {
             writer.WriteInt(uid);
-            writer.WriteString(username2);
+            writer.WriteString(username);
         }
 
         public bool TryReadFrom(IDbRow row)
         {
             uid = row.GetInt(0);
-            username2 = row.GetString(1);
+            username = row.GetString(1);
             return true;
         }
     }

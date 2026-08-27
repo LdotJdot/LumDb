@@ -144,12 +144,7 @@ namespace LumDbEngine.Element.Manager
                 if (taken >= limit)
                     return false;
 
-                // Materialize from live view via row buffer copy of current node bytes
-                var node = TableManager.FirstOrDefaultNode(db, tablePage, id);
-                if (node == null)
-                    return true;
-
-                var row = DataManager.CreateRowBuffer(db, tablePage.ColumnHeaders, node.Data);
+                var row = DataManager.CreateRowBuffer(db, tablePage.ColumnHeaders, view.RowSpan);
                 if (T.TryReadFrom(row, out var entity))
                 {
                     T.SetDbId(ref entity, id);
