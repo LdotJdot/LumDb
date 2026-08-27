@@ -118,8 +118,8 @@ namespace ConsoleTest.EditChurn
         static void Bootstrap(DbEngine eng)
         {
             using var ts = eng.StartTransaction();
-            Must(ts.Create<ChurnDoc>(T.Doc));
-            Must(ts.Create<ChurnComment>(T.Comment));
+            Must(ts.Create<ChurnDoc>(ChurnTables.Doc));
+            Must(ts.Create<ChurnComment>(ChurnTables.Comment));
         }
 
         static void SeedLongForm(DbEngine eng, string dbPath, ChurnConfig cfg, Random rng, List<Checkpoint> cps)
@@ -127,7 +127,7 @@ namespace ConsoleTest.EditChurn
             using var ts = eng.StartTransaction();
             for (int d = 1; d <= cfg.Docs; d++)
             {
-                Must(ts.Insert(T.Doc, new ChurnDoc
+                Must(ts.Insert(ChurnTables.Doc, new ChurnDoc
                 {
                     DocId = d,
                     Title = $"DOC-{d:D5}",
@@ -140,7 +140,7 @@ namespace ConsoleTest.EditChurn
                 for (int c = 0; c < cfg.CommentsPerDoc; c++)
                 {
                     int cid = (d - 1) * cfg.CommentsPerDoc + c + 1;
-                    Must(ts.Insert(T.Comment, new ChurnComment
+                    Must(ts.Insert(ChurnTables.Comment, new ChurnComment
                     {
                         CommentId = cid,
                         DocId = d,
@@ -182,30 +182,20 @@ namespace ConsoleTest.EditChurn
         {
             if (liveDocIds.Count == 0) return;
             int docId = liveDocIds[rng.Next(liveDocIds.Count)];
-            var row = ts.FindEntity<ChurnDoc>(T.Doc, "DocId", docId);
-            if (!row.IsSuccess) return;
+            if (!ChurnDocOps.Exists(ts, docId)) return;
 
-            var doc = row.Value;
-            int len = shrink
-                ? rng.Next(80, 400)
-                : rng.Next(3000, 9000);
-            doc.Body = Lorem(rng, len, len + 40);
-            doc.Revision++;
-            doc.UpdatedUtc = DateTime.UtcNow;
-            Must(ts.UpdateEntity(T.Doc, doc.Id, doc));
+            int len = shrink ? rng.Next(80, 400) : rng.Next(3000, 9000);
+            int rev = ChurnDocOps.ReadRevision(ts, docId) + 1;
+            ChurnDocOps.UpdateBody(ts, docId, Lorem(rng, len, len + 40), rev, DateTime.UtcNow);
         }
 
         static void UpdateTitles(ITransaction ts, Random rng, List<int> liveDocIds)
         {
             if (liveDocIds.Count == 0) return;
             int docId = liveDocIds[rng.Next(liveDocIds.Count)];
-            var row = ts.FindEntity<ChurnDoc>(T.Doc, "DocId", docId);
-            if (!row.IsSuccess) return;
-            var doc = row.Value;
-            doc.Title = $"DOC-{docId:D5}-R{doc.Revision + 1}";
-            doc.Revision++;
-            doc.UpdatedUtc = DateTime.UtcNow;
-            Must(ts.UpdateEntity(T.Doc, doc.Id, doc));
+            if (!ChurnDocOps.Exists(ts, docId)) return;
+            int rev = ChurnDocOps.ReadRevision(ts, docId) + 1;
+            ChurnDocOps.UpdateTitle(ts, docId, $"DOC-{docId:D5}-R{rev}", rev, DateTime.UtcNow);
         }
 
         static int HardDeleteDocs(ITransaction ts, Random rng, List<int> liveDocIds, int nextDocId, ChurnConfig cfg, Random seed)
@@ -218,19 +208,11 @@ namespace ConsoleTest.EditChurn
                 int docId = liveDocIds[idx];
                 liveDocIds.RemoveAt(idx);
 
-                var comments = ts.Find<ChurnComment>(T.Comment, c => c.DocId == docId && c.State == 0);
-                if (comments.IsSuccess)
-                {
-                    foreach (var c in comments.Values)
-                        Must(ts.Delete(T.Comment, c.Id));
-                }
-
-                var doc = ts.FindEntity<ChurnDoc>(T.Doc, "DocId", docId);
-                if (doc.IsSuccess)
-                    Must(ts.Delete(T.Doc, doc.Value.Id));
+                ChurnDocOps.DeleteCommentsForDoc(ts, docId);
+                ChurnDocOps.DeleteByDocId(ts, docId);
 
                 // 同轮补一条新文档（测 DataPage slot 复用）
-                Must(ts.Insert(T.Doc, new ChurnDoc
+                Must(ts.Insert(ChurnTables.Doc, new ChurnDoc
                 {
                     DocId = nextDocId,
                     Title = $"NEW-{nextDocId:D5}",
@@ -248,14 +230,13 @@ namespace ConsoleTest.EditChurn
         {
             if (liveDocIds.Count == 0) return;
             int docId = liveDocIds[rng.Next(liveDocIds.Count)];
-            var old = ts.FindEntity<ChurnDoc>(T.Doc, "DocId", docId);
-            if (!old.IsSuccess) return;
+            if (!ChurnDocOps.Exists(ts, docId)) return;
 
-            Must(ts.Delete(T.Doc, old.Value.Id));
+            ChurnDocOps.DeleteByDocId(ts, docId);
             liveDocIds.Remove(docId);
 
             int newId = nextDocId++;
-            Must(ts.Insert(T.Doc, new ChurnDoc
+            Must(ts.Insert(ChurnTables.Doc, new ChurnDoc
             {
                 DocId = newId,
                 Title = $"REPL-{newId:D5}",
@@ -273,16 +254,9 @@ namespace ConsoleTest.EditChurn
             int docId = liveDocIds[rng.Next(liveDocIds.Count)];
 
             if (rng.Next(2) == 0)
-            {
-                var found = ts.Find<ChurnComment>(T.Comment, c => c.DocId == docId && c.State == 0, 0, 8);
-                if (found.IsSuccess && found.Values.Count > 0)
-                {
-                    var c = found.Values[rng.Next(found.Values.Count)];
-                    Must(ts.Delete(T.Comment, c.Id));
-                }
-            }
+                ChurnDocOps.DeleteOneCommentForDoc(ts, rng, docId);
 
-            Must(ts.Insert(T.Comment, new ChurnComment
+            Must(ts.Insert(ChurnTables.Comment, new ChurnComment
             {
                 CommentId = nextCommentId++,
                 DocId = docId,
@@ -295,17 +269,13 @@ namespace ConsoleTest.EditChurn
         {
             if (liveDocIds.Count == 0) return;
             int docId = liveDocIds[rng.Next(liveDocIds.Count)];
-            _ = ts.FindEntity<ChurnDoc>(T.Doc, "DocId", docId);
-            _ = ts.Query<ChurnComment>(T.Comment)
-                .Where(c => c.DocId == docId && c.State == 0)
-                .Take(5)
-                .Count();
+            _ = ChurnDocOps.Exists(ts, docId);
+            _ = ChurnDocOps.CountComments(ts, docId);
         }
 
         static void BatchPurgeDeleted(ITransaction ts)
         {
-            int n = ts.Query<ChurnComment>(T.Comment).Where(c => c.State == 9).Delete();
-            _ = n;
+            _ = ChurnDocOps.PurgeDeletedComments(ts);
         }
 
         static (Checkpoint AfterDelete, Checkpoint AfterReuse, Checkpoint BaselineFresh, double ReuseRatio) HoleReuseExperiment(
@@ -371,14 +341,14 @@ namespace ConsoleTest.EditChurn
             long fileBytes = ReadFileLength(dbPath);
 
             using var ts = eng.StartTransactionReadonly();
-            ts.GoThrough(T.Doc, (ref RowView _) => true);
-            ts.GoThrough(T.Comment, (ref RowView _) => true);
+            ts.GoThrough(ChurnTables.Doc, (ref RowView _) => true);
+            ts.GoThrough(ChurnTables.Comment, (ref RowView _) => true);
 
             var lum = (LumTransaction)ts;
             var m = lum.InspectSpace() with { FileBytesEstimate = fileBytes };
 
-            int docCount = (int)ts.Count(T.Doc, (ref RowView r) => true).Value;
-            int commentCount = (int)ts.Count(T.Comment, (ref RowView r) => true).Value;
+            int docCount = (int)ts.Count(ChurnTables.Doc, (ref RowView r) => true).Value;
+            int commentCount = (int)ts.Count(ChurnTables.Comment, (ref RowView r) => true).Value;
 
             return new Checkpoint(label, liveDocs >= 0 ? liveDocs : docCount, docCount, commentCount, fileBytes, m);
         }
@@ -515,33 +485,96 @@ namespace ConsoleTest.EditChurn
                 return int.TryParse(arg.AsSpan(prefix.Length), NumberStyles.Integer, CultureInfo.InvariantCulture, out v);
             }
         }
+    }
 
-        static class T
+    // ChurnComment 列序（固定列 RowView 下标；Body 为 StrVar）
+    internal static class ChurnCols
+    {
+        public const int CommentDocId = 1;
+        public const int CommentState = 3;
+        public const int DocRevision = 3;
+    }
+
+    internal static class ChurnDocOps
+    {
+        /// <summary>按键查找/更新/删除，不调用 FindEntity，避免 VS 在未跑源生成器时误报 CS0311。</summary>
+        public static bool Exists(ITransaction ts, int docId) =>
+            ts.Find(ChurnTables.Doc, "DocId", docId).IsSuccess;
+
+        public static void UpdateBody(ITransaction ts, int docId, string body, int revision, DateTime updatedUtc)
         {
-            public const string Doc = "churn_doc";
-            public const string Comment = "churn_comment";
+            Must(ts.Update(ChurnTables.Doc, "DocId", docId, "Body", body));
+            Must(ts.Update(ChurnTables.Doc, "DocId", docId, "Revision", revision));
+            Must(ts.Update(ChurnTables.Doc, "DocId", docId, "UpdatedUtc", updatedUtc));
         }
-    }
 
-    [LumEntity]
-    public partial class ChurnDoc
-    {
-        [Id] public uint Id { get; set; }
-        [Key] public int DocId { get; set; }
-        [Str32B] public string Title { get; set; } = "";
-        [StrVar] public string Body { get; set; } = "";
-        public int Revision { get; set; }
-        public int State { get; set; }
-        public DateTime UpdatedUtc { get; set; }
-    }
+        public static void UpdateTitle(ITransaction ts, int docId, string title, int revision, DateTime updatedUtc)
+        {
+            Must(ts.Update(ChurnTables.Doc, "DocId", docId, "Title", title));
+            Must(ts.Update(ChurnTables.Doc, "DocId", docId, "Revision", revision));
+            Must(ts.Update(ChurnTables.Doc, "DocId", docId, "UpdatedUtc", updatedUtc));
+        }
 
-    [LumEntity]
-    public partial class ChurnComment
-    {
-        [Id] public uint Id { get; set; }
-        [Key] public int CommentId { get; set; }
-        public int DocId { get; set; }
-        [StrVar] public string Body { get; set; } = "";
-        public int State { get; set; }
+        public static void DeleteByDocId(ITransaction ts, int docId) =>
+            Must(ts.Delete(ChurnTables.Doc, "DocId", docId));
+
+        public static int ReadRevision(ITransaction ts, int docId)
+        {
+            var res = ts.Find(ChurnTables.Doc, "DocId", docId);
+            return res.IsSuccess ? res.Row.GetInt(ChurnCols.DocRevision) : 0;
+        }
+
+        public static void DeleteCommentsForDoc(ITransaction ts, int docId)
+        {
+            var ids = new List<uint>();
+            ts.GoThrough(ChurnTables.Comment, (uint id, ref RowView row) =>
+            {
+                if (row.GetInt(ChurnCols.CommentDocId) == docId
+                    && row.GetInt(ChurnCols.CommentState) == 0)
+                    ids.Add(id);
+                return true;
+            });
+            foreach (var id in ids)
+                Must(ts.Delete(ChurnTables.Comment, id));
+        }
+
+        public static void DeleteOneCommentForDoc(ITransaction ts, Random rng, int docId)
+        {
+            var ids = new List<uint>();
+            ts.GoThrough(ChurnTables.Comment, (uint id, ref RowView row) =>
+            {
+                if (row.GetInt(ChurnCols.CommentDocId) == docId
+                    && row.GetInt(ChurnCols.CommentState) == 0)
+                    ids.Add(id);
+                return true;
+            });
+            if (ids.Count == 0) return;
+            Must(ts.Delete(ChurnTables.Comment, ids[rng.Next(ids.Count)]));
+        }
+
+        public static int CountComments(ITransaction ts, int docId) =>
+            (int)ts.Count(ChurnTables.Comment, (ref RowView row) =>
+                row.GetInt(ChurnCols.CommentDocId) == docId
+                && row.GetInt(ChurnCols.CommentState) == 0).Value;
+
+        public static int PurgeDeletedComments(ITransaction ts)
+        {
+            var ids = new List<uint>();
+            ts.GoThrough(ChurnTables.Comment, (uint id, ref RowView row) =>
+            {
+                if (row.GetInt(ChurnCols.CommentState) == 9)
+                    ids.Add(id);
+                return true;
+            });
+            foreach (var id in ids)
+                Must(ts.Delete(ChurnTables.Comment, id));
+            return ids.Count;
+        }
+
+        static void Must(LumDbEngine.Element.Engine.Results.IDbResult r)
+        {
+            if (!r.IsSuccess)
+                throw new InvalidOperationException(r.Exception?.Message ?? "db failed");
+        }
     }
 }
