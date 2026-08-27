@@ -1,5 +1,5 @@
 ﻿using LumDbEngine.Element.Engine.Cache;
-using LumDbEngine.Element.Engine.Checker;
+using LumDbEngine.Element.Engine.Diagnostics;
 using LumDbEngine.Element.Engine.Lock;
 using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Manager;
@@ -21,6 +21,10 @@ namespace LumDbEngine.Element.Engine.Transaction
         public Guid Id { get; protected set; } = Guid.NewGuid();
 
         internal int PagesCount => db.pages.Count;
+
+        internal DbCache TransactionDb => db;
+
+        internal DbDiagnostics.SpaceMetrics InspectSpace() => DbDiagnostics.Inspect(db);
 
         internal string DbState()
         {

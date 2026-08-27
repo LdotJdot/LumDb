@@ -62,6 +62,7 @@ namespace ConsoleTest.NexusMart
 
             AuditResult audit = default!;
             Phase("5. 收尾对账 / 快照", stats, () => audit = FinalAudit(ctx));
+            Phase("6. Query API 抽样", stats, () => QueryApiSpotCheck(ctx));
             total.Stop();
             stats.WallMs = total.Elapsed.TotalMilliseconds;
 
@@ -787,6 +788,31 @@ namespace ConsoleTest.NexusMart
         }
 
         // ── audit ────────────────────────────────────────────────────────────
+
+        static void QueryApiSpotCheck(SimCtx ctx)
+        {
+            using var ts = ctx.Eng.StartTransactionReadonly();
+
+            int paidLinq = ts.Query<NxOrder>(T.Order)
+                .Where(o => o.Status == OrderSt.Paid)
+                .Count();
+            int paidRow = (int)ts.Count(T.Order, (ref RowView r) => NxOrder.GetStatus(ref r) == OrderSt.Paid).Value;
+
+            var joinSample = ts.Query<NxOrder>(T.Order)
+                .Join<NxLine>(T.Line, (o, l) => o.OrderNo == l.OrderNo)
+                .Where((o, l) => o.Status >= OrderSt.Paid && l.Qty >= 2)
+                .Take(5)
+                .ToList();
+
+            int skuWithLines = ts.Query<NxSku>(T.Sku)
+                .WhereExists<NxLine>(T.Line, (s, l) => l.SkuCode == s.SkuCode)
+                .Count();
+
+            var bwdPage = ts.Find<NxOrder>(T.Order, _ => true, skip: 30, limit: 10, isBackward: true);
+
+            Console.WriteLine($"     · Paid Count  Linq={paidLinq}  RowView={paidRow}  {(paidLinq == paidRow ? "一致" : "不一致!")}");
+            Console.WriteLine($"     · Join 样例 {joinSample.Count} 条  WhereExists SKU有明细 {skuWithLines}  反向分页 {bwdPage.Values.Count} 条");
+        }
 
         static AuditResult FinalAudit(SimCtx ctx)
         {

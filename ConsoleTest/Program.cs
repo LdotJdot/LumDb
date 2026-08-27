@@ -29,7 +29,49 @@ namespace ConsoleTest
         /// <param name="args"></param>
         private static void Main(string[] args)
         {
-            NexusMart.NexusMartSimulation.Run(args);
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+            if (args.Any(a => a is "-h" or "--help"))
+            {
+                PrintMainHelp();
+                return;
+            }
+
+            var queryOnly = args.Any(a => a is "--query-only");
+            var nexusOnly = args.Any(a => a is "--nexus-only");
+            var churnOnly = args.Any(a => a is "--churn-only");
+            var quick = args.Any(a => a is "--quick");
+
+            if (churnOnly)
+            {
+                EditChurn.EditChurnSimulation.Run(args);
+                return;
+            }
+
+            if (!nexusOnly)
+                LumDbQueryShowcase.Run(quick);
+
+            if (!queryOnly)
+                NexusMart.NexusMartSimulation.Run(args);
+        }
+
+        private static void PrintMainHelp()
+        {
+            Console.WriteLine("""
+                ConsoleTest — LumDb 演示入口
+
+                  （默认）先跑 Query 2.2.0 案例集，再跑云栈商城 NexusMart 并发模拟
+
+                  --query-only     只跑 Query 案例集
+                  --nexus-only     只跑 NexusMart 模拟
+                  --churn-only     长期编辑/删改模拟（文件大小与空位复用）
+                  --quick          Query 案例集用小数据集（200 Issue）
+
+                删改模拟参数：--seed=  --docs=120  --rounds=400  --comments=5  --keep
+
+                NexusMart 参数（见 --help 时若仅 nexus 也会识别）：
+                  --seed=20260826  --ops=280  --users=96  --skus=48
+                  --warmup=120  --mem  --serial  --keep
+                """);
         }
 
         [LumEntity]
