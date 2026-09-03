@@ -12,6 +12,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace LumDbEngine.Element.Manager.Specific
 {
@@ -187,11 +188,7 @@ namespace LumDbEngine.Element.Manager.Specific
 
                     case DbValueType.StrVar:
                         {
-                            var s = cell.AsString();
-                            var len = System.Text.Encoding.UTF8.GetByteCount(s);
-                            Span<byte> buffer = stackalloc byte[len];
-                            cell.Serialize(buffer);
-                            var link = DataVarManager.InsertDataVar(db, buffer);
+                            var link = DataVarManager.InsertDataVar(db, GetVarPayload(cell, DbValueType.StrVar));
                             var linkBytes = (new NodeLink() { TargetPageID = link.pageId, TargetNodeIndex = link.nodeIndex }).ToBytesAndSpan(bts);
                             CopyToSpan(linkBytes, dataSpan, NodeLink.Size, ref offset);
                             break;
@@ -324,7 +321,7 @@ namespace LumDbEngine.Element.Manager.Specific
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static unsafe void UpdateSingleData(DbCache db, ColumnHeader header, DataNode dataNode, DbCell value, int index)
+        internal static void UpdateSingleData(DbCache db, ColumnHeader header, DataNode dataNode, DbCell value, int index)
         {
             db.MarkDirtyAndCachePage(db, dataNode.HostPageId);
             var cell = value.WithColumnType(header.ValueType);
@@ -354,18 +351,20 @@ namespace LumDbEngine.Element.Manager.Specific
                 int dataOffset = GetDataOffset(header.Page.ColumnHeaders, index);
                 NodeLink.Create(dataNode.Data.Slice(dataOffset, header.ValueType.GetLength()), out var link);
 
-                int len = header.ValueType == DbValueType.StrVar
-                    ? System.Text.Encoding.UTF8.GetByteCount(cell.AsString())
-                    : cell.AsBytes().Length;
-
-                Span<byte> paddingBuffer = stackalloc byte[len];
-                cell.Serialize(paddingBuffer);
-                DataVarManager.UpdateData(db, ref link, paddingBuffer);
+                DataVarManager.UpdateData(db, ref link, GetVarPayload(cell, header.ValueType));
 
                 Span<byte> bts = stackalloc byte[NodeLink.Size];
                 var linkBytes = link.ToBytesAndSpan(bts);
                 linkBytes.CopyTo(dataNode.Data.Slice(dataOffset, linkBytes.Length));
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static byte[] GetVarPayload(in DbCell cell, DbValueType type)
+        {
+            return type == DbValueType.StrVar
+                ? Encoding.UTF8.GetBytes(cell.AsString())
+                : cell.AsBytes();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
