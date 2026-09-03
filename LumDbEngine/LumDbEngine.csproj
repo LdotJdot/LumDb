@@ -21,7 +21,7 @@
 	<Description>A single file database (Aot support)</Description>
 	<PackageTags>database;single file;storage;aot;thread safe;source-generator</PackageTags>
 	<PackageReleaseNotes>2.2.0: fluent Query/Join/WhereExists, expression Where (string/Math/user methods), window materialization on RowView.</PackageReleaseNotes>
-	<Version>2.2.0</Version>
+	<Version>2.2.1</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -60,19 +60,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\LumDbEngine.Generators\LumDbEngine.Generators.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false"
-                      GlobalPropertiesToRemove="PublishAot;RuntimeIdentifier" />
+    <ProjectReference Include="..\LumDbEngine.Generators\LumDbEngine.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" GlobalPropertiesToRemove="PublishAot;RuntimeIdentifier" />
   </ItemGroup>
 
   <!-- Pack generator into NuGet analyzers folder -->
   <ItemGroup>
-    <None Include="..\LumDbEngine.Generators\bin\$(Configuration)\netstandard2.0\LumDbEngine.Generators.dll"
-          Pack="true"
-          PackagePath="analyzers/dotnet/cs"
-          Condition="Exists('..\LumDbEngine.Generators\bin\$(Configuration)\netstandard2.0\LumDbEngine.Generators.dll')"
-          Visible="false" />
+    <None Include="..\LumDbEngine.Generators\bin\$(Configuration)\netstandard2.0\LumDbEngine.Generators.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Condition="Exists('..\LumDbEngine.Generators\bin\$(Configuration)\netstandard2.0\LumDbEngine.Generators.dll')" Visible="false" />
   </ItemGroup>
 
 </Project>
