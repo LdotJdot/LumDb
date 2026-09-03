@@ -63,5 +63,47 @@ namespace UnitTestLumDb.BaseFunction.ValueSafety
                 eng.SetDestoryOnDisposed();
             }
         }
+
+        [TestMethod]
+        public void H8b_DeleteLongVar_SurvivorsStillReadable()
+        {
+            var path = Configuration.GetRandomPath();
+            const string table = "t";
+            string longBody = new string('X', 12_000);
+
+            using (var eng = new DbEngine(path))
+            using (var ts = eng.StartTransaction())
+            {
+                ts.Create(table, [
+                    ("id", DbValueType.Int, true),
+                    ("body", DbValueType.StrVar, false),
+                ]);
+
+                for (int i = 0; i < 40; i++)
+                    Assert.IsTrue(ts.Insert(table, [("id", i), ("body", i == 20 ? longBody : "s" + i)]).IsSuccess);
+
+                Assert.IsTrue(ts.Delete(table, "id", 20).IsSuccess);
+                ts.SaveChanges();
+            }
+
+            using (var eng = new DbEngine(path, createIfNotExists: false))
+            using (var ts = eng.StartTransaction())
+            {
+                for (int i = 0; i < 40; i++)
+                {
+                    if (i == 20)
+                    {
+                        Assert.IsFalse(ts.Find(table, "id", i).IsSuccess);
+                        continue;
+                    }
+
+                    var found = ts.Find(table, "id", i);
+                    Assert.IsTrue(found.IsSuccess, $"id={i}: {found.Exception?.Message}");
+                    Assert.AreEqual("s" + i, found.Row.GetString(1));
+                }
+
+                eng.SetDestoryOnDisposed();
+            }
+        }
     }
 }

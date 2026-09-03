@@ -268,11 +268,24 @@ namespace LumDbEngine.Element.Manager.Specific
             return new DbRowBuffer(value.ToArray(), types, offsets, varPayload);
         }
 
+        /// <summary>
+        /// Ensure the caller's DataNode is the instance currently cached on its host page.
+        /// Reading large StrVar/BytesVar can trigger cache GC and orphan a previously held node;
+        /// writes must target the live page in the pool.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static DataNode GetLiveDataNode(DbCache db, DataNode dataNode)
+        {
+            var dataPage = PageManager.GetPage<DataPage>(db, dataNode.HostPageId);
+            db.MarkDirtyAndCachePage(dataPage);
+            return dataPage.DataNodes[dataNode.NodeIndex];
+        }
+
         internal static void DeleteDataNodeByIndex(DbCache db, TablePage tablePage, DataNode dataNode)
         {
             // mark the dataNode as freeNode
+            dataNode = GetLiveDataNode(db, dataNode);
             var dataPage = PageManager.GetPage<DataPage>(db, dataNode.HostPageId);
-            dataPage.MarkDirty();
 
             dataNode.IsAvailable = false;
             dataNode.NextFreeNodeIndex = dataPage.AvailableNodeIndex;
@@ -323,7 +336,9 @@ namespace LumDbEngine.Element.Manager.Specific
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void UpdateSingleData(DbCache db, ColumnHeader header, DataNode dataNode, DbCell value, int index)
         {
-            db.MarkDirtyAndCachePage(db, dataNode.HostPageId);
+            // Pin + re-resolve before any mutation. Callers may have deserialized the old
+            // StrVar (GetDataVar) which can GC-evict a clean DataPage and leave dataNode orphaned.
+            dataNode = GetLiveDataNode(db, dataNode);
             var cell = value.WithColumnType(header.ValueType);
             LumException.ThrowIfNotTrue(header.ValueType.CheckType(in cell), "data type error");
 
@@ -351,7 +366,12 @@ namespace LumDbEngine.Element.Manager.Specific
                 int dataOffset = GetDataOffset(header.Page.ColumnHeaders, index);
                 NodeLink.Create(dataNode.Data.Slice(dataOffset, header.ValueType.GetLength()), out var link);
 
+                // Delete+Insert of a large var can GC again; keep writing to the live node.
+                var hostPageId = dataNode.HostPageId;
+                var nodeIndex = dataNode.NodeIndex;
                 DataVarManager.UpdateData(db, ref link, GetVarPayload(cell, header.ValueType));
+                dataNode = PageManager.GetPage<DataPage>(db, hostPageId).DataNodes[nodeIndex];
+                db.MarkDirtyAndCachePage(db, hostPageId);
 
                 Span<byte> bts = stackalloc byte[NodeLink.Size];
                 var linkBytes = link.ToBytesAndSpan(bts);

@@ -114,6 +114,44 @@ namespace UnitTestLumDb.BaseFunction.ValueSafety
         }
 
         [TestMethod]
+        public void UpdateEntity_GrowShrinkGrow_FindRoundTrip()
+        {
+            const string table = "agent_state";
+            var path = Configuration.GetRandomPath();
+            var sizes = new[] { 64, 80_000, 400_000, 1_536 * 1024, 12_000, 900_000 };
+
+            using (var eng = Configuration.GetDbEngineForTest(path))
+            using (var ts = eng.StartTransaction())
+            {
+                Assert.IsTrue(ts.Create<StateRow>(table).IsSuccess);
+                Assert.IsTrue(ts.Insert(table, new StateRow { SessionId = 1, Payload = "small" }).IsSuccess);
+                ts.SaveChanges();
+            }
+
+            string last = "small";
+            foreach (var size in sizes)
+            {
+                last = MakePayload(size);
+                using var eng = Configuration.GetDbEngineForTest(path);
+                using var ts = eng.StartTransaction();
+                var found = ts.FindEntity<StateRow>(table, "SessionId", 1);
+                Assert.IsTrue(found.IsSuccess, $"find before size={size}: {found.Exception?.Message}");
+                var update = ts.UpdateEntity(table, found.Value.Id, new StateRow { SessionId = 1, Payload = last });
+                Assert.IsTrue(update.IsSuccess, $"update size={size}: {update.Exception?.Message}");
+                ts.SaveChanges();
+            }
+
+            using (var eng = Configuration.GetDbEngineForTest(path))
+            using (var ts = eng.StartTransaction())
+            {
+                var found = ts.FindEntity<StateRow>(table, "SessionId", 1);
+                Assert.IsTrue(found.IsSuccess, found.Exception?.Message);
+                Assert.AreEqual(last, found.Value.Payload);
+                eng.SetDestoryOnDisposed();
+            }
+        }
+
+        [TestMethod]
         public void InsertEntity_LargeStrVar_ShouldRoundTrip()
         {
             const string table = "agent_state";

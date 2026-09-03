@@ -209,11 +209,16 @@ namespace LumDbEngine.Element.Manager.Specific
 
         internal static void Update(DbCache db, TablePage tablePage, DataNode dataNode, string columnName, DbCell value)
         {
+            // Pin DataPage before deserializing StrVar/BytesVar (GetDataVar may trigger cache GC).
+            dataNode = DataManager.GetLiveDataNode(db, dataNode);
+
             var headerIndex = tablePage.GetTableHeaderIndex(columnName);
             var header = tablePage.ColumnHeaders[headerIndex];
 
             var valueSpan = dataNode.Data.Slice(DataManager.GetDataOffset(tablePage.ColumnHeaders, headerIndex), header.ValueType.GetLength());
             var originCell = valueSpan.DeserializeBytesToCell(db, header.ValueType);
+            // Deserialize may have GC-evicted other pages; keep this row's page pinned/live.
+            dataNode = DataManager.GetLiveDataNode(db, dataNode);
             var newCell = value.WithColumnType(header.ValueType);
             newCell.EnsureFitsColumn(header.ValueType);
 
@@ -236,10 +241,14 @@ namespace LumDbEngine.Element.Manager.Specific
 
             if (!CellsEqual(originCell, newCell, header.ValueType))
             {
-                var oldKey = valueSpan.ToArray();
+                dataNode = DataManager.GetLiveDataNode(db, dataNode);
+                var oldKey = dataNode.Data.Slice(
+                    DataManager.GetDataOffset(tablePage.ColumnHeaders, headerIndex),
+                    header.ValueType.GetLength()).ToArray();
                 DataManager.UpdateSingleData(db, header, dataNode, newCell, headerIndex);
                 if (header.IsKey)
                 {
+                    dataNode = DataManager.GetLiveDataNode(db, dataNode);
                     IndexManager.UpdateIndex(db, tablePage, dataNode, header, header.Name, oldKey);
                 }
             }
@@ -247,6 +256,8 @@ namespace LumDbEngine.Element.Manager.Specific
 
         internal static void Update(DbCache db, TablePage tablePage, DataNode dataNode, DbCell[] cells)
         {
+            dataNode = DataManager.GetLiveDataNode(db, dataNode);
+
             // Pre-check key uniqueness for changed key columns (edit allowed; collision with another row not).
             var staged = new TableValue[tablePage.ColumnHeaders.Length];
             for (int i = 0; i < tablePage.ColumnHeaders.Length; i++)
@@ -260,17 +271,23 @@ namespace LumDbEngine.Element.Manager.Specific
 
             for (int i = 0; i < tablePage.ColumnHeaders.Length; i++)
             {
+                dataNode = DataManager.GetLiveDataNode(db, dataNode);
                 var header = tablePage.ColumnHeaders[i];
                 var valueSpan = dataNode.Data.Slice(DataManager.GetDataOffset(tablePage.ColumnHeaders, i), header.ValueType.GetLength());
                 var originCell = valueSpan.DeserializeBytesToCell(db, header.ValueType);
+                dataNode = DataManager.GetLiveDataNode(db, dataNode);
                 var newCell = cells[i].WithColumnType(header.ValueType);
 
                 if (!CellsEqual(originCell, newCell, header.ValueType))
                 {
-                    var oldKey = valueSpan.ToArray();
+                    dataNode = DataManager.GetLiveDataNode(db, dataNode);
+                    var oldKey = dataNode.Data.Slice(
+                        DataManager.GetDataOffset(tablePage.ColumnHeaders, i),
+                        header.ValueType.GetLength()).ToArray();
                     DataManager.UpdateData(db, tablePage, dataNode, cells, i);
                     if (header.IsKey)
                     {
+                        dataNode = DataManager.GetLiveDataNode(db, dataNode);
                         IndexManager.UpdateIndex(db, tablePage, dataNode, header, header.Name, oldKey);
                     }
                 }
