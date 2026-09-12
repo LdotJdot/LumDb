@@ -43,8 +43,11 @@ namespace LumDbEngine.Element.Manager.Specific
         public static DataPage InitializeNewDataPage(DbCache db, TablePage tablePage)
         {
             var dataPage = PageManager.RequestAvailablePage<DataPage>(db);
+            var oldRoot = tablePage.PageHeader.RootDataPageId;
             DataManager.InitializeDataPage(tablePage, dataPage);
-            tablePage.SetRootDataPageId(dataPage.PageId);
+            // 仅在尚无根数据页时设置 root；否则会顶掉既有链，导致整表塌成最后一页。
+            if (!db.IsValidPage(oldRoot))
+                tablePage.SetRootDataPageId(dataPage.PageId);
             return dataPage;
         }
 
@@ -58,7 +61,16 @@ namespace LumDbEngine.Element.Manager.Specific
             }
             else
             {
+                // 链上已有数据页时，新页必须接在链尾（LastDataPageId），否则会成为孤儿页。
+                var lastId = tablePage.PageHeader.LastDataPageId;
+                DataPage? prev = db.IsValidPage(lastId) ? PageManager.GetPage<DataPage>(db, lastId) : null;
+                if (prev is not null && prev.IsDeleted)
+                    prev = null;
+
                 dataPage = InitializeNewDataPage(db, tablePage);
+
+                if (prev is not null && prev.PageId != dataPage.PageId)
+                    PageManager.LinkPage(prev, dataPage);
             }
 
             LumException.ThrowIfNull(dataPage, "Page data error");
@@ -296,14 +308,26 @@ namespace LumDbEngine.Element.Manager.Specific
 
             if (dataPage.CurrentDataCount == 0)
             {
+                // 回收前先记下数据链上的前后邻居（RecyclePage 会改写 Prev/Next）。
+                var prevId = dataPage.PrevPageId;
+                var nextId = dataPage.NextPageId;
+                var wasRoot = tablePage.PageHeader.RootDataPageId == dataPage.PageId;
+                var wasLast = tablePage.PageHeader.LastDataPageId == dataPage.PageId;
+
                 if (tablePage.PageHeader.AvailableDataPage == dataPage.PageId)
                 {
                     tablePage.SetAvailableDataPageId(uint.MaxValue);
                 }
 
-                if (tablePage.PageHeader.RootDataPageId == dataPage.PageId)
+                if (wasRoot)
                 {
-                    tablePage.SetRootDataPageId(dataPage.NextPageId);
+                    tablePage.SetRootDataPageId(db.IsValidPage(nextId) ? nextId : uint.MaxValue);
+                }
+
+                // 维护 LastDataPageId，避免其指向已回收页。
+                if (wasLast)
+                {
+                    tablePage.SetLastDataPageId(db.IsValidPage(prevId) ? prevId : uint.MaxValue);
                 }
 
                 PageManager.RecyclePage(db, dataPage);

@@ -1,4 +1,4 @@
-# LumDb 2.2.2
+# LumDb 2.2.3
 
 A single-file, thread-safe embedded database for .NET 10. 100% C#, AOT-friendly, no native dependencies.
 
