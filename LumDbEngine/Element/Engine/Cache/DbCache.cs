@@ -1,4 +1,4 @@
-﻿using LumDbEngine.Element.Engine.Lock;
+using LumDbEngine.Element.Engine.Lock;
 using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.LogStructure;
 using LumDbEngine.Element.Structure;
@@ -19,7 +19,12 @@ namespace LumDbEngine.Element.Engine.Cache
         internal const int DEFAULT_CACHE_PAGES = 1024;
         internal long max_cache_pages = DEFAULT_CACHE_PAGES;
         private bool isDynamicCachePages = false;
+        // Bug fix BUG-02: `pages` must never be null because concurrent callers lock on it (Dispose path).
+        // The previous implementation set `pages = null` after Dispose, which then NRE'd any subsequent
+        // `lock(pages)` (notably PagesClear / SaveCurrentPageCache via PagesClear path). We now keep the
+        // dictionary instance alive and synchronize on a dedicated `_syncRoot` object.
         internal ConcurrentDictionary<uint, BasePage> pages = new();
+        private readonly object _syncRoot = new();
         internal IOFactory iof { get; set; } = null;
 
         internal DbCache(IOFactory iof, long cachePages, bool dynamicCache)
@@ -120,7 +125,7 @@ namespace LumDbEngine.Element.Engine.Cache
             if (skipIfNoDirtyPages)
             {
                 // Discard + Dispose must not clobber the committed image with an empty/reset cache.
-                if (pages == null || pages.Count == 0)
+                if (pages.Count == 0)
                     return;
                 if (dirtyPages.Count == 0 && !header.IsDirty)
                     return;
@@ -191,8 +196,7 @@ namespace LumDbEngine.Element.Engine.Cache
             {
                 SaveCurrentPageCache(dbEngine);
                 PagesClear();
-                pages = null;
-                disposed = true;                
+                disposed = true;
             }
         }
         public void Dispose()
@@ -200,8 +204,7 @@ namespace LumDbEngine.Element.Engine.Cache
             if (!disposed)
             {
                 PagesClear();
-                pages = null;
-                disposed = true;                
+                disposed = true;
             }
         }
 
@@ -220,7 +223,7 @@ namespace LumDbEngine.Element.Engine.Cache
 
         public void PagesClear()
         {
-            lock (pages)
+            lock (_syncRoot)
             {
                 pages.Clear();
             }

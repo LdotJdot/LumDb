@@ -127,6 +127,18 @@ namespace LumDbEngine.Element.Structure
             if ((_type is DbValueType.Str8B or DbValueType.Str16B or DbValueType.Str32B or DbValueType.StrVar)
                 && (columnType is DbValueType.Str8B or DbValueType.Str16B or DbValueType.Str32B or DbValueType.StrVar))
             {
+                // Bug fix BUG-11: validate UTF-8 byte length up-front when the target column is fixed.
+                // Previously the check happened deep inside Serialize(), after the first N columns
+                // had already mutated pages. Throw before we hand the cell back to Insert so the
+                // caller can react without leaving the cache in a partially-mutated state.
+                if (columnType is DbValueType.Str8B or DbValueType.Str16B or DbValueType.Str32B)
+                {
+                    var s = (string)_ref!;
+                    var max = columnType.GetLength();
+                    var n = Encoding.UTF8.GetByteCount(s);
+                    if (n > max)
+                        throw LumException.Raise($"{LumExceptionMessage.FixedLengthTooLong}: {columnType} needs {n} > {max}");
+                }
                 var c = this;
                 c._type = columnType;
                 return c;
@@ -134,6 +146,15 @@ namespace LumDbEngine.Element.Structure
             if ((_type is DbValueType.Bytes8 or DbValueType.Bytes16 or DbValueType.Bytes32 or DbValueType.BytesVar)
                 && (columnType is DbValueType.Bytes8 or DbValueType.Bytes16 or DbValueType.Bytes32 or DbValueType.BytesVar))
             {
+                // Mirror the string branch for completeness — fixed-length byte columns must also
+                // be validated before Insert can mutate pages.
+                if (columnType is DbValueType.Bytes8 or DbValueType.Bytes16 or DbValueType.Bytes32)
+                {
+                    var bytes = (byte[])_ref!;
+                    var max = columnType.GetLength();
+                    if (bytes.Length > max)
+                        throw LumException.Raise($"{LumExceptionMessage.FixedLengthTooLong}: {columnType} needs {bytes.Length} > {max}");
+                }
                 var c = this;
                 c._type = columnType;
                 return c;

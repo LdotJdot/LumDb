@@ -1,4 +1,4 @@
-﻿using LumDbEngine.Element.Engine.Cache;
+using LumDbEngine.Element.Engine.Cache;
 using LumDbEngine.Element.Engine.Checker;
 using LumDbEngine.Element.Engine.Lock;
 using LumDbEngine.Element.Engine.Transaction;
@@ -186,7 +186,10 @@ namespace LumDbEngine.Element.Engine
             if (string.IsNullOrWhiteSpace(path))
                 throw LumException.Raise("Wrong path");
 
-            using var lk = LockTransaction.TryStartRead(ReadWriteLock, TimeoutMilliseconds);
+            // Bug fix BUG-07: take a Write lock so we cannot grab a torn snapshot while another
+            // transaction is mutating pages. A Read lock allowed concurrent writers to flush
+            // half-committed pages between the CopyTo() snapshot points.
+            using var lk = LockTransaction.TryStartWrite(ReadWriteLock, TimeoutMilliseconds);
 
             var dir = System.IO.Path.GetDirectoryName(path);
             if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
@@ -261,7 +264,7 @@ namespace LumDbEngine.Element.Engine
             try
             {
 #if DEBUG
-                LumException.ThrowIfTrue(disposed, "dnengine");
+                LumException.ThrowIfTrue(Volatile.Read(ref disposed) != 0, "dnengine");
 #endif
                 if (resetEvent.Wait(TimeoutMilliseconds))
                 {
@@ -312,7 +315,10 @@ namespace LumDbEngine.Element.Engine
             return transactionsPool.TryGetValue(id, out ts);
         }
 
-        internal bool disposed;
+        // Bug fix BUG-14: `disposed` is read across threads without synchronization. Promote the field
+        // to an int read/written via Volatile so other threads observe the transition reliably.
+        // Semantics are unchanged: 0 = alive, non-zero = disposed.
+        internal int disposed;
 
         /// <summary>
         /// The milliseconds timeout when the dbEngine dispose waiting for the transaction end. Default value is 3000ms, 0 which means not waiting.
@@ -321,40 +327,40 @@ namespace LumDbEngine.Element.Engine
         /// <summary>
         /// Dispose the current engine and free the db file usage (if have).
         /// </summary>
-      
+
         public void Dispose()
         {
-            if (disposed == false)
+            if (Volatile.Read(ref disposed) != 0) return;
+            // Mark disposed up-front so concurrent transactions observe the transition immediately,
+            // even before we finish waiting for them. They will see disposed != 0 and abort early.
+            Volatile.Write(ref disposed, 1);
             {
-                    if (resetEvent.WaitAll(MaxSemaphoreCount,TimeoutMilliseconds))
-                    {
-                        disposed = true;
+                if (resetEvent.WaitAll(MaxSemaphoreCount,TimeoutMilliseconds))
+                {
 #if DEBUG
-                        LumException.ThrowIfTrue(transactionsPool.Count > 0, "readwriteLock未释放");
+                    LumException.ThrowIfTrue(transactionsPool.Count > 0, "readwriteLock未释放");
 #endif
 
-                        ReadWriteLock?.Dispose();
+                    ReadWriteLock?.Dispose();
 
-                        iof?.Dispose();
-                        iof = null;
-                        resetEvent.Dispose();
-                        if (DesrotyOnDispose)
+                    iof?.Dispose();
+                    iof = null;
+                    resetEvent.Dispose();
+                    if (DesrotyOnDispose)
+                    {
+                        if (File.Exists(path))
                         {
-                            if (File.Exists(path))
-                            {
-                                File.Delete(path);
-                            }
+                            File.Delete(path);
                         }
                     }
-                    else
-                    {
-                        LumException.Throw($"{LumExceptionMessage.DbEngDisposedTimeOut} Living transactions: " +
-                            $"{string.Join(';', transactionsPool.Values.Select(o => o.Id.ToString()).ToArray())}");
-                    }
+                }
+                else
+                {
+                    LumException.Throw($"{LumExceptionMessage.DbEngDisposedTimeOut} Living transactions: " +
+                        $"{string.Join(';', transactionsPool.Values.Select(o => o.Id.ToString()).ToArray())}");
+                }
             }
-
         }
-
 
 
         /// <summary>

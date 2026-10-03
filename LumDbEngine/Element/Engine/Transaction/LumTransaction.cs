@@ -1,4 +1,4 @@
-﻿using LumDbEngine.Element.Engine.Cache;
+using LumDbEngine.Element.Engine.Cache;
 using LumDbEngine.Element.Engine.Diagnostics;
 using LumDbEngine.Element.Engine.Lock;
 using LumDbEngine.Element.Exceptions;
@@ -55,7 +55,7 @@ namespace LumDbEngine.Element.Engine.Transaction
                 {
                     rwLockLockTransaction = LockTransaction.TryStartUpgradeableRead(dbEngine.ReadWriteLock, dbEngine.TimeoutMilliseconds);
 
-                    if (dbEngine.disposed)
+                    if (Volatile.Read(ref dbEngine.disposed) != 0)
                     {
                         LumException.Throw(LumExceptionMessage.DbEngDisposedEarly);
                     }
@@ -64,6 +64,10 @@ namespace LumDbEngine.Element.Engine.Transaction
                 }
                 catch
                 {
+                    // Bug fix BUG-06: if DbCache ctor throws after the engine-wide upgradeable-read lock
+                    // has been acquired, release the lock here so we do not leak it on the engine.
+                    rwLockLockTransaction?.Dispose();
+                    rwLockLockTransaction = null;
                     this.dbEngine.UnregisterTransaction(Id);        // 构造函数异常时，确保事务被注销
                     throw;
                 }
@@ -77,7 +81,7 @@ namespace LumDbEngine.Element.Engine.Transaction
 
         private void CheckTransactionState()
         {
-            LumException.ThrowIfTrue(disposed, "the current transaction is disposed");
+            LumException.ThrowIfTrue(Volatile.Read(ref disposed) != 0, "the current transaction is disposed");
         }
 
         public void SaveChanges()
@@ -102,14 +106,14 @@ namespace LumDbEngine.Element.Engine.Transaction
             rwLockLockTransaction.WriteAction(() => db.WriteToMemory(buffer));
         }
 
-        
+
         public void Discard()
         {
             CheckTransactionState();
             try
             {
                 using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
-                rwLockLockTransaction.WriteAction(db.Reset); 
+                rwLockLockTransaction.WriteAction(db.Reset);
             }
             catch (Exception ex)
             {
@@ -118,34 +122,35 @@ namespace LumDbEngine.Element.Engine.Transaction
             }
         }
 
-        protected private bool disposed = false;
+        // 0 = alive, 1 = disposed. Use Volatile/Interlocked for memory visibility across threads.
+        protected private int disposed;
 
         void IDisposable.Dispose()
         {
-            using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
-
-            if (disposed == false)
+            if (Volatile.Read(ref disposed) != 0) return;
+            Volatile.Write(ref disposed, 1);
+            try
             {
-                disposed = true;
+                if (Volatile.Read(ref dbEngine.disposed) != 0)
+                {
+                    LumException.Throw(LumExceptionMessage.DbEngDisposedEarly);
+                }
+
+                // Bug fix BUG-03: use try/finally so that rwLockLockTransaction.Dispose() always runs,
+                // even when db?.Dispose(dbEngine) (which flushes dirty pages) throws. Previously the
+                // engine-wide upgradeable-read lock would be leaked on the exception path.
                 try
                 {
-                    if (dbEngine.disposed)
-                    {
-                        LumException.Throw(LumExceptionMessage.DbEngDisposedEarly);
-                    }
-
                     rwLockLockTransaction.WriteAction(() => db?.Dispose(dbEngine));
-                    rwLockLockTransaction.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    throw;
                 }
                 finally
                 {
-                    dbEngine.UnregisterTransaction(Id);
+                    rwLockLockTransaction.Dispose();
                 }
-
+            }
+            finally
+            {
+                dbEngine.UnregisterTransaction(Id);
             }
         }
 
