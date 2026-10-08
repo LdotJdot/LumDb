@@ -30,7 +30,7 @@ namespace LumDbEngine.IO
 
         public IOFactory(string path)
         {
-            this.fileStream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
+            this.fileStream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read, 4096, FileOptions.WriteThrough);
             readerPool = new BinaryReaderPool(path, readerPoolSize);
             this.binaryWriter = new BinaryWriter(fileStream);
             IsMemory = false;

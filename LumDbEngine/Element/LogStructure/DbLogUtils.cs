@@ -17,22 +17,38 @@ namespace LumDbEngine.Element.LogStructure
     /// </summary>
     internal static class DbLogUtils
     {
-        static internal DbLogState CheckLogState(DbLog dbLog)
+        static internal DbLogState CheckLogState(string logFilePath)
         {
             try
             {
-
-                if (!File.Exists(dbLog.LogFilePath))
-                {
+                if (!File.Exists(logFilePath))
                     return DbLogState.NotExisted;
-                }
-                using var fs = new FileStream(dbLog.LogFilePath, new FileStreamOptions() { Access = FileAccess.Read, Share = FileShare.ReadWrite | FileShare.Delete, Mode = FileMode.Open });
+
+                using var fs = new FileStream(logFilePath, new FileStreamOptions() { Access = FileAccess.Read, Share = FileShare.ReadWrite | FileShare.Delete, Mode = FileMode.Open });
                 using BinaryReader br = new BinaryReader(fs);
                 return (DbLogState)br.ReadUInt32();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return DbLogState.Corrupted;
+            }
+        }
+
+        static internal DbLogState CheckLogState(DbLog dbLog)
+        {
+            return CheckLogState(dbLog.LogFilePath);
+        }
+
+        static internal void MarkDbState(Stream stream, DbLogState state)
+        {
+            lock (stream)
+            {
+                stream.Seek(DbHeader.STATE_POS, SeekOrigin.Begin);
+                stream.WriteByte((byte)state);
+                if (stream is FileStream file)
+                    file.Flush(true);
+                else
+                    stream.Flush();
             }
         }
 
@@ -44,7 +60,7 @@ namespace LumDbEngine.Element.LogStructure
 
         static internal FileStream Open(DbLog dbLog)
         {
-            var fs = new FileStream(dbLog.LogFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
+            var fs = new FileStream(dbLog.LogFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.Read, 4096, FileOptions.WriteThrough);
             return fs;
         }
 
@@ -54,7 +70,7 @@ namespace LumDbEngine.Element.LogStructure
             {
                 Delete(dbLog);
             }
-            var fs = new FileStream(dbLog.LogFilePath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read);
+            var fs = new FileStream(dbLog.LogFilePath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read, 4096, FileOptions.WriteThrough);
             return fs;
         }
 

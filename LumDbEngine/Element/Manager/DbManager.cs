@@ -64,26 +64,32 @@ namespace LumDbEngine.Element.Manager
             Span<byte> bsb = stackalloc byte[RepoNode.KeyLength];
             var keyBytes = tableName.PaddingToBytes(bsb);
 
-            if (db.IsValidPage(db.AvailableTableRepo))
+            if (!db.IsValidPage(db.AvailableTableRepo))
             {
-                var result = TableRepoManager.CreateNode(db, new RepoNodeKey(keyBytes), out var node);
+                if (!db.IsValidPage(db.RootPageId))
+                    return DbResults.GetFail(LumExceptionMessage.InternalError);
 
-                if (result == false)
-                {
-                    return DbResults.TableAlreadyExisted;
-                }
-
-                var tablePage = PageManager.RequestAvailablePage<TablePage>(db);
-
-                TableManager.InitializeTablePage(tablePage, in tableHeadersInfo);
-
-                node.TargetLink.TargetPageID = tablePage.PageId;
-                node.Update(db);
-
-                var dataPage = DataManager.InitializeNewDataPage(db, tablePage);
-
-                IndexManager.CreateIndices(db, tablePage, in tableHeadersInfo);
+                // The available-repo pointer can be stale while the root repo page is still live.
+                db.SetAvailableTableRepoId(db.RootPageId);
             }
+
+            var result = TableRepoManager.CreateNode(db, new RepoNodeKey(keyBytes), out var node);
+
+            if (result == false)
+            {
+                return DbResults.TableAlreadyExisted;
+            }
+
+            var tablePage = PageManager.RequestAvailablePage<TablePage>(db);
+
+            TableManager.InitializeTablePage(tablePage, in tableHeadersInfo);
+
+            node.TargetLink.TargetPageID = tablePage.PageId;
+            node.Update(db);
+
+            DataManager.InitializeNewDataPage(db, tablePage);
+
+            IndexManager.CreateIndices(db, tablePage, in tableHeadersInfo);
 
             return DbResults.Success;
         }

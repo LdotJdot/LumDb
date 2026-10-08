@@ -1,5 +1,6 @@
 using LumDbEngine.Element.Engine.Lock;
 using LumDbEngine.Element.Engine.Results;
+using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Value;
 
@@ -9,7 +10,8 @@ namespace LumDbEngine.Element.Engine.Transaction
     {
         public IDbValue<uint> Insert(string tableName, (string columnName, DbCell value)[] values)
         {
-            if (values == null || values.Length == 0) return new DbValue<uint>(0);
+            if (values == null || values.Length == 0)
+                return new DbValue<uint>(LumException.Raise(LumExceptionMessage.InsertValuesEmpty));
             CheckTransactionState();
             try
             {

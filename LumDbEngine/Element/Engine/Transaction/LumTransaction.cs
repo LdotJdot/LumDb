@@ -49,6 +49,8 @@ namespace LumDbEngine.Element.Engine.Transaction
         {
             this.dbEngine = dbEngine;
             Id = Guid.NewGuid();
+            if (dbEngine.ReadWriteLock.IsUpgradeableReadLockHeld || dbEngine.ReadWriteLock.IsWriteLockHeld)
+                throw LumException.Raise(LumExceptionMessage.IllegaTransaction);
             if (this.dbEngine.RegisterTransaction(Id, this))
             {
                 try

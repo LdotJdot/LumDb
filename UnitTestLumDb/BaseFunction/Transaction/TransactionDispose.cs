@@ -33,6 +33,7 @@ namespace UnitTestLumDb.BaseFunction
                     catch (Exception ex)
                     {
                         Assert.IsTrue(ex.Message.StartsWith(LumExceptionMessage.DbEngDisposedTimeOut));
+                        Assert.AreEqual(0, eng.disposed);
                     }
                 }
                 Assert.Fail();

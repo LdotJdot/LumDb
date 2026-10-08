@@ -241,7 +241,10 @@ namespace LumDbEngine.Element.LogStructure
                 {
                     stream.Seek(DbHeader.STATE_POS, SeekOrigin.Begin);
                     stream.WriteByte((byte)DbLogState.Done);
-                    stream.Flush();
+                    if (stream is FileStream file)
+                        file.Flush(true);
+                    else
+                        stream.Flush();
                 }
             }
         }

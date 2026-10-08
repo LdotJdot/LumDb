@@ -44,6 +44,8 @@ namespace LumDbEngine.Element.Engine
 
         /// <summary>
         /// Global lock for the db engine, which is used to make sure only one thread can write the db at a time.
+        /// Same-thread readers may nest. A second write transaction on the same thread is rejected in
+        /// <see cref="LumTransaction"/> so two caches cannot overwrite each other.
         /// </summary>
         public ReaderWriterLockSlim ReadWriteLock { get; }= new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
 
@@ -91,28 +93,57 @@ namespace LumDbEngine.Element.Engine
                 }
             }
 
-            this.iof = new IOFactory(path);
-            var state = DbLogUtils.CheckDbState(iof.RentReader());
-
-            switch (state)
+            var opened = new IOFactory(path);
+            this.iof = opened;
+            try
             {
-                case DbLogState.Writing:
-                    var dblog = DbLog.OpenLogToRecoveryDbEngine(this);
-                    try
-                    {
-                        dblog.DumpToDbEngine(iof.FileStream);
-                    }
-                    finally
-                    {
-                        dblog.Dispose();
-                    }
-                    break;
-                case DbLogState.Done:
-                default:
-                    DbLog.PrepareForWrite(this, iof.FileStream);
-                    break;
+                DbLogState state;
+                using (var reader = opened.RentReader())
+                    state = DbLogUtils.CheckDbState(reader);
+
+                switch (state)
+                {
+                    case DbLogState.Writing:
+                        RecoverOrRepairWritingState();
+                        break;
+                    case DbLogState.Done:
+                    default:
+                        DbLog.PrepareForWrite(this, opened.FileStream);
+                        break;
+                }
+            }
+            catch
+            {
+                opened.Dispose();
+                this.iof = null;
+                throw;
             }
 
+        }
+
+        /// <summary>
+        /// A Writing header with no log has nothing to replay. The pages are the last image
+        /// that made it to the file, so repair the state byte instead of refusing to open.
+        /// A log that exists is still replayed, or rejected when it is incomplete.
+        /// </summary>
+        private void RecoverOrRepairWritingState()
+        {
+            var logState = DbLogUtils.CheckLogState(path + ".log");
+            if (logState == DbLogState.NotExisted)
+            {
+                DbLogUtils.MarkDbState(iof!.FileStream, DbLogState.Done);
+                return;
+            }
+
+            var dblog = DbLog.OpenLogToRecoveryDbEngine(this);
+            try
+            {
+                dblog.DumpToDbEngine(iof!.FileStream);
+            }
+            finally
+            {
+                dblog.Dispose();
+            }
         }
 
         private const int MaxSemaphoreCount = 32;
@@ -330,35 +361,34 @@ namespace LumDbEngine.Element.Engine
 
         public void Dispose()
         {
-            if (Volatile.Read(ref disposed) != 0) return;
+            if (Interlocked.CompareExchange(ref disposed, 1, 0) != 0) return;
             // Mark disposed up-front so concurrent transactions observe the transition immediately,
             // even before we finish waiting for them. They will see disposed != 0 and abort early.
-            Volatile.Write(ref disposed, 1);
+            // A timed-out wait rolls the flag back: cleanup did not run, and a later Dispose must retry.
+            if (resetEvent.WaitAll(MaxSemaphoreCount, TimeoutMilliseconds))
             {
-                if (resetEvent.WaitAll(MaxSemaphoreCount,TimeoutMilliseconds))
-                {
 #if DEBUG
-                    LumException.ThrowIfTrue(transactionsPool.Count > 0, "readwriteLock未释放");
+                LumException.ThrowIfTrue(transactionsPool.Count > 0, "readwriteLock未释放");
 #endif
 
-                    ReadWriteLock?.Dispose();
+                ReadWriteLock?.Dispose();
 
-                    iof?.Dispose();
-                    iof = null;
-                    resetEvent.Dispose();
-                    if (DesrotyOnDispose)
+                iof?.Dispose();
+                iof = null;
+                resetEvent.Dispose();
+                if (DesrotyOnDispose)
+                {
+                    if (File.Exists(path))
                     {
-                        if (File.Exists(path))
-                        {
-                            File.Delete(path);
-                        }
+                        File.Delete(path);
                     }
                 }
-                else
-                {
-                    LumException.Throw($"{LumExceptionMessage.DbEngDisposedTimeOut} Living transactions: " +
-                        $"{string.Join(';', transactionsPool.Values.Select(o => o.Id.ToString()).ToArray())}");
-                }
+            }
+            else
+            {
+                Volatile.Write(ref disposed, 0);
+                LumException.Throw($"{LumExceptionMessage.DbEngDisposedTimeOut} Living transactions: " +
+                    $"{string.Join(';', transactionsPool.Values.Select(o => o.Id.ToString()).ToArray())}");
             }
         }
 

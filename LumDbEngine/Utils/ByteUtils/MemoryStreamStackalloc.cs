@@ -131,16 +131,7 @@ namespace LumDbEngine.Utils.ByteUtils
 
             Debug.Assert(_position + n >= 0, "_position + n >= 0");  // len is less than 2^31 -1.
 
-            if (n <= 8)
-            {
-                int byteCount = n;
-                while (--byteCount >= 0)
-                    buffer[offset + byteCount] = _buffer[_position + byteCount];
-            }
-            else
-            {
-                span.Slice(offset, count).CopyTo(buffer);
-            }
+            span.Slice(_position, n).CopyTo(buffer.AsSpan(offset, n));
             _position += n;
 
             return n;

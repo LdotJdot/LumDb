@@ -27,7 +27,7 @@ namespace LumDbEngine.Utils.SemaphoreUtils
                 if (!success)
                 {
                     // 如果获取失败，释放已经获取的信号量
-                    if (count != 0) semaphore.Release(consumeCount - count);
+                    if (count != 0) semaphore.Release(count);
 
                     return false;
                 }

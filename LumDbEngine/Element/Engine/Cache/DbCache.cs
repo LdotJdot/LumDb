@@ -90,6 +90,7 @@ namespace LumDbEngine.Element.Engine.Cache
                     dblog.WriteState(DbLogState.Done);
 
                     dblog.DumpToDbEngine(iof.FileStream);
+                    header.State = (byte)DbLogState.Done;
 
                     foreach (var page in dirtyPages)
                     {
@@ -169,18 +170,23 @@ namespace LumDbEngine.Element.Engine.Cache
                 using var fs = File.Create(path);
                 using BinaryWriter bw = new BinaryWriter(fs);
                 {
+                    // Export the whole image. After SaveChanges the pages are clean, so a
+                    // dirty-only copy is just a header and cannot be opened.
+                    header.State = (byte)DbLogState.Done;
                     header.Write(bw);
 
-                    foreach (var page in pages.Values)
+                    if (header.LastPage != uint.MaxValue)
                     {
-                        if (page?.IsDirty == true)
+                        for (uint pageId = 0; pageId <= header.LastPage; pageId++)
                         {
+                            var page = this[pageId];
+                            LumException.ThrowIfNull(page, $"missing page {pageId}");
                             page.Write(bw);
-                            page.IsDirty = false;
                         }
                     }
 
                     bw.Flush();
+                    fs.Flush(true);
 
                     GarbageCollection();
                 }

@@ -3,6 +3,7 @@ using LumDbEngine.Element.Engine.Results;
 using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Manager.Common;
 using LumDbEngine.Element.Structure;
+using LumDbEngine.Element.Value;
 using LumDbEngine.Element.Structure.Page.Data;
 using LumDbEngine.Element.Structure.Page.Key;
 using LumDbEngine.Element.Structure.Page.Table;
@@ -256,6 +257,16 @@ namespace LumDbEngine.Element.Manager.Specific
 
         internal static void Update(DbCache db, TablePage tablePage, DataNode dataNode, DbCell[] cells)
         {
+            // Reject a bad later column before any page is marked dirty or rewritten.
+            LumException.ThrowIfNotTrue(cells.Length == tablePage.ColumnHeaders.Length, LumExceptionMessage.ColumnElementNotEqual);
+            for (int i = 0; i < tablePage.ColumnHeaders.Length; i++)
+            {
+                var header = tablePage.ColumnHeaders[i];
+                var cell = cells[i].WithColumnType(header.ValueType);
+                LumException.ThrowIfNotTrue(header.ValueType.CheckType(in cell), "data type error");
+                cell.EnsureFitsColumn(header.ValueType);
+            }
+
             dataNode = DataManager.GetLiveDataNode(db, dataNode);
 
             // Pre-check key uniqueness for changed key columns (edit allowed; collision with another row not).
