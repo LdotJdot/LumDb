@@ -102,47 +102,62 @@ namespace LumDbEngine.Element.Manager.Specific
             return true;
         }
 
+        /// <summary>
+        /// Bytes this value will occupy on a page, including the 13-byte node header.
+        /// A short value is stored in a 29-byte slot, so the fit check must use that
+        /// slot and not the raw payload length. Using the raw length lets the node
+        /// run past the 4096-byte page; the next page's type byte is then read back
+        /// into the value (0x06) or left as the first byte of a page (unknown page type).
+        /// </summary>
+        private static int StoredSlotSize(int dataLength)
+            => DataVarNode.HEADER_SIZE + Math.Max(dataLength, DataVarNode.REDUNDANCY_SIZE);
+
         private static void SaveValueToDataVarPage(DbCache db, DataVarPage dataVarPage, Span<byte> dataSpan, int offset = 0)
         {
-            var len = Math.Max(dataSpan.Length, DataVarNode.REDUNDANCY_SIZE);
-
             while (true)
             {
-                int rest = dataVarPage.RestPageSize - DataVarNode.HEADER_SIZE - len + offset;  // predict the rest
+                var remaining = dataSpan.Length - offset;
+                LumException.ThrowIfNotTrue(remaining >= 0, "dataVar offset past end");
+
+                var slot = StoredSlotSize(remaining);
+                if (dataVarPage.RestPageSize < slot)
+                {
+                    var rawRoom = dataVarPage.RestPageSize - DataVarNode.HEADER_SIZE;
+                    // A fragment has no redundancy pad: it already fills the page.
+                    // A short tail cannot be split that way, because its slot is the pad.
+                    if (rawRoom > 0 && remaining > rawRoom && remaining > DataVarNode.REDUNDANCY_SIZE)
+                    {
+                        db.MarkDirtyAndCachePage(dataVarPage);
+                        var fragment = ExpandDataVarNode(dataVarPage);
+                        fragment.DataLength = rawRoom;
+                        fragment.TotalDataRestLength = remaining;
+                        fragment.SpaceLength = rawRoom;
+                        fragment.InitializeData();
+                        dataSpan.Slice(offset, rawRoom).CopyTo(fragment.Data);
+                        dataVarPage.RestPageSize = 0;
+                        offset += rawRoom;
+
+                        var nextPage = CreateDataVarPage(db);
+                        PageManager.LinkPage(dataVarPage, nextPage);
+                        dataVarPage = nextPage;
+                        continue;
+                    }
+
+                    dataVarPage = CreateDataVarPage(db);
+                    continue;
+                }
 
                 db.MarkDirtyAndCachePage(dataVarPage);
-
                 var dataVarNode = ExpandDataVarNode(dataVarPage);
-
-                if (rest >= 0)
-                {
-                    dataVarNode.DataLength = dataSpan.Length - offset;
-                    dataVarNode.TotalDataRestLength = len - offset;
-                    dataVarNode.SpaceLength = Math.Max(dataVarNode.DataLength, DataVarNode.REDUNDANCY_SIZE);  // already make sure the redundancy size is sufficient.
-                    dataVarPage.RestPageSize -= DataVarNode.HEADER_SIZE + dataVarNode.SpaceLength;
-                    dataVarNode.InitializeData();
-                    dataSpan.Slice(offset, dataVarNode.DataLength).CopyTo(dataVarNode.Data);
-
-                    return;
-                }
-                else
-                {
-                    // write the next page.
-
-                    dataVarNode.DataLength = dataVarPage.RestPageSize - DataVarNode.HEADER_SIZE;
-                    dataVarNode.TotalDataRestLength = dataVarNode.DataLength;
-                    dataVarNode.SpaceLength = dataVarNode.DataLength;
-                    dataVarNode.InitializeData();
-
-                    dataSpan.Slice(offset, dataVarNode.DataLength).CopyTo(dataVarNode.Data);
-                    offset += dataVarNode.DataLength;
-                    var nextPage = CreateDataVarPage(db);
-                    PageManager.LinkPage(dataVarPage, nextPage);
-                    dataVarPage.RestPageSize = 0;
-                    dataVarPage = nextPage;
-                }
-
-                // go to next loop
+                dataVarNode.DataLength = remaining;
+                dataVarNode.TotalDataRestLength = remaining;
+                dataVarNode.SpaceLength = Math.Max(remaining, DataVarNode.REDUNDANCY_SIZE);
+                dataVarPage.RestPageSize -= DataVarNode.HEADER_SIZE + dataVarNode.SpaceLength;
+                LumException.ThrowIfNotTrue(dataVarPage.RestPageSize >= 0, "dataVar node exceeds page");
+                dataVarNode.InitializeData();
+                if (remaining > 0)
+                    dataSpan.Slice(offset, remaining).CopyTo(dataVarNode.Data);
+                return;
             }
         }
 

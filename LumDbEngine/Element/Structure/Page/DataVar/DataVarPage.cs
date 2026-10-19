@@ -72,7 +72,8 @@ namespace LumDbEngine.Element.Structure.Page.Data
             lock (bw.BaseStream)
             {
                 var pageBytes = stackalloc byte[PAGE_SIZE];
-                
+                new Span<byte>(pageBytes, PAGE_SIZE).Clear();
+
                 WriteBytes(pageBytes);
                 MoveToPageStart(bw.BaseStream);
                 bw.Write(new Span<byte>(pageBytes, PAGE_SIZE));
@@ -91,8 +92,13 @@ namespace LumDbEngine.Element.Structure.Page.Data
 
                 tmpBw.BaseStream.Seek(HEADER_SIZE, SeekOrigin.Begin);
 
+                var used = HEADER_SIZE;
                 for (int i = 0; i < TotalDataCount; i++)
                 {
+                    var nodeBytes = DataVarNode.HEADER_SIZE + DataVarNodes[i].SpaceLength;
+                    if (nodeBytes < DataVarNode.HEADER_SIZE || used > PAGE_SIZE - nodeBytes)
+                        throw LumDbEngine.Element.Exceptions.LumException.Raise("dataVar node exceeds page");
+                    used += nodeBytes;
                     DataVarNodes[i].Write(tmpBw);
                 }
             }
@@ -109,15 +115,19 @@ namespace LumDbEngine.Element.Structure.Page.Data
             MoveToPageHeaderSizeOffset(br.BaseStream, HEADER_SIZE);
             DataVarNodes = new DataVarNode[TotalDataCount];
             int totalBytes = 0;
+            int bytesLeft = MAX_TOTAL_DATA_SIZE;
             for (int i = 0; i < TotalDataCount; i++)
             {
                 DataVarNodes[i] = new DataVarNode(this);
-                DataVarNodes[i].Read(br);
-                totalBytes += DataVarNodes[i].SpaceLength+DataVarNode.HEADER_SIZE;
+                DataVarNodes[i].Read(br, bytesLeft);
+                var taken = DataVarNodes[i].SpaceLength + DataVarNode.HEADER_SIZE;
+                totalBytes += taken;
+                bytesLeft -= taken;
             }
 
-            // additional calculate due to bug
-            RestPageSize = BasePage.PAGE_SIZE - HEADER_SIZE - totalBytes;
+            // Stored RestPageSize used to ignore the 29-byte slot pad, so recompute it
+            // from the nodes that actually fit on this page.
+            RestPageSize = MAX_TOTAL_DATA_SIZE - totalBytes;
         }
     }
 }

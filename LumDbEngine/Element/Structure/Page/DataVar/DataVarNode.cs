@@ -67,14 +67,27 @@ namespace LumDbEngine.Element.Structure.Page.Data
             bw.Write(Data);
         }
 
-        public void Read(BinaryReader br)
+        void IStructure.Read(BinaryReader br) => Read(br, int.MaxValue);
+
+        public void Read(BinaryReader br, int bytesRemainingOnPage)
         {
+            if (bytesRemainingOnPage < HEADER_SIZE)
+                throw LumDbEngine.Element.Exceptions.LumException.Raise("dataVar node exceeds page");
+
             TotalDataRestLength = br.ReadInt32();
             DataLength = br.ReadInt32();
             SpaceLength = br.ReadInt32();
             IsAvailable = br.ReadBoolean();
+
+            if (SpaceLength < 0 || DataLength < 0 || DataLength > SpaceLength
+                || HEADER_SIZE + SpaceLength > bytesRemainingOnPage)
+                throw LumDbEngine.Element.Exceptions.LumException.Raise("dataVar node exceeds page");
+
             InitializeData();
-            br.ReadBytes(SpaceLength).CopyTo(Data);
+            var stored = br.ReadBytes(SpaceLength);
+            if (stored.Length != SpaceLength)
+                throw LumDbEngine.Element.Exceptions.LumException.Raise("dataVar node exceeds page");
+            stored.CopyTo(Data);
         }
     }
 }
