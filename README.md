@@ -1,8 +1,8 @@
-# LumDb 2.2.5
+# LumDb 3.0.1
 
 A single-file, thread-safe embedded database for .NET 10. 100% C#, AOT-friendly, no native dependencies.
 
-On-disk format **1.3.9** (`DbHeader.VERSION = 1_003_009`). Packed as `major * 1_000_000 + minor * 1_000 + patch`. Bump that constant only when the layout or engine contract changes — there is no runtime “append version” API. `DbEngine.Version` / `VersionString` expose the file format (`"1.3.9"`). The NuGet package version (2.2.0) is independent.
+Package **3.0.1**. The on-disk page format is still **1.3.9** (`DbHeader.VERSION = 1_003_009`, packed as `major * 1_000_000 + minor * 1_000 + patch`). `DbEngine.Version` / `VersionString` report that page format, not the package version. The page layout is unchanged, so existing 1.3.9 files open as before. `Vacuum` rebuilds pages in the same format and does not rewrite the format number.
 
 ## Engines
 
@@ -129,6 +129,44 @@ Zero-alloc predicate: `Where((ref RowView row) => row.GetInt(1) > 90)`. Entity c
 - Source-generated entities; `GoThrough` / `RowView` scan without allocating entities
 - AOT publish supported (`PublishAot`); daily `dotnet build` still runs the generator
 - Tools: **LumDbExplorer** (WinForms) to create/copy databases, create tables, CRUD rows, inspect schema and stats
+- `AddColumn` / `DropColumn` rewrite one table inside the current transaction (up to 100 columns, the slots already reserved on the table page)
+- `Vacuum` rebuilds the committed image and drops free pages, still in page format 1.3.9. The old file is replaced only after the new image is fully committed
+
+## Columns and vacuum
+
+`AddColumn` / `DropColumn` run inside a transaction. `SaveChanges` / `Dispose` commits them through the same `.log` as any other write. `Discard`, or a crash before the log is marked done, leaves the previous committed image. A failed alter reloads that image so a later `Dispose` cannot store a half-rewritten table.
+
+Column identity is the order on the table page. Inserting or deleting in the middle changes later ordinals. Appending does not. Existing rows take `defaultValue`, or the zero value of the new type when it is omitted (`0`, `false`, `""`, empty bytes). A new key column is rejected when more than one row would share that default. At least one column must remain. There is no spare room in the row itself: the table is rewritten at the new width, and row ids stay the same.
+
+`Vacuum` needs the engine to itself (no open transaction). It writes a complete new image in page format 1.3.9, then swaps it into place. A crash before the swap leaves the previous file and its `.log` untouched.
+
+```csharp
+using (var ts = eng.StartTransaction())
+{
+    ts.Create("kv", [("k", DbValueType.Int, true), ("v", DbValueType.StrVar, false)]);
+    ts.Insert("kv", [("k", 1), ("v", "hello")]);
+
+    ts.AddColumn("kv", "n", DbValueType.Int, false, defaultValue: 0); // append
+    ts.AddColumn("kv", "flag", DbValueType.Bool, false, defaultValue: true, ordinal: 1);
+    ts.DropColumn("kv", "flag");
+    ts.SaveChanges();
+}
+
+long before;
+using (var ts = eng.StartTransaction())
+    before = ts.GetSpace().FileBytes;
+
+eng.Vacuum();
+
+using (var ts = eng.StartTransaction())
+{
+    var row = ts.Find("kv", "k", 1);
+    Console.WriteLine(row.Row.GetInt(0));    // 1
+    Console.WriteLine(row.Row.GetString(1)); // hello
+    Console.WriteLine(row.Row.GetInt(2));    // 0, the appended column
+    Console.WriteLine(ts.GetSpace().FileBytes <= before);
+}
+```
 
 ## Getting started
 

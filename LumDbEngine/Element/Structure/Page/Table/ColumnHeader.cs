@@ -15,6 +15,9 @@ namespace LumDbEngine.Element.Structure.Page.Key
     internal class ColumnHeader : IStructure
     {
         public const int NameLength = 32;
+
+        /// <summary>On-disk size: type + isKey + name + sub-index link.</summary>
+        public const int StoredSize = 39;
         public DbValueType ValueType { get; set; }      // 1 byte
         public bool IsKey { get; set; }                // 1 byte
         public byte[] Name { get; }        // 32 bytes,  39 bytes in total

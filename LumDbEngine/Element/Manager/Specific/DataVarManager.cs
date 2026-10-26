@@ -1,4 +1,4 @@
-﻿using LumDbEngine.Element.Engine.Cache;
+using LumDbEngine.Element.Engine.Cache;
 using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Manager.Common;
 using LumDbEngine.Element.Structure.Page;
@@ -349,6 +349,10 @@ namespace LumDbEngine.Element.Manager.Specific
                 LumException.ThrowIfNull(dataVarNode, "dataVar node internal error");
 
                 dataVarNode!.Page.MarkDirty();
+                if (dataVarNode.SpaceLength > 0)
+                    dataVarNode.Data.Clear();
+                dataVarNode.DataLength = 0;
+                dataVarNode.TotalDataRestLength = 0;
                 dataVarNode.IsAvailable = false;
                 dataVarNode.Page.CurrentDataCount--;
 

@@ -24,13 +24,13 @@ namespace LumDbEngine.Element.Structure
         private static readonly byte[] FileID = [76, 117, 109, 68, 66, 83];        // 6 bytes "LumDBS"
 
         /// <summary>
-        /// On-disk file format: major * 1_000_000 + minor * 1_000 + patch.
-        /// Bump this constant when shipping a new engine/layout (1_003_009 → 1.3.9).
-        /// There is no runtime "append" API — change this literal and rebuild.
+        /// On-disk page format: major * 1_000_000 + minor * 1_000 + patch.
+        /// 1_003_009 is 1.3.9. This is the file layout, not the assembly or NuGet version.
+        /// Change it only when the page layout itself changes.
         /// </summary>
         public const uint VERSION = 1_003_009;
 
-        /// <summary>Format a packed version (e.g. 1_003_009 → "1.3.9").</summary>
+        /// <summary>Format a packed page-format version (e.g. 1_003_009 → "1.3.9").</summary>
         public static string FormatVersion(uint version)
             => $"{version / 1_000_000}.{(version / 1000) % 1000}.{version % 1000}";
 

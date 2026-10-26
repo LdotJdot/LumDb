@@ -1,4 +1,4 @@
-﻿using LumDbEngine.Utils.ByteUtils;
+using LumDbEngine.Utils.ByteUtils;
 using System.Text;
 
 namespace LumDbEngine.Element.Structure.Page.Data

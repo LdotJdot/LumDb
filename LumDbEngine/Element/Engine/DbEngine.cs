@@ -22,20 +22,21 @@ namespace LumDbEngine.Element.Engine
     /// <summary>
     /// The main db engine
     /// </summary>
-    public class DbEngine : IDisposable
+    public partial class DbEngine : IDisposable
     {
         /// <summary>
-        /// Packed on-disk format version (see <see cref="DbHeader.VERSION"/>).
+        /// Packed on-disk page format (see <see cref="DbHeader.VERSION"/>).
+        /// This is not the assembly or NuGet package version.
         /// </summary>
         public uint Version => DbHeader.VERSION;
 
         /// <summary>
-        /// Dotted file-format version, e.g. "1.3.9".
+        /// Dotted page-format version, e.g. "1.3.9".
         /// </summary>
         public string VersionString => DbHeader.FormatVersion(DbHeader.VERSION);
 
         /// <summary>
-        /// Dotted file-format version of this assembly (same as <see cref="VersionString"/>).
+        /// Dotted page-format version of this assembly (same as <see cref="VersionString"/>).
         /// </summary>
         public static string CurrentVersionString => DbHeader.FormatVersion(DbHeader.VERSION);
         private string path = "";

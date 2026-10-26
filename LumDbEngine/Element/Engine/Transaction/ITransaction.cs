@@ -1,4 +1,5 @@
-﻿using LumDbEngine.Element.Engine.Results;
+﻿using LumDbEngine.Element.Engine;
+using LumDbEngine.Element.Engine.Results;
 using LumDbEngine.Element.Structure;
 
 namespace LumDbEngine.Element.Engine.Transaction
@@ -24,6 +25,21 @@ namespace LumDbEngine.Element.Engine.Transaction
         IDbValue Delete(string tableName, string keyName, DbCell keyValue);
 
         IDbResult Drop(string tableName);
+
+        /// <summary>
+        /// Insert a column at <paramref name="ordinal"/>, or at the end when <paramref name="ordinal"/> is null.
+        /// Existing rows receive <paramref name="defaultValue"/>, or the zero value of <paramref name="type"/> when it is null.
+        /// A key column is rejected when the table already has more than one row.
+        /// </summary>
+        IDbResult AddColumn(string tableName, string columnName, DbValueType type, bool isKey, DbCell? defaultValue = null, int? ordinal = null);
+
+        /// <summary>
+        /// Remove a column and rewrite the table. The last remaining column cannot be removed.
+        /// </summary>
+        IDbResult DropColumn(string tableName, string columnName);
+
+        /// <summary>Header span of the committed image, including free pages that still occupy the file.</summary>
+        DbSpaceInfo GetSpace();
 
         void SaveChanges();
 

@@ -96,6 +96,32 @@ namespace LumDbEngine.Element.Manager.Specific
             return node;
         }
 
+        /// <summary>
+        /// Place an already-encoded row and keep the caller-supplied id.
+        /// Used by column rewrite and vacuum so existing ids stay valid.
+        /// </summary>
+        internal static DataNode InsertPreservedRow(DbCache db, TablePage tablePage, ReadOnlySpan<byte> row, uint id)
+        {
+            var dataPage = RequestAvailableDataPage(db, tablePage);
+            LumException.ThrowIfNotTrue(row.Length == dataPage.DataLenthPerNode, "row width does not match the table");
+
+            dataPage.CurrentDataCount++;
+            var node = dataPage.DataNodes[dataPage.AvailableNodeIndex];
+            row.CopyTo(node.Data);
+            node.IsAvailable = true;
+            node.Id = id;
+            dataPage.AvailableNodeIndex = node.NextFreeNodeIndex;
+            dataPage.MarkDirty();
+
+            if (id > tablePage.PageHeader.NextDataId)
+            {
+                tablePage.PageHeader.NextDataId = id;
+                tablePage.MarkDirty();
+            }
+
+            return node;
+        }
+
         private static unsafe void CopyToSpan(Span<byte> bytes, Span<byte> span, int length, ref int offset)
         {
             if (bytes.Length > length)

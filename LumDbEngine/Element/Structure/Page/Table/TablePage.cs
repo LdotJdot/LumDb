@@ -161,6 +161,11 @@ namespace LumDbEngine.Element.Structure.Page.Key
                 {
                     ColumnHeaders[i].Write(tmpBw);
                 }
+
+                // Dropped columns used to leave their name and sub-index root in the reserved slots.
+                var used = HEADER_SIZE + ColumnCount * ColumnHeader.StoredSize;
+                if (used < PAGE_SIZE)
+                    new Span<byte>(bytes + used, PAGE_SIZE - used).Clear();
             }
         }
 
