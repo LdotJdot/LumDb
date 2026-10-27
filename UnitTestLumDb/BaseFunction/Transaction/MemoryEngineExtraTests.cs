@@ -15,6 +15,11 @@ namespace UnitTestLumDb.BaseFunction.Transaction
             Assert.AreEqual(1_003_009u, eng.Version);
             Assert.AreEqual("1.3.9", eng.VersionString);
             Assert.AreEqual("1.3.9", DbHeader.FormatVersion(DbHeader.VERSION));
+            Assert.IsTrue(DbHeader.IsReadableFileVersion(1_003_002u));
+            Assert.IsTrue(DbHeader.IsReadableFileVersion(DbHeader.VERSION));
+            Assert.IsFalse(DbHeader.IsReadableFileVersion(1_003_010u));
+            Assert.IsFalse(DbHeader.IsReadableFileVersion(1_003_002u, DbHeader.VERSION, [1_003_002u]));
+            Assert.AreEqual(0, DbHeader.UnsupportedVersions.Length);
         }
 
         [TestMethod]

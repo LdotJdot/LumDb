@@ -1,8 +1,8 @@
-# LumDb 4.0.0
+# LumDb 4.0.1
 
 A single-file, thread-safe embedded database for .NET 10. 100% C#, AOT-friendly, no native dependencies.
 
-Package **4.0.0**. The on-disk page format is still **1.3.9** (`DbHeader.VERSION = 1_003_009`, packed as `major * 1_000_000 + minor * 1_000 + patch`). `DbEngine.Version` / `VersionString` report that page format, not the package version. The page layout is unchanged, so existing 1.3.9 files open as before. `Vacuum` rebuilds pages in the same format and does not rewrite the format number.
+Package **4.0.1**. This build writes on-disk page format **1.3.9** (`DbHeader.VERSION = 1_003_009`, packed as `major * 1_000_000 + minor * 1_000 + patch`). `DbEngine.Version` / `VersionString` report that page format, not the package version. Opening accepts 1.3.9 and older LumDBS files (for example 1.3.2). Formats newer than 1.3.9 are rejected. `Vacuum` rebuilds pages as 1.3.9.
 
 ## Engines
 
@@ -40,14 +40,14 @@ mem.SaveTo(@"d:\app.db");                    // dump committed image (not uncomm
 
 ### Files and versions
 
-Opening a database validates the header: length at least 100 bytes, the `LumDBS` signature, and page format exactly **1.3.9**. Files from other page formats are rejected with `UnsupportedFileVersion` instead of being read with the wrong layout; foreign or truncated files get `InvalidDatabaseFile`. Export pre-1.3.9 data with the matching older package.
+Opening a database validates the header: length at least 100 bytes and the `LumDBS` signature. Page formats newer than **1.3.9**, and any format listed in the unsupported-version list, are rejected with `UnsupportedFileVersion`. Older LumDBS files stay readable. Foreign or truncated files get `InvalidDatabaseFile`.
 
 ### Upgrading from 3.0.1
 
 4.0.0 is a major bump: one public member was removed, and two failure paths now throw where they used to return.
 
 - Failed statements now abort the transaction (`TransactionAborted`, `Discard()` to reuse) instead of letting `SaveChanges()` commit an empty/partial image.
-- Header validation rejects foreign files and page formats other than 1.3.9.
+- Header validation rejects foreign files and page formats newer than 1.3.9. Older LumDBS files, including 1.3.2, open.
 - `DbEngine.ReadWriteLock` was removed (it was an implementation detail); use `StartTransaction` / `StartTransactionReadonly` for concurrency.
 
 ## LumEntity (source generator)

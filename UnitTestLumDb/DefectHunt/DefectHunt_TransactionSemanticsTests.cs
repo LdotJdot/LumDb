@@ -215,6 +215,7 @@ namespace UnitTestLumDb.DefectHunt
             var path = DhSupport.TempPath("dh8");
             var magicPath = DhSupport.TempPath("dh8_magic");
             var versionPath = DhSupport.TempPath("dh8_version");
+            var oldPath = DhSupport.TempPath("dh8_old");
             var truncPath = DhSupport.TempPath("dh8_trunc");
             var garbagePath = DhSupport.TempPath("dh8_garbage");
             try
@@ -232,6 +233,11 @@ namespace UnitTestLumDb.DefectHunt
                 BitConverter.GetBytes(9_009_009u).CopyTo(version, 6);
                 File.WriteAllBytes(versionPath, version);
 
+                // B2) 生产库常见的旧页格式 1.3.2，布局与当前格式兼容，必须能打开
+                var old = (byte[])original.Clone();
+                BitConverter.GetBytes(1_003_002u).CopyTo(old, 6);
+                File.WriteAllBytes(oldPath, old);
+
                 // C) 截断到 50 字节
                 File.WriteAllBytes(truncPath, original.Take(50).ToArray());
 
@@ -241,6 +247,7 @@ namespace UnitTestLumDb.DefectHunt
                 var control = OpenAndRead(path);
                 var magicProbe = OpenAndRead(magicPath);
                 var versionProbe = OpenAndRead(versionPath);
+                var oldProbe = OpenAndRead(oldPath);
                 var truncProbe = OpenAndRead(truncPath);
                 var garbageProbe = OpenAndRead(garbagePath);
 
@@ -248,6 +255,7 @@ namespace UnitTestLumDb.DefectHunt
                     ("正常文件（对照）", control),
                     ("抹掉签名的文件", magicProbe),
                     ("版本号改写为 9.9.9 的文件", versionProbe),
+                    ("版本号改写为 1.3.2 的文件", oldProbe),
                     ("截断到 50 字节的文件", truncProbe),
                     ("10 字节垃圾文件", garbageProbe));
 
@@ -256,14 +264,15 @@ namespace UnitTestLumDb.DefectHunt
                 StringAssert.Contains(magicProbe, LumExceptionMessage.InvalidDatabaseFile);
                 StringAssert.Contains(versionProbe, LumExceptionMessage.UnsupportedFileVersion);
                 StringAssert.Contains(versionProbe, "9.9.9");
+                Assert.AreEqual("READ OK: payload", oldProbe, "1.3.2 及更旧的 LumDBS 文件必须可读");
                 StringAssert.Contains(truncProbe, LumExceptionMessage.InvalidDatabaseFile);
                 StringAssert.Contains(garbageProbe, LumExceptionMessage.InvalidDatabaseFile);
             }
             finally
             {
                 DhSupport.TryDelete(path, path + ".log", magicPath, magicPath + ".log",
-                    versionPath, versionPath + ".log", truncPath, truncPath + ".log",
-                    garbagePath, garbagePath + ".log");
+                    versionPath, versionPath + ".log", oldPath, oldPath + ".log",
+                    truncPath, truncPath + ".log", garbagePath, garbagePath + ".log");
             }
         }
 

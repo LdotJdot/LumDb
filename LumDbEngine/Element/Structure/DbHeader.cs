@@ -26,15 +26,43 @@ namespace LumDbEngine.Element.Structure
         private static readonly byte[] FileID = [76, 117, 109, 68, 66, 83];        // 6 bytes "LumDBS"
 
         /// <summary>
-        /// On-disk page format: major * 1_000_000 + minor * 1_000 + patch.
+        /// On-disk page format this build writes: major * 1_000_000 + minor * 1_000 + patch.
         /// 1_003_009 is 1.3.9. This is the file layout, not the assembly or NuGet version.
         /// Change it only when the page layout itself changes.
+        /// Files at this version or older are readable unless listed in <see cref="UnsupportedVersions"/>.
         /// </summary>
         public const uint VERSION = 1_003_009;
+
+        /// <summary>
+        /// Packed page-format versions this build refuses even when they are not newer than <see cref="VERSION"/>.
+        /// Older LumDBS layouts stay readable until a version is added here.
+        /// </summary>
+        internal static readonly uint[] UnsupportedVersions = [];
 
         /// <summary>Format a packed page-format version (e.g. 1_003_009 → "1.3.9").</summary>
         public static string FormatVersion(uint version)
             => $"{version / 1_000_000}.{(version / 1000) % 1000}.{version % 1000}";
+
+        /// <summary>
+        /// A file is readable when its format is not newer than <paramref name="current"/>
+        /// and is not in <paramref name="unsupported"/>.
+        /// </summary>
+        internal static bool IsReadableFileVersion(uint fileVersion, uint current, ReadOnlySpan<uint> unsupported)
+        {
+            if (fileVersion > current)
+                return false;
+
+            foreach (var denied in unsupported)
+            {
+                if (denied == fileVersion)
+                    return false;
+            }
+
+            return true;
+        }
+
+        internal static bool IsReadableFileVersion(uint fileVersion)
+            => IsReadableFileVersion(fileVersion, VERSION, UnsupportedVersions);
 
 
 
@@ -109,9 +137,9 @@ namespace LumDbEngine.Element.Structure
         }
 
         /// <summary>
-        /// Read and validate the header of an existing image. A file that is too short, does not
-        /// start with the "LumDBS" signature, or was written by another page format is rejected
-        /// here instead of being decoded as if it were a database.
+        /// Read and validate the header of an existing image. A file that is too short or does not
+        /// start with the "LumDBS" signature is rejected. Page formats newer than <see cref="VERSION"/>,
+        /// and formats listed in <see cref="UnsupportedVersions"/>, are rejected. Older formats are kept.
         /// </summary>
         public void Read(BinaryReader br)
         {
@@ -130,10 +158,13 @@ namespace LumDbEngine.Element.Structure
             }
 
             var fileVersion = br.ReadUInt32();
-            if (fileVersion != VERSION)
+            if (!IsReadableFileVersion(fileVersion))
             {
+                var why = fileVersion > VERSION
+                    ? $"newer than {FormatVersion(VERSION)}"
+                    : "listed as unsupported";
                 throw LumException.Raise(
-                    $"{LumExceptionMessage.UnsupportedFileVersion} File format {FormatVersion(fileVersion)}, this build writes and reads {FormatVersion(VERSION)}.");
+                    $"{LumExceptionMessage.UnsupportedFileVersion} File format {FormatVersion(fileVersion)} is {why}. This build writes {FormatVersion(VERSION)} and reads that version or older.");
             }
 
             DbID = dbId;

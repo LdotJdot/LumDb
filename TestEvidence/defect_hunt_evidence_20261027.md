@@ -2602,3 +2602,327 @@ Actual value was 12345.
 - 组成：DefectHunt 16 条 + 既有与使用场景 375 条（其中使用场景 35 个场景 / 65 例）。
 - 12:58–12:59 的“使用场景：…”条目是第二批场景（批量插入、跨页大字段、并发写者、长活读者、事务池等待、五次重启、日志路径占位）的现场数值，均由用例在断言前后写入。
 
+## 13:17:24.623 | 使用场景：日志路径被目录占位时的空提交
+- 空提交次数: 3
+- 异常: 无
+- 日志文件存在: False
+
+## 13:17:27.982 | 使用场景：长活读者阻塞提交（Memory）
+- 首次提交异常: LumDbEngine.Element.Exceptions.LumException: Transaction time out.
+- 锁等待超时(ms): 200
+- 读者释放后重试: 成功
+
+## 13:17:30.545 | DH3 事务池第 33 个事务：快速失败 + 准确错误 + 可恢复
+- 池上限: 32
+- 第 33 个异常: LumDbEngine.Element.Exceptions.LumException: Too many open transactions. Dispose finished transactions before starting new ones. Limit: 32, currently open: 32.
+- 第 33 个耗时(ms): 0
+- 错误是否谎称 disposed: False
+- 引擎实际健康: True
+- 配置 250ms 等待后的异常: LumDbEngine.Element.Exceptions.LumException: Too many open transactions. Dispose finished transactions before starting new ones. Limit: 32, currently open: 32.
+- 等待耗时(ms): 264
+- 归还槽位后异常: <null>
+- 归还槽位后耗时(ms): 0
+
+## 13:17:30.729 | DH1b 提交 IO 失败 -> 脏页保留 -> 同一事务重试成功
+- db 路径: C:\Users\luoji\AppData\Local\Temp\lumdb_defecthunt\dh1b_241d7853c52c4ba4bb87846cbe1ccb3c
+- 首次 SaveChanges 异常: System.UnauthorizedAccessException: Access to the path 'C:\Users\luoji\AppData\Local\Temp\lumdb_defecthunt\dh1b_241d7853c52c4ba4bb87846cbe1ccb3c.log' is denied.
+- 磁盘恢复后同一事务重试异常: <null>
+- Dispose 异常: <null>
+- k=1 / k=2 是否存在: True/True
+- 行数: 2
+
+## 13:17:30.736 | 使用场景：跨页大字段增长/收缩（Memory）
+- 大字段长度: 8004
+- 增长后重开: 长度与首尾一致
+- 收缩后重开: tiny
+
+## 13:17:33.419 | DH4 失败语句作废整个事务（File）
+- 重复键异常: LumDbEngine.Element.Exceptions.LumException: Key already existed: k
+- 事务是否被标记作废: True
+- 作废后继续插入的异常: LumDbEngine.Element.Exceptions.LumException: The transaction was aborted by a previous failed statement and cannot be used any more. Dispose it (its changes will not be committed) or call Discard() to reuse it. First failure: Key already existed: k
+- 作废后 SaveChanges 的异常: LumDbEngine.Element.Exceptions.LumException: The transaction was aborted by a previous failed statement and cannot be used any more. Dispose it (its changes will not be committed) or call Discard() to reuse it. First failure: Key already existed: k
+- Dispose 异常: 
+
+## 13:17:33.788 | 使用场景：跨页大字段增长/收缩（File）
+- 大字段长度: 8004
+- 增长后重开: 长度与首尾一致
+- 收缩后重开: tiny
+
+## 13:17:34.381 | 使用场景：并发写入者（Memory）
+- 写者: 4
+- 每个写者事务数: 10
+- 异常: 0
+- 最终行数: 43
+
+## 13:17:35.058 | DH5 Entity API 与 DbCell API 语义一致（Memory）
+- 重复键异常: LumDbEngine.Element.Exceptions.LumException: Key already existed: Code
+- 事务是否被标记作废: True
+- 作废后 SaveChanges 的异常: LumDbEngine.Element.Exceptions.LumException: The transaction was aborted by a previous failed statement and cannot be used any more. Dispose it (its changes will not be committed) or call Discard() to reuse it. First failure: Key already existed: Code
+
+## 13:17:40.333 | P2 小事务提交吞吐
+- 文件引擎 单行事务: 75 tx/s
+- 文件引擎 空提交（无脏页）: 70062 tx/s
+- 内存引擎 单行事务: 2274 tx/s
+- 样本数: 200
+
+## 13:17:54.286 | 使用场景：单事务批量插入（Memory）
+- 行数: 1000
+- 提交方式: 单事务一次 SaveChanges
+- 重启后校验: 通过
+
+## 13:18:06.407 | P1 每事务冷缓存：点查成本
+- 行数: 20000
+- 同事务预热后: 4195.5 us/op
+- 每查一个新事务: 23548.6 us/op
+- 冷/热倍率: 5.61x
+- 建表+20k 行写入: 1018 ms
+
+## 13:18:06.610 | 使用场景：五次关闭/重开循环
+- 重启次数: 5
+- 最终行数: 5
+- 每轮写入: 1 行 + SaveChanges
+
+## 13:18:18.299 | 引擎 Dispose 与活事务的交互（File）
+- 有活事务时 eng.Dispose 异常: LumException: Waiting living transactions  timeout when disposing DbEngine. Living transactions: db7573c0-93c3-4ba1-9f99-bc2d588afa34
+- 随后 tx.Dispose 异常: 
+- 再次 eng.Dispose 异常: 
+
+## 13:18:18.748 | DH4 失败语句作废整个事务（Memory）
+- 重复键异常: LumDbEngine.Element.Exceptions.LumException: Key already existed: k
+- 事务是否被标记作废: True
+- 作废后继续插入的异常: LumDbEngine.Element.Exceptions.LumException: The transaction was aborted by a previous failed statement and cannot be used any more. Dispose it (its changes will not be committed) or call Discard() to reuse it. First failure: Key already existed: k
+- 作废后 SaveChanges 的异常: LumDbEngine.Element.Exceptions.LumException: The transaction was aborted by a previous failed statement and cannot be used any more. Dispose it (its changes will not be committed) or call Discard() to reuse it. First failure: Key already existed: k
+- Dispose 异常: 
+
+## 13:18:21.401 | 使用场景：并发写入者（File）
+- 写者: 4
+- 每个写者事务数: 10
+- 异常: 0
+- 最终行数: 43
+
+## 13:18:34.670 | 使用场景：长活读者阻塞提交（File）
+- 首次提交异常: LumDbEngine.Element.Exceptions.LumException: Transaction time out.
+- 锁等待超时(ms): 200
+- 读者释放后重试: 成功
+
+## 13:18:38.675 | 使用场景：单事务批量插入（File）
+- 行数: 1000
+- 提交方式: 单事务一次 SaveChanges
+- 重启后校验: 通过
+
+## 13:18:39.584 | DH6 TransactionPolicy 非法值被拒绝 / Serializable 显式不支持
+- 赋值 (TransactionPolicy)12345 的异常: System.ArgumentOutOfRangeException: Unknown transaction policy. (Parameter 'value')
+Actual value was 12345.
+- Serializable 下 StartTransaction 的异常: System.NotSupportedException: Serializable transactions are not implemented. Use TransactionPolicy.ReadCommitted.
+- Serializable 下 StartTransactionReadonly 的异常: System.NotSupportedException: Serializable transactions are not implemented. Use TransactionPolicy.ReadCommitted.
+- 切回 ReadCommitted 后的异常: <null>
+
+## 13:18:39.623 | DH5 Entity API 与 DbCell API 语义一致（File）
+- 重复键异常: LumDbEngine.Element.Exceptions.LumException: Key already existed: Code
+- 事务是否被标记作废: True
+- 作废后 SaveChanges 的异常: LumDbEngine.Element.Exceptions.LumException: The transaction was aborted by a previous failed statement and cannot be used any more. Dispose it (its changes will not be committed) or call Discard() to reuse it. First failure: Key already existed: Code
+
+## 13:18:39.788 | 使用场景：事务池等待（Memory）
+- 并发上限: 32
+- 池满后等待(ms): 150
+- 槽位释放后探针耗时(ms): 162
+- 探针结果: 成功
+
+## 13:18:40.475 | 引擎 Dispose 与活事务的交互（Memory）
+- 有活事务时 eng.Dispose 异常: LumException: Waiting living transactions  timeout when disposing DbEngine. Living transactions: cc03720a-fbd4-43b6-858e-05b6e02d5512
+- 随后 tx.Dispose 异常: 
+- 再次 eng.Dispose 异常: 
+
+## 13:18:41.641 | DH2b 跨线程 Dispose 未提交事务 -> 按 Dispose 提交语义落库且不抛异常
+- Dispose 异常: <null>
+- 未提交行是否按 Dispose 语义落库: True
+
+## 13:18:41.917 | DH2 跨线程 Dispose -> 租约归还、引擎可用
+- Dispose 异常: <null>
+- Dispose 耗时(ms): 0
+- 探针异常: <null>
+- 探针耗时(ms): 0
+
+## 13:18:42.060 | DH8 文件签名 / 页面格式版本 / 长度受校验
+- 正常文件（对照）: READ OK: payload
+- 抹掉签名的文件: LumException: The file is not a valid LumDb database (header signature or size is invalid). Signature check failed.
+- 版本号改写为 9.9.9 的文件: LumException: Unsupported database file version. File format 9.9.9, this build writes and reads 1.3.9.
+- 截断到 50 字节的文件: LumException: The file is not a valid LumDb database (header signature or size is invalid). Length is 50 bytes, expected at least 100.
+- 10 字节垃圾文件: LumException: The file is not a valid LumDb database (header signature or size is invalid). Length is 10 bytes, expected at least 100.
+
+## 13:18:49.190 | DH1 提交 IO 失败 -> 抛异常但不砖化、可重试
+- db 路径: C:\Users\luoji\AppData\Local\Temp\lumdb_defecthunt\dh1_159cdabf09ca46d7bd3a8fe4d521b2eb
+- SaveChanges 异常: System.UnauthorizedAccessException: Access to the path 'C:\Users\luoji\AppData\Local\Temp\lumdb_defecthunt\dh1_159cdabf09ca46d7bd3a8fe4d521b2eb.log' is denied.
+- SaveChanges 耗时(ms): 0
+- Dispose 异常: System.UnauthorizedAccessException: Access to the path 'C:\Users\luoji\AppData\Local\Temp\lumdb_defecthunt\dh1_159cdabf09ca46d7bd3a8fe4d521b2eb.log' is denied.
+- 同线程探针异常: <null>
+- 同线程探针耗时(ms): 6
+- 跨线程探针异常: <null>
+- 跨线程探针耗时(ms): 7
+- 排除故障后重试异常: <null>
+- 重试耗时(ms): 12
+- 提交后 k=1/2/3 是否存在: True/False/True
+- 提交后行数: 2
+
+## 13:18:49.754 | DH7 崩溃矩阵 200ms
+- 结果: OK
+- lastCommitted: 0
+- 重开后连续行数: 1
+- 允许区间: [1,2]
+- 载荷校验: True
+- 错误: -
+- stdout 尾部: C 0
+- stderr: 
+
+## 13:18:50.312 | DH7 崩溃矩阵 500ms
+- 结果: OK
+- lastCommitted: 23
+- 重开后连续行数: 24
+- 允许区间: [24,25]
+- 载荷校验: True
+- 错误: -
+- stdout 尾部: C 0
+C 1
+C 2
+C 3
+C 4
+C 5
+C 6
+C 7
+C 8
+C 9
+C 10
+C 11
+C 12
+C 13
+C 14
+C 15
+C 16
+C 17
+C 18
+C 19
+C 20
+C 21
+C 22
+C 23
+- stderr: 
+
+## 13:18:51.283 | DH7 崩溃矩阵 900ms
+- 结果: OK
+- lastCommitted: 59
+- 重开后连续行数: 60
+- 允许区间: [60,61]
+- 载荷校验: True
+- 错误: -
+- stdout 尾部: 
+C 36
+C 37
+C 38
+C 39
+C 40
+C 41
+C 42
+C 43
+C 44
+C 45
+C 46
+C 47
+C 48
+C 49
+C 50
+C 51
+C 52
+C 53
+C 54
+C 55
+C 56
+C 57
+C 58
+C 59
+- stderr: 
+
+## 13:18:52.862 | DH7 崩溃矩阵 1500ms
+- 结果: OK
+- lastCommitted: 98
+- 重开后连续行数: 99
+- 允许区间: [99,100]
+- 载荷校验: True
+- 错误: -
+- stdout 尾部: 
+C 75
+C 76
+C 77
+C 78
+C 79
+C 80
+C 81
+C 82
+C 83
+C 84
+C 85
+C 86
+C 87
+C 88
+C 89
+C 90
+C 91
+C 92
+C 93
+C 94
+C 95
+C 96
+C 97
+C 98
+- stderr: 
+
+## 13:18:55.131 | DH7 崩溃矩阵 2200ms
+- 结果: OK
+- lastCommitted: 155
+- 重开后连续行数: 157
+- 允许区间: [156,157]
+- 载荷校验: True
+- 错误: -
+- stdout 尾部: 
+C 136
+C 137
+C 138
+C 139
+C 140
+C 141
+C 142
+C 143
+C 144
+C 145
+C 146
+C 147
+C 148
+C 149
+C 150
+C 151
+C 152
+C 153
+C 154
+C 155
+- stderr: 
+
+## 13:18:57.382 | P3 只读事务阻塞写提交
+- 无读者提交耗时: 47.6 ms
+- 读者扫描期间提交耗时: 288.8 ms
+- 读者扫描耗时: 298 ms
+- 读者扫描行数: 20003
+- 提交异常: -
+
+## 13:19:33.914 | 使用场景：事务池等待（File）
+- 并发上限: 32
+- 池满后等待(ms): 150
+- 槽位释放后探针耗时(ms): 173
+- 探针结果: 成功
+
+## 15:35:57.953 | DH8 文件签名 / 页面格式版本 / 长度受校验
+- 正常文件（对照）: READ OK: payload
+- 抹掉签名的文件: LumException: The file is not a valid LumDb database (header signature or size is invalid). Signature check failed.
+- 版本号改写为 9.9.9 的文件: LumException: Unsupported database file version. File format 9.9.9 is newer than 1.3.9. This build writes 1.3.9 and reads that version or older.
+- 版本号改写为 1.3.2 的文件: READ OK: payload
+- 截断到 50 字节的文件: LumException: The file is not a valid LumDb database (header signature or size is invalid). Length is 50 bytes, expected at least 100.
+- 10 字节垃圾文件: LumException: The file is not a valid LumDb database (header signature or size is invalid). Length is 10 bytes, expected at least 100.
+
