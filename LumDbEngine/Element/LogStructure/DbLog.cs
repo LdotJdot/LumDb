@@ -1,4 +1,4 @@
-﻿using LumDbEngine.Element.Engine;
+using LumDbEngine.Element.Engine;
 using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Structure;
 using LumDbEngine.Element.Structure.Page;
@@ -158,7 +158,15 @@ namespace LumDbEngine.Element.LogStructure
             }
         }
 
-        public void Dispose()
+        /// <summary>Close the log handles and remove the log file.</summary>
+        public void Dispose() => Close(deleteLog: true);
+
+        /// <summary>
+        /// Close the log handles. <paramref name="deleteLog"/> false keeps the log file: when the
+        /// replay into the main file failed halfway, that log is the only complete copy of the
+        /// transaction and the next open replays it over the torn pages.
+        /// </summary>
+        public void Close(bool deleteLog)
         {
             if (disposed)
             {
@@ -195,7 +203,8 @@ namespace LumDbEngine.Element.LogStructure
             logBr = null;
             dbLogFileStream = null;
 
-            DbLogUtils.Delete(this);
+            if (deleteLog)
+                DbLogUtils.Delete(this);
         }
 
 

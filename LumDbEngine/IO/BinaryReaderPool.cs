@@ -1,4 +1,4 @@
-﻿using LumDbEngine.Element.Exceptions;
+using LumDbEngine.Element.Exceptions;
 using System.Text;
 
 namespace LumDbEngine.IO
@@ -16,7 +16,12 @@ namespace LumDbEngine.IO
 
             for (int i = 0; i < poolSize; i++)
             {
-                var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                // Deliberately unbuffered: these handles live next to the writer handle, so a
+                // buffered FileStream would keep serving bytes it read before a commit (a data
+                // page, or the header state byte repaired on open) and a fresh transaction would
+                // silently read the previous image. One syscall per page read is the price of
+                // read-after-commit correctness; page-level caching is the DbCache's job.
+                var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, bufferSize: 1, FileOptions.None);
                 buffers[i] = new BinaryReaderInPool(fs, semaphore);
             }
         }

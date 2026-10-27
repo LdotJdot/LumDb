@@ -18,13 +18,12 @@ namespace LumDbEngine.Element.Engine.Transaction
                 using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
                 return dbManager.Insert(db, tableName, ValueConvert.ToTableValues(values));
             }
-            catch
+            catch (Exception ex)
             {
-                // Bug fix BUG-10: if Insert fails partway through (e.g. column N validation fails after
-                // pages 1..N-1 have already been mutated), discard the dirty in-memory state so the
-                // failed Insert cannot be persisted by a subsequent SaveChanges. This mirrors the
-                // LumTransaction_Delete pattern.
-                Discard();
+                // A failed statement may have mutated pages 1..N-1. Mask the transaction as aborted:
+                // the dirty state is dropped and a later SaveChanges throws instead of committing a
+                // half-written image. The caller must Dispose (or Discard) the transaction.
+                MarkFaulted(ex);
                 throw;
             }
         }

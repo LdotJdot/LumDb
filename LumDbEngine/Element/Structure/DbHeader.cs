@@ -1,4 +1,6 @@
-﻿using LumDbEngine.Utils.ByteUtils;
+using LumDbEngine.Element.Exceptions;
+using LumDbEngine.IO;
+using LumDbEngine.Utils.ByteUtils;
 using System.Reflection.PortableExecutable;
 
 namespace LumDbEngine.Element.Structure
@@ -106,21 +108,54 @@ namespace LumDbEngine.Element.Structure
             }
         }
 
+        /// <summary>
+        /// Read and validate the header of an existing image. A file that is too short, does not
+        /// start with the "LumDBS" signature, or was written by another page format is rejected
+        /// here instead of being decoded as if it were a database.
+        /// </summary>
         public void Read(BinaryReader br)
         {
+            var stream = br.BaseStream;
+            if (stream.Length < HEADER_SIZE)
+            {
+                throw LumException.Raise(
+                    $"{LumExceptionMessage.InvalidDatabaseFile} Length is {stream.Length} bytes, expected at least {HEADER_SIZE}.");
+            }
 
-            br.BaseStream.Seek(0, SeekOrigin.Begin);
-            DbID = br.ReadBytes(IDLENGTH);
-            FileVersion = br.ReadUInt32();
+            stream.Seek(0, SeekOrigin.Begin);
+            var dbId = br.ReadBytes(IDLENGTH);
+            if (dbId.Length != IDLENGTH || !dbId.AsSpan().SequenceEqual(FileID))
+            {
+                throw LumException.Raise($"{LumExceptionMessage.InvalidDatabaseFile} Signature check failed.");
+            }
+
+            var fileVersion = br.ReadUInt32();
+            if (fileVersion != VERSION)
+            {
+                throw LumException.Raise(
+                    $"{LumExceptionMessage.UnsupportedFileVersion} File format {FormatVersion(fileVersion)}, this build writes and reads {FormatVersion(VERSION)}.");
+            }
+
+            DbID = dbId;
+            FileVersion = fileVersion;
             RootTableRepoPage = br.ReadUInt32();
             AvailableTableRepoPage = br.ReadUInt32();
             AvailableDataVarPage = br.ReadUInt32();
             FreePage = br.ReadUInt32();
             LastPage = br.ReadUInt32();
 
-            br.BaseStream.Seek(STATE_POS, SeekOrigin.Begin);
+            stream.Seek(STATE_POS, SeekOrigin.Begin);
             State = br.ReadByte();
             IsDirty = false;
+        }
+
+        /// <summary>
+        /// Validate an image before the engine starts recovering logs or handing out transactions.
+        /// </summary>
+        internal static void ValidateImage(IOFactory iof)
+        {
+            using var reader = iof.RentReader();
+            new DbHeader().Read(reader);
         }
     }
 }

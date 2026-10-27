@@ -1,8 +1,8 @@
-# LumDb 3.0.1
+# LumDb 4.0.0
 
 A single-file, thread-safe embedded database for .NET 10. 100% C#, AOT-friendly, no native dependencies.
 
-Package **3.0.1**. The on-disk page format is still **1.3.9** (`DbHeader.VERSION = 1_003_009`, packed as `major * 1_000_000 + minor * 1_000 + patch`). `DbEngine.Version` / `VersionString` report that page format, not the package version. The page layout is unchanged, so existing 1.3.9 files open as before. `Vacuum` rebuilds pages in the same format and does not rewrite the format number.
+Package **4.0.0**. The on-disk page format is still **1.3.9** (`DbHeader.VERSION = 1_003_009`, packed as `major * 1_000_000 + minor * 1_000 + patch`). `DbEngine.Version` / `VersionString` report that page format, not the package version. The page layout is unchanged, so existing 1.3.9 files open as before. `Vacuum` rebuilds pages in the same format and does not rewrite the format number.
 
 ## Engines
 
@@ -28,6 +28,27 @@ mem.SaveTo(@"d:\app.db");                    // dump committed image (not uncomm
 | `SaveTo(path)` | Full committed dump | File copy of committed image |
 
 `SaveChanges` / `Dispose` commit. `Discard` rolls back the current transaction and reloads from the committed image. A following `Dispose` does not overwrite the image with an empty cache.
+
+### Transactions, errors and limits
+
+- A statement that throws aborts the whole transaction: later statements and `SaveChanges()` throw `TransactionAborted` (the message keeps the first failure), and `Dispose` writes nothing. `Discard()` rolls back to the committed image and makes the same transaction usable again.
+- A failed **commit** (disk full, `.log` locked, handle lost) does not abort the transaction. Dirty pages stay in memory, and `SaveChanges()` can be retried once the disk problem is gone. The `.log` is kept when replay fails, so the next open can replay it.
+- One writer at a time plus concurrent readonly transactions. A thread that already holds any live transaction cannot start a write transaction (`IllegaTransaction`); readonly transactions may nest.
+- At most 32 transactions per engine. The 33rd fails immediately with `TooManyOpenTransactions` (limit and current count in the message). Set `TransactionPoolWaitMilliseconds` to wait for a slot instead.
+- `Serializable` is not implemented: assigning it to `TransactionPolicy` is accepted, starting a transaction then throws `NotSupportedException`. Unknown enum values throw `ArgumentOutOfRangeException`.
+- `DbEngine.Dispose` waits `TimeoutMilliseconds` (default 3000) for live transactions; on timeout it throws and the engine stays usable. Disposing a transaction from another thread is supported.
+
+### Files and versions
+
+Opening a database validates the header: length at least 100 bytes, the `LumDBS` signature, and page format exactly **1.3.9**. Files from other page formats are rejected with `UnsupportedFileVersion` instead of being read with the wrong layout; foreign or truncated files get `InvalidDatabaseFile`. Export pre-1.3.9 data with the matching older package.
+
+### Upgrading from 3.0.1
+
+4.0.0 is a major bump: one public member was removed, and two failure paths now throw where they used to return.
+
+- Failed statements now abort the transaction (`TransactionAborted`, `Discard()` to reuse) instead of letting `SaveChanges()` commit an empty/partial image.
+- Header validation rejects foreign files and page formats other than 1.3.9.
+- `DbEngine.ReadWriteLock` was removed (it was an implementation detail); use `StartTransaction` / `StartTransactionReadonly` for concurrency.
 
 ## LumEntity (source generator)
 
@@ -138,7 +159,7 @@ Zero-alloc predicate: `Where((ref RowView row) => row.GetInt(1) > 90)`. Entity c
 
 Column identity is the order on the table page. Inserting or deleting in the middle changes later ordinals. Appending does not. Existing rows take `defaultValue`, or the zero value of the new type when it is omitted (`0`, `false`, `""`, empty bytes). A new key column is rejected when more than one row would share that default. At least one column must remain. There is no spare room in the row itself: the table is rewritten at the new width, and row ids stay the same.
 
-`Vacuum` needs the engine to itself (no open transaction). It writes a complete new image in page format 1.3.9, then swaps it into place. A crash before the swap leaves the previous file and its `.log` untouched.
+`Vacuum` writes a complete new image in page format 1.3.9 while other transactions keep running, then swaps it in when no commit has landed since that snapshot. A commit in between is kept and the rebuild is repeated. A crash before the swap leaves the previous file and its `.log` untouched. Call it from a thread that does not already hold a transaction.
 
 ```csharp
 using (var ts = eng.StartTransaction())

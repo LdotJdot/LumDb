@@ -1,150 +1,129 @@
-﻿using LumDbEngine.Element.Exceptions;
+using LumDbEngine.Element.Exceptions;
 
 namespace LumDbEngine.Element.Engine.Lock
-{  
-    internal class LockTransaction:IDisposable
+{
+    /// <summary>
+    /// A lease on an <see cref="EngineGate"/>. Unlike ReaderWriterLockSlim, the lease is released
+    /// by counters inside the gate, so Dispose() is safe from any thread (async callers included).
+    /// </summary>
+    internal class LockTransaction : IDisposable
     {
-        private readonly ReaderWriterLockSlim readerWriterLockSlim;
-        private State isWrite = 0;
+        private EngineGate? gate;
+        private State isWrite;
+        private readonly int timeoutMilliseconds;
+        private int disposed;
 
         enum State
         {
             Read = 0,
             Write = 1,
             UpgradeableRead = 2,
-            WriteAfterUpgradeableRead = 3
         }
-        private int timeoutMillionSeconds = -1;
-        private LockTransaction(ReaderWriterLockSlim readerWriterLockSlim, State initialLockState, int timeoutMillionSeconds)
+
+        private LockTransaction(EngineGate gate, State initialLockState, int timeoutMillionSeconds)
         {
-            this.readerWriterLockSlim = readerWriterLockSlim;
+            this.gate = gate;
             this.isWrite = initialLockState;
-            this.timeoutMillionSeconds = timeoutMillionSeconds;
+            this.timeoutMilliseconds = timeoutMillionSeconds;
 
             try
             {
                 switch (initialLockState)
-                {              
-
+                {
                     case State.Read:
+                        if (!gate.EnterRead(timeoutMillionSeconds))
+                            throw LumException.Raise(LumExceptionMessage.TransactionTimeout);
+                        break;
 
-                        if (readerWriterLockSlim.TryEnterReadLock(this.timeoutMillionSeconds))
-                        {
-                            break;
-                        }
-                        else
-                        {
-                            goto default;
-                        }
                     case State.Write:
-                        if (readerWriterLockSlim.TryEnterWriteLock(this.timeoutMillionSeconds))
-                        {
-                            break;
-                        }
-                        else
-                        {
-                            goto default;
-                        }
+                        if (!gate.EnterWrite(timeoutMillionSeconds))
+                            throw LumException.Raise(LumExceptionMessage.TransactionTimeout);
+                        break;
+
                     case State.UpgradeableRead:
-                        if (readerWriterLockSlim.TryEnterUpgradeableReadLock(this.timeoutMillionSeconds))
-                        {
-                            break;
-                        }
-                        else
-                        {
-                            goto default;
-                        }
+                        if (!gate.EnterUpgradeable(timeoutMillionSeconds))
+                            throw LumException.Raise(LumExceptionMessage.TransactionTimeout);
+                        break;
+
                     default:
-                        throw LumException.Raise(LumExceptionMessage.TransactionTimeout);
+                        throw LumException.Raise(LumExceptionMessage.IllegaTransaction);
                 }
-            }
-            catch (LockRecursionException)
-            {
-                throw LumException.Raise(LumExceptionMessage.IllegaTransaction);
             }
             catch
             {
+                this.gate = null;
                 throw;
             }
-
         }
 
-        internal static LockTransaction StartRead(ReaderWriterLockSlim writerLockSlim)
-        {
-            return new LockTransaction(writerLockSlim, State.Read, -1);
-        }
+        internal static LockTransaction TryStartRead(EngineGate gate, int timeoutMilliseconds)
+            => new LockTransaction(gate, State.Read, timeoutMilliseconds);
 
-        internal static LockTransaction StartWrite(ReaderWriterLockSlim writerLockSlim)
-        {
-            return new LockTransaction(writerLockSlim, State.Write, -1);
-        }
+        internal static LockTransaction TryStartWrite(EngineGate gate, int timeoutMilliseconds)
+            => new LockTransaction(gate, State.Write, timeoutMilliseconds);
 
-        internal static LockTransaction StartUpgradeableRead(ReaderWriterLockSlim writerLockSlim)
-        {
-            return new LockTransaction(writerLockSlim, State.UpgradeableRead, -1);
-        }
+        internal static LockTransaction TryStartUpgradeableRead(EngineGate gate, int timeoutMilliseconds)
+            => new LockTransaction(gate, State.UpgradeableRead, timeoutMilliseconds);
 
-        internal static LockTransaction TryStartRead(ReaderWriterLockSlim writerLockSlim,int timeoutMilliseconds)
-        {
-            return new LockTransaction(writerLockSlim, State.Read, timeoutMilliseconds);
-        }
-
-        internal static LockTransaction TryStartWrite(ReaderWriterLockSlim writerLockSlim, int timeoutMilliseconds)
-        {
-            return new LockTransaction(writerLockSlim, State.Write, timeoutMilliseconds);
-        }
-
-        internal static LockTransaction TryStartUpgradeableRead(ReaderWriterLockSlim writerLockSlim, int timeoutMilliseconds)
-        {
-            return new LockTransaction(writerLockSlim, State.UpgradeableRead, timeoutMilliseconds);
-        }
-
+        /// <summary>
+        /// Run a mutation while holding the engine write lease. The lease is always returned, even
+        /// when <paramref name="act"/> throws (a failed commit used to leak the write lock and
+        /// brick the engine).
+        /// </summary>
         public void WriteAction(Action act)
         {
-            lock (this)
+            switch (isWrite)
             {
-                if (isWrite == State.UpgradeableRead)
-                {
-                    if (readerWriterLockSlim.TryEnterWriteLock(timeoutMillionSeconds))
+                case State.Read:
+                    // Legacy behaviour: a read lease silently ignores write actions.
+                    return;
+
+                case State.Write:
+                    act();
+                    return;
+
+                case State.UpgradeableRead:
+                    var g = gate ?? throw new InvalidOperationException("lock already disposed");
+                    // Bounded like the old TryEnterWriteLock: an upgrade that cannot drain the
+                    // readers must fail loudly instead of blocking the caller forever.
+                    if (!g.UpgradeToWrite(timeoutMilliseconds))
+                        throw LumException.Raise(LumExceptionMessage.TransactionTimeout);
+                    try
                     {
                         act();
-                        readerWriterLockSlim.ExitWriteLock();
                     }
-                    else
+                    finally
                     {
-                        throw LumException.Raise(LumExceptionMessage.TransactionTimeout);
+                        g.ExitWrite();
                     }
-                }
-                else if (isWrite== State.WriteAfterUpgradeableRead || isWrite == State.Write)
-                {
-                    act();
-                }
+                    return;
+
+                default:
+                    throw new InvalidOperationException("unknow lock state");
             }
         }
-
 
         public void Dispose()
         {
-            lock (this)
+            if (Interlocked.Exchange(ref disposed, 1) != 0) return;
+
+            var g = gate;
+            gate = null;
+            if (g == null) return;
+
+            switch (isWrite)
             {
-                switch (isWrite)
-                {
-                    case State.Read:
-                        readerWriterLockSlim.ExitReadLock();
-                        break;
-                    case State.Write:
-                        readerWriterLockSlim.ExitWriteLock();
-                        break;
-                    case State.UpgradeableRead:
-                        readerWriterLockSlim.ExitUpgradeableReadLock();
-                        break;
-                    case State.WriteAfterUpgradeableRead:
-                        readerWriterLockSlim.ExitWriteLock();
-                        readerWriterLockSlim.ExitUpgradeableReadLock();
-                        break;
-                    default:
-                        throw new InvalidOperationException("unknow lock state");
-                }
+                case State.Read:
+                    g.ExitRead();
+                    break;
+                case State.Write:
+                    g.ExitWrite();
+                    break;
+                case State.UpgradeableRead:
+                    g.ExitUpgradeable();
+                    break;
+                default:
+                    throw new InvalidOperationException("unknow lock state");
             }
         }
     }

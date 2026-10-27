@@ -21,11 +21,11 @@ namespace LumDbEngine.Element.Engine.Transaction
             {
                 throw LumException.Raise(ex.Message);
             }
-            catch
+            catch (Exception ex)
             {
-                // A rewrite already touched pages. Reload the committed image so Dispose
-                // cannot store a half-rewritten table.
-                db.Reset();
+                // A rewrite already touched pages. Abort the transaction so Dispose cannot store
+                // a half-rewritten table and SaveChanges fails loudly instead of committing it.
+                MarkFaulted(ex);
                 throw;
             }
         }
@@ -43,9 +43,9 @@ namespace LumDbEngine.Element.Engine.Transaction
             {
                 throw LumException.Raise(ex.Message);
             }
-            catch
+            catch (Exception ex)
             {
-                db.Reset();
+                MarkFaulted(ex);
                 throw;
             }
         }

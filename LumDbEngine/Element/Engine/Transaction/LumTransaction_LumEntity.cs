@@ -15,9 +15,9 @@ namespace LumDbEngine.Element.Engine.Transaction
             {
                 return dbManager.CreateEntity<T>(db, tableName);
             }
-            catch
+            catch (Exception ex)
             {
-                db.Reset();
+                MarkFaulted(ex);
                 throw;
             }
         }
@@ -26,7 +26,15 @@ namespace LumDbEngine.Element.Engine.Transaction
         {
             CheckTransactionState();
             using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
-            return dbManager.InsertEntity(db, tableName, value);
+            try
+            {
+                return dbManager.InsertEntity(db, tableName, value);
+            }
+            catch (Exception ex)
+            {
+                MarkFaulted(ex);
+                throw;
+            }
         }
 
         public IDbValue<T> FindByIdEntity<T>(string tableName, uint id) where T : ILumEntity<T>, new()
@@ -47,14 +55,30 @@ namespace LumDbEngine.Element.Engine.Transaction
         {
             CheckTransactionState();
             using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
-            return dbManager.UpdateEntity(db, tableName, id, value);
+            try
+            {
+                return dbManager.UpdateEntity(db, tableName, id, value);
+            }
+            catch (Exception ex)
+            {
+                MarkFaulted(ex);
+                throw;
+            }
         }
 
         public IDbResult UpdateEntity<T>(string tableName, string keyName, DbCell keyValue, T value) where T : ILumEntity<T>, new()
         {
             CheckTransactionState();
             using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
-            return dbManager.UpdateEntity(db, tableName, keyName, keyValue, value);
+            try
+            {
+                return dbManager.UpdateEntity(db, tableName, keyName, keyValue, value);
+            }
+            catch (Exception ex)
+            {
+                MarkFaulted(ex);
+                throw;
+            }
         }
 
         public IDbValues<T> Find<T>(string tableName, RowViewPredicate predicate, uint skip = 0, uint limit = uint.MaxValue)
@@ -76,14 +100,30 @@ namespace LumDbEngine.Element.Engine.Transaction
         {
             CheckTransactionState();
             using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
-            return dbManager.Update(db, tableName, keyName, keyValue, columnName, value);
+            try
+            {
+                return dbManager.Update(db, tableName, keyName, keyValue, columnName, value);
+            }
+            catch (Exception ex)
+            {
+                MarkFaulted(ex);
+                throw;
+            }
         }
 
         public IDbResult Update(string tableName, uint id, string columnName, DbCell value)
         {
             CheckTransactionState();
             using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
-            return dbManager.Update(db, tableName, id, columnName, value);
+            try
+            {
+                return dbManager.Update(db, tableName, id, columnName, value);
+            }
+            catch (Exception ex)
+            {
+                MarkFaulted(ex);
+                throw;
+            }
         }
 
         public IDbValue Delete(string tableName, string keyName, DbCell keyValue)
@@ -94,9 +134,9 @@ namespace LumDbEngine.Element.Engine.Transaction
             {
                 return dbManager.Delete(db, tableName, keyName, keyValue);
             }
-            catch
+            catch (Exception ex)
             {
-                db.Reset();
+                MarkFaulted(ex);
                 throw;
             }
         }

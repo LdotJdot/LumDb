@@ -13,39 +13,36 @@ namespace LumDbEngine.Element.Engine.Transaction
 {
     internal class TransactionReadonly : LumTransaction, ITransactionReadonly
     {
-        public TransactionReadonly(IOFactory? iof, long cachePages, bool dynamicCache, DbEngine dbEngine)
+        public TransactionReadonly(IOFactory? iof, long cachePages, bool dynamicCache, DbEngine dbEngine, bool bindLiveImage = false)
         {
             this.dbEngine = dbEngine;
             Id = Guid.NewGuid();
+            OwnerThreadId = Environment.CurrentManagedThreadId;
 
-            if (this.dbEngine.RegisterTransaction(Id, this))
+            this.dbEngine.RegisterTransaction(Id, this);
+
+            try
             {
-                try
+                rwLockLockTransaction = LockTransaction.TryStartRead(dbEngine.Gate, dbEngine.TimeoutMilliseconds);
+
+                if (Volatile.Read(ref dbEngine.disposed) != 0)
                 {
-                    rwLockLockTransaction = LockTransaction.TryStartRead(dbEngine.ReadWriteLock, dbEngine.TimeoutMilliseconds);
+                    LumException.Throw(LumExceptionMessage.DbEngDisposedEarly);
+                }
 
-                    if (Volatile.Read(ref dbEngine.disposed) != 0)
-                    {
-                        LumException.Throw(LumExceptionMessage.DbEngDisposedEarly);
-                    }
-
-                    db = new DbCache(iof, cachePages, dynamicCache);
+                var image = bindLiveImage ? dbEngine.CurrentImage : iof;
+                db = new DbCache(image, cachePages, dynamicCache);
 #if DEBUG
-                    LumException.ThrowIfTrue(Volatile.Read(ref dbEngine.disposed) != 0, "");
+                LumException.ThrowIfTrue(Volatile.Read(ref dbEngine.disposed) != 0, "");
 #endif
-                }
-                catch
-                {
-                    // Bug fix BUG-06: release the engine-wide read lock if acquired before the throw.
-                    rwLockLockTransaction?.Dispose();
-                    rwLockLockTransaction = null;
-                    this.dbEngine.UnregisterTransaction(Id);        // 构造函数异常时，确保事务被注销
-                    throw;
-                }
             }
-            else
+            catch
             {
-                throw LumException.Raise(LumExceptionMessage.DbEngDisposedEarly);
+                // Bug fix BUG-06: release the engine-wide read lock if acquired before the throw.
+                rwLockLockTransaction?.Dispose();
+                rwLockLockTransaction = null;
+                this.dbEngine.UnregisterTransaction(Id);        // 构造函数异常时，确保事务被注销
+                throw;
             }
         }
 
@@ -67,7 +64,7 @@ namespace LumDbEngine.Element.Engine.Transaction
                 }
                 finally
                 {
-                    rwLockLockTransaction.Dispose();
+                    rwLockLockTransaction?.Dispose();
                 }
             }
             finally

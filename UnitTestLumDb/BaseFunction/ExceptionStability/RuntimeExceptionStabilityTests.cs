@@ -1,9 +1,11 @@
 using LumDbEngine;
 using LumDbEngine.Element.Engine;
+using LumDbEngine.Element.Engine.Transaction;
 using LumDbEngine.Element.Exceptions;
 using LumDbEngine.Element.Manager.Specific;
 using LumDbEngine.Element.Structure;
 using UnitTestLumDb.Config;
+using UnitTestLumDb.DefectHunt;
 
 namespace UnitTestLumDb.BaseFunction.ExceptionStability
 {
@@ -20,6 +22,15 @@ namespace UnitTestLumDb.BaseFunction.ExceptionStability
             public string Note { get; set; } = "";
             public DateTime UpdatedUtc { get; set; }
         }
+
+        private static Item Row(int sku, string tag, string note, int hashBytes = 8) => new()
+        {
+            Sku = sku,
+            Tag = tag,
+            Hash8 = new byte[hashBytes],
+            Note = note,
+            UpdatedUtc = DateTime.UtcNow,
+        };
 
         [TestMethod]
         public void TableNotFound_Find_DoesNotDirtyWrite()
@@ -50,20 +61,29 @@ namespace UnitTestLumDb.BaseFunction.ExceptionStability
         {
             const string table = "tdup";
             using var eng = Configuration.GetDbEngineForTest();
+            using (var seed = eng.StartTransaction())
+            {
+                Assert.IsTrue(seed.Create<Item>(table).IsSuccess);
+                Assert.IsTrue(seed.Insert(table, Row(7, "a", "1")).IsSuccess);
+                seed.SaveChanges();
+            }
+
             using var ts = eng.StartTransaction();
-            ts.Create<Item>(table);
-            var ok = ts.Insert(table, new Item { Sku = 7, Tag = "a", Hash8 = new byte[8], Note = "1", UpdatedUtc = DateTime.UtcNow });
-            Assert.IsTrue(ok.IsSuccess);
-            try
-            {
-                ts.Insert(table, new Item { Sku = 7, Tag = "b", Hash8 = new byte[8], Note = "2", UpdatedUtc = DateTime.UtcNow });
-                Assert.Fail("expected duplicate key");
-            }
-            catch (Exception ex)
-            {
-                Assert.IsTrue(ex.Message.StartsWith(LumExceptionMessage.KeyAlreadyExisted), ex.Message);
-            }
-            Assert.AreEqual(1, RowScan.Count(ts, table));
+            var duplicate = DhSupport.Capture(() => ts.Insert(table, Row(7, "b", "2")));
+            Assert.IsNotNull(duplicate, "重复键必须抛出");
+            Assert.IsTrue(duplicate!.Message.StartsWith(LumExceptionMessage.KeyAlreadyExisted), duplicate.Message);
+            Assert.IsTrue(((LumTransaction)ts).IsFaulted, "失败语句之后事务必须作废");
+
+            // 作废后同一事务连读语句都不再允许（工作集已被丢弃）。
+            var afterFailure = DhSupport.Capture(() => ts.FindEntity<Item>(table, "Sku", 7));
+            Assert.IsTrue(DhSupport.IsAborted(afterFailure),
+                $"作废事务的后续语句必须被拒绝，实际：{DhSupport.Describe(afterFailure)}");
+            Assert.IsTrue(DhSupport.IsAborted(DhSupport.Capture(ts.SaveChanges)), "作废事务不得提交");
+
+            // 显式回滚：回到已提交镜像，失败语句不留下任何脏写。
+            ts.Discard();
+            Assert.IsFalse(((LumTransaction)ts).IsFaulted, "Discard 之后事务应恢复可用");
+            Assert.AreEqual(1, RowScan.Count(ts, table), "失败语句不得改动已提交镜像");
             var one = ts.FindEntity<Item>(table, "Sku", 7);
             Assert.IsTrue(one.IsSuccess);
             Assert.AreEqual("1", one.Value.Note);
@@ -74,20 +94,24 @@ namespace UnitTestLumDb.BaseFunction.ExceptionStability
         {
             const string table = "tdup2";
             using var eng = Configuration.GetDbEngineForTest();
+            uint idB;
+            using (var seed = eng.StartTransaction())
+            {
+                Assert.IsTrue(seed.Create<Item>(table).IsSuccess);
+                Assert.IsTrue(seed.Insert(table, Row(1, "a", "a")).IsSuccess);
+                var b = seed.Insert(table, Row(2, "b", "b"));
+                Assert.IsTrue(b.IsSuccess);
+                idB = b.Value;
+                seed.SaveChanges();
+            }
+
             using var ts = eng.StartTransaction();
-            ts.Create<Item>(table);
-            var a = ts.Insert(table, new Item { Sku = 1, Tag = "a", Hash8 = new byte[8], Note = "a", UpdatedUtc = DateTime.UtcNow });
-            var b = ts.Insert(table, new Item { Sku = 2, Tag = "b", Hash8 = new byte[8], Note = "b", UpdatedUtc = DateTime.UtcNow });
-            Assert.IsTrue(a.IsSuccess && b.IsSuccess);
-            try
-            {
-                ts.UpdateEntity(table, b.Value, new Item { Sku = 1, Tag = "b", Hash8 = new byte[8], Note = "stolen", UpdatedUtc = DateTime.UtcNow });
-                Assert.Fail("expected duplicate key on update");
-            }
-            catch (Exception ex)
-            {
-                Assert.IsTrue(ex.Message.StartsWith(LumExceptionMessage.KeyAlreadyExisted), ex.Message);
-            }
+            var dup = DhSupport.Capture(() => ts.UpdateEntity(table, idB, Row(1, "b", "stolen")));
+            Assert.IsNotNull(dup, "把行更新成另一个已存在的键必须抛出");
+            Assert.IsTrue(dup!.Message.StartsWith(LumExceptionMessage.KeyAlreadyExisted), dup.Message);
+            Assert.IsTrue(((LumTransaction)ts).IsFaulted, "失败的更新必须作废整个事务");
+
+            ts.Discard();
             Assert.AreEqual("b", ts.FindEntity<Item>(table, "Sku", 2).Value.Note);
             Assert.AreEqual("a", ts.FindEntity<Item>(table, "Sku", 1).Value.Note);
         }
@@ -157,27 +181,24 @@ namespace UnitTestLumDb.BaseFunction.ExceptionStability
         {
             const string table = "t5";
             using var eng = Configuration.GetDbEngineForTest();
+            using (var seed = eng.StartTransaction())
+            {
+                Assert.IsTrue(seed.Create<Item>(table).IsSuccess);
+                seed.SaveChanges();
+            }
+
             using var ts = eng.StartTransaction();
-            ts.Create<Item>(table);
-            try
-            {
-                ts.Insert(table, new Item
-                {
-                    Sku = 1,
-                    Tag = "123456789",
-                    Hash8 = new byte[8],
-                    Note = "n",
-                    UpdatedUtc = DateTime.UtcNow,
-                });
-                Assert.Fail("expected length error");
-            }
-            catch (Exception ex)
-            {
-                Assert.IsTrue(ex.Message.StartsWith(LumExceptionMessage.FixedLengthTooLong), ex.Message);
-            }
+            var tooLong = DhSupport.Capture(() => ts.Insert(table, Row(1, "123456789", "n")));
+            Assert.IsNotNull(tooLong, "超长 Str8B 必须抛出");
+            Assert.IsTrue(tooLong!.Message.StartsWith(LumExceptionMessage.FixedLengthTooLong), tooLong.Message);
+            Assert.IsTrue(DhSupport.IsAborted(DhSupport.Capture(() => ts.Insert(table, Row(2, "ok", "n")))),
+                "作废后继续插入必须在到达存储层前被拒绝");
+
+            ts.Discard();
             Assert.AreEqual(0, RowScan.Count(ts, table));
-            Assert.IsTrue(ts.Insert(table, new Item { Sku = 2, Tag = "ok", Hash8 = new byte[8], Note = "n", UpdatedUtc = DateTime.UtcNow }).IsSuccess);
+            Assert.IsTrue(ts.Insert(table, Row(2, "ok", "n")).IsSuccess);
             Assert.AreEqual(1, RowScan.Count(ts, table));
+            ts.SaveChanges();
         }
 
         [TestMethod]
@@ -185,24 +206,19 @@ namespace UnitTestLumDb.BaseFunction.ExceptionStability
         {
             const string table = "tb8";
             using var eng = Configuration.GetDbEngineForTest();
+            using (var seed = eng.StartTransaction())
+            {
+                Assert.IsTrue(seed.Create<Item>(table).IsSuccess);
+                seed.SaveChanges();
+            }
+
             using var ts = eng.StartTransaction();
-            ts.Create<Item>(table);
-            try
-            {
-                ts.Insert(table, new Item
-                {
-                    Sku = 1,
-                    Tag = "ok",
-                    Hash8 = new byte[9],
-                    Note = "n",
-                    UpdatedUtc = DateTime.UtcNow,
-                });
-                Assert.Fail("expected length error");
-            }
-            catch (Exception ex)
-            {
-                Assert.IsTrue(ex.Message.StartsWith(LumExceptionMessage.FixedLengthTooLong), ex.Message);
-            }
+            var tooLong = DhSupport.Capture(() => ts.Insert(table, Row(1, "ok", "n", hashBytes: 9)));
+            Assert.IsNotNull(tooLong, "超长 Bytes8B 必须抛出");
+            Assert.IsTrue(tooLong!.Message.StartsWith(LumExceptionMessage.FixedLengthTooLong), tooLong.Message);
+            Assert.IsTrue(((LumTransaction)ts).IsFaulted, "失败的插入必须作废整个事务");
+
+            ts.Discard();
             Assert.AreEqual(0, RowScan.Count(ts, table));
         }
 
@@ -211,17 +227,19 @@ namespace UnitTestLumDb.BaseFunction.ExceptionStability
         {
             const string table = "tcol";
             using var eng = Configuration.GetDbEngineForTest();
+            using (var seed = eng.StartTransaction())
+            {
+                Assert.IsTrue(seed.Create(table, [("a", DbValueType.Int, true), ("b", DbValueType.Int, false)]).IsSuccess);
+                seed.SaveChanges();
+            }
+
             using var ts = eng.StartTransaction();
-            ts.Create(table, [("a", DbValueType.Int, true), ("b", DbValueType.Int, false)]);
-            try
-            {
-                ts.Insert(table, [("a", 1)]);
-                Assert.Fail();
-            }
-            catch (Exception ex)
-            {
-                Assert.AreEqual(LumExceptionMessage.ColumnElementNotEqual, ex.Message);
-            }
+            var bad = DhSupport.Capture(() => ts.Insert(table, [("a", 1)]));
+            Assert.IsNotNull(bad, "列数不匹配必须抛出");
+            Assert.AreEqual(LumExceptionMessage.ColumnElementNotEqual, bad!.Message);
+            Assert.IsTrue(((LumTransaction)ts).IsFaulted);
+
+            ts.Discard();
             Assert.AreEqual(0, RowScan.Count(ts, table));
         }
 
@@ -230,17 +248,19 @@ namespace UnitTestLumDb.BaseFunction.ExceptionStability
         {
             const string table = "tnm";
             using var eng = Configuration.GetDbEngineForTest();
+            using (var seed = eng.StartTransaction())
+            {
+                Assert.IsTrue(seed.Create(table, [("a", DbValueType.Int, true)]).IsSuccess);
+                seed.SaveChanges();
+            }
+
             using var ts = eng.StartTransaction();
-            ts.Create(table, [("a", DbValueType.Int, true)]);
-            try
-            {
-                ts.Insert(table, [("nope", 1)]);
-                Assert.Fail();
-            }
-            catch (Exception ex)
-            {
-                Assert.IsTrue(ex.Message.StartsWith(LumExceptionMessage.ColumnNameNotExisted));
-            }
+            var bad = DhSupport.Capture(() => ts.Insert(table, [("nope", 1)]));
+            Assert.IsNotNull(bad, "未知列名必须抛出");
+            Assert.IsTrue(bad!.Message.StartsWith(LumExceptionMessage.ColumnNameNotExisted), bad.Message);
+            Assert.IsTrue(((LumTransaction)ts).IsFaulted);
+
+            ts.Discard();
             Assert.AreEqual(0, RowScan.Count(ts, table));
         }
 
@@ -249,19 +269,26 @@ namespace UnitTestLumDb.BaseFunction.ExceptionStability
         {
             const string table = "twc";
             using var eng = Configuration.GetDbEngineForTest();
+            uint id;
+            using (var seed = eng.StartTransaction())
+            {
+                Assert.IsTrue(seed.Create(table, [("a", DbValueType.Int, true)]).IsSuccess);
+                var inserted = seed.Insert(table, [("a", 1)]);
+                Assert.IsTrue(inserted.IsSuccess, inserted.Exception?.Message);
+                id = inserted.Value;
+                seed.SaveChanges();
+            }
+
             using var ts = eng.StartTransaction();
-            ts.Create(table, [("a", DbValueType.Int, true)]);
-            var id = ts.Insert(table, [("a", 1)]).Value;
-            try
-            {
-                ts.Update(table, id, "missing", 2);
-                Assert.Fail();
-            }
-            catch (Exception)
-            {
-                // column index lookup throws
-            }
-            Assert.AreEqual(1, ts.Find(table, "a", 1).Row.GetInt(0));
+            // column index lookup throws
+            var wrong = DhSupport.Capture(() => ts.Update(table, id, "missing", 2));
+            Assert.IsNotNull(wrong, "未知列名的更新必须抛出");
+            Assert.IsTrue(((LumTransaction)ts).IsFaulted, "失败的更新必须作废整个事务");
+
+            ts.Discard();
+            var row = ts.Find(table, "a", 1);
+            Assert.IsTrue(row.IsSuccess, row.Exception?.Message);
+            Assert.AreEqual(1, row.Row.GetInt(0));
         }
 
         [TestMethod]

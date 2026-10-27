@@ -1,4 +1,4 @@
-﻿using LumDbEngine.Element.Engine.Cache;
+using LumDbEngine.Element.Engine.Cache;
 using LumDbEngine.Element.Engine.Lock;
 using LumDbEngine.Element.Engine.Results;
 using LumDbEngine.Element.Structure;
@@ -16,9 +16,9 @@ namespace LumDbEngine.Element.Engine.Transaction
             {
                 return dbManager.Create(db, tableName, tableHeader);
             }
-            catch
+            catch (Exception ex)
             {
-                db.Reset();
+                MarkFaulted(ex);
                 throw;
             }
         }
@@ -32,9 +32,9 @@ namespace LumDbEngine.Element.Engine.Transaction
             {
                 return dbManager.Drop(db, tableName);
             }
-            catch
+            catch (Exception ex)
             {
-                db.Reset();
+                MarkFaulted(ex);
                 throw;
             }
         }
@@ -47,9 +47,9 @@ namespace LumDbEngine.Element.Engine.Transaction
                 return dbManager.GetTableNames(db);
 
             }
-            catch
+            catch (Exception ex)
             {
-                db.Reset();
+                MarkFaulted(ex);
                 throw;
             }
         }

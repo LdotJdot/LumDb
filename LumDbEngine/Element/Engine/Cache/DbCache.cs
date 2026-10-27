@@ -72,15 +72,22 @@ namespace LumDbEngine.Element.Engine.Cache
             {
                 if (iof.IsMemory)
                 {
-                    WriteCommittedImage(iof.BinaryWriter, skipIfNoDirtyPages: true);
+                    if (WriteCommittedImage(iof.BinaryWriter, skipIfNoDirtyPages: true))
+                        dbEngine.NoteCommit();
                     return;
                 }
 
+                var dirtyPages = pages.Values.Where(page => page?.IsDirty == true).ToList();
+                // Nothing to commit: do not create (or touch) the .log at all. A commit of an
+                // unmodified working set used to fail when the log path was unavailable, which
+                // turned a plain `using` block into an IO error on an otherwise healthy engine.
+                if (dirtyPages.Count == 0 && !header.IsDirty)
+                    return;
+
                 var dblog = DbLog.Create(dbEngine, iof.FileStream);
+                var committed = false;
                 try
                 {
-                    var dirtyPages = pages.Values.Where(page => page?.IsDirty == true).ToList();
-
                     dblog.WriteState(DbLogState.Writing);
                     dblog.Write(header);
                     foreach (var page in dirtyPages)
@@ -90,6 +97,7 @@ namespace LumDbEngine.Element.Engine.Cache
                     dblog.WriteState(DbLogState.Done);
 
                     dblog.DumpToDbEngine(iof.FileStream);
+                    committed = true;
                     header.State = (byte)DbLogState.Done;
 
                     foreach (var page in dirtyPages)
@@ -99,14 +107,24 @@ namespace LumDbEngine.Element.Engine.Cache
                 }
                 finally
                 {
-                    dblog.Dispose();
+                    // Keep the log when the replay failed: it still holds the complete new image.
+                    dblog.Close(deleteLog: committed);
                 }
+
+                dbEngine.NoteCommit();
 
                 GarbageCollection();
                 //pages.Clear();
             }
 
         }
+
+        /// <summary>
+        /// True when a commit would have something to write. Lets Dispose skip the engine write
+        /// lease (and the wait for readers) when the transaction never changed a page.
+        /// </summary>
+        internal bool HasPendingChanges =>
+            !disposed && (header.IsDirty || pages.Values.Any(page => page is { IsDirty: true }));
 
         internal void WriteToMemory(MemoryDbBuffer buffer)
         {
@@ -115,10 +133,10 @@ namespace LumDbEngine.Element.Engine.Cache
             WriteCommittedImage(bw, skipIfNoDirtyPages: false);
         }
 
-        private void WriteCommittedImage(BinaryWriter bw, bool skipIfNoDirtyPages)
+        private bool WriteCommittedImage(BinaryWriter bw, bool skipIfNoDirtyPages)
         {
             if (disposed)
-                return;
+                return false;
 
             var dirtyPages = pages?.Values.Where(page => page is { IsDirty: true }).ToList()
                               ?? new List<BasePage>();
@@ -127,9 +145,9 @@ namespace LumDbEngine.Element.Engine.Cache
             {
                 // Discard + Dispose must not clobber the committed image with an empty/reset cache.
                 if (pages.Count == 0)
-                    return;
+                    return false;
                 if (dirtyPages.Count == 0 && !header.IsDirty)
-                    return;
+                    return false;
             }
 
             header.State = (byte)DbLogState.Done;
@@ -145,6 +163,7 @@ namespace LumDbEngine.Element.Engine.Cache
                 page.IsDirty = false;
 
             GarbageCollection();
+            return true;
         }
 
         /// <summary>

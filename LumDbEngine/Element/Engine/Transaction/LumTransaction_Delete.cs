@@ -1,4 +1,4 @@
-﻿using LumDbEngine.Element.Engine.Lock;
+using LumDbEngine.Element.Engine.Lock;
 using LumDbEngine.Element.Engine.Results;
 using LumDbEngine.Element.Structure;
 
@@ -14,9 +14,9 @@ namespace LumDbEngine.Element.Engine.Transaction
                 using var lk = LockTransaction.TryStartWrite(rwLock, dbEngine.TimeoutMilliseconds);
                 return dbManager.Delete(db, tableName, id);
             }
-            catch
+            catch (Exception ex)
             {
-                Discard();
+                MarkFaulted(ex);
                 throw;
             }
         }

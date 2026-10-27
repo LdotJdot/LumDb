@@ -19,6 +19,10 @@ namespace LumDbEngine.Element.Exceptions
         internal const string NotKey = "is not key";
         internal const string DbEngDisposedTimeOut = "Waiting living transactions  timeout when disposing DbEngine.";
         internal const string DbEngDisposedEarly = "Transaction cannot be accessed beacuse the dbEngine has already be disposed early.";
+        internal const string TooManyOpenTransactions = "Too many open transactions. Dispose finished transactions before starting new ones.";
+        internal const string TransactionAborted = "The transaction was aborted by a previous failed statement and cannot be used any more. Dispose it (its changes will not be committed) or call Discard() to reuse it.";
+        internal const string InvalidDatabaseFile = "The file is not a valid LumDb database (header signature or size is invalid).";
+        internal const string UnsupportedFileVersion = "Unsupported database file version.";
         internal const string InternalError = "InternalError";
         internal const string KeyAlreadyExisted = "Key already existed";
         internal const string FixedLengthTooLong = "Value exceeds fixed column length";

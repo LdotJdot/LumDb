@@ -321,6 +321,43 @@ namespace UnitTestLumDb.BaseFunction.Maintenance
         }
 
         [TestMethod]
+        [DynamicData(nameof(Backends))]
+        public void Vacuum_waits_for_another_thread_and_keeps_its_commit(TestBackend backend)
+        {
+            ColumnAlterTestsInvoke(backend, eng =>
+            {
+                eng.TimeoutMilliseconds = 15000;
+                using (var ts = eng.StartTransaction())
+                {
+                    ts.Create("t", [("k", DbValueType.Int, true), ("v", DbValueType.Str32B, false)]);
+                    ts.Insert("t", [("k", 1), ("v", "a")]);
+                    ts.SaveChanges();
+                }
+
+                Task vacuum;
+                using (var ts = eng.StartTransaction())
+                {
+                    vacuum = Task.Run(eng.Vacuum);
+                    Thread.Sleep(300);
+                    Assert.IsFalse(vacuum.IsCompleted);
+                    Assert.AreEqual("a", ts.Find("t", "k", 1).Row.GetString(1));
+                    var added = ts.Insert("t", [("k", 2), ("v", "b")]);
+                    Assert.IsTrue(added.IsSuccess, added.Exception?.Message);
+                    ts.SaveChanges();
+                }
+
+                vacuum.GetAwaiter().GetResult();
+
+                using var read = eng.StartTransaction();
+                Assert.AreEqual("a", read.Find("t", "k", 1).Row.GetString(1));
+                Assert.AreEqual("b", read.Find("t", "k", 2).Row.GetString(1));
+                var next = read.Insert("t", [("k", 3), ("v", "c")]);
+                Assert.IsTrue(next.IsSuccess, next.Exception?.Message);
+                read.SaveChanges();
+            });
+        }
+
+        [TestMethod]
         public void Open_transaction_blocks_vacuum_and_file_stays()
         {
             var path = Configuration.GetRandomPath();

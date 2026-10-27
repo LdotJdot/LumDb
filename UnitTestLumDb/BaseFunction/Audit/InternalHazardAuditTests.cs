@@ -154,7 +154,10 @@ namespace UnitTestLumDb.BaseFunction.Audit
                     "只把状态字节改成 Writing、页内容未改、且没有 .log 时，库应仍能读出原数据。");
                 Assert.AreEqual((byte)DbLogState.Done, ReadStateByte(path),
                     "没有可回放的 log 时，打开应把状态字节修回 Done。");
-                Assert.AreEqual((byte)DbLogState.Done, ReadMemoryHeaderState(ts2));
+                Assert.AreEqual((byte)DbLogState.Done, ReadMemoryHeaderState(ts2),
+                    $"文件状态字节={ReadStateByte(path)}（{(DbLogState)ReadStateByte(path)}），" +
+                    $"内存 header.State={ReadMemoryHeaderState(ts2)}（{(DbLogState)ReadMemoryHeaderState(ts2)}），" +
+                    $".log 存在={File.Exists(path + ".log")}。");
                 reopened.SetDestoryOnDisposed();
             }
             catch (Exception ex) when (ex is not AssertFailedException)
@@ -391,6 +394,25 @@ namespace UnitTestLumDb.BaseFunction.Audit
                 eng = new DbEngine(path);
                 eng.TransactionPolicy = policy;
                 eng.TimeoutMilliseconds = 200;
+
+                // Serializable is not implemented. It is rejected when a transaction starts,
+                // instead of silently handing out a ReadCommitted transaction that would break
+                // the promise implied by the policy name.
+                if (policy == TransactionPolicy.Serializable)
+                {
+                    Exception? rejected = null;
+                    try
+                    {
+                        using var ts = eng.StartTransaction();
+                    }
+                    catch (Exception ex)
+                    {
+                        rejected = ex;
+                    }
+                    Assert.IsInstanceOfType<NotSupportedException>(rejected,
+                        $"Serializable 写事务必须在启动时显式拒绝，实际：{rejected?.GetType().Name}: {rejected?.Message}");
+                    return;
+                }
 
                 using (var first = eng.StartTransaction())
                 {
