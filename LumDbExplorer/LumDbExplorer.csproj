@@ -8,12 +8,36 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationTitle>LumDb Explorer</ApplicationTitle>
     <Product>LumDb Explorer</Product>
-    <Version>2.2.0</Version>
-    <Description>Browse, create, and edit LumDb databases.</Description>
+    <Version>2.3.0</Version>
+    <Description>Browse, create, and edit LumDb databases, including table column changes.</Description>
+    <!-- The solution carries an x64 configuration; declare it so the publish profile's
+         Platform=x64 maps onto this project. -->
+    <Platforms>AnyCPU;x64</Platforms>
+    <!-- Native AOT: "dotnet publish" emits a single native .exe with no .NET runtime required.
+         The settings live in the project file and not only in the publish profile, because the
+         Visual Studio publish dialog rewrites Properties/PublishProfiles/*.pubxml on every
+         publish, while project properties are evaluated after the profile and therefore win. -->
+    <PublishAot>true</PublishAot>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- Keep the publish folder clean: only the native .exe, no symbols next to it. -->
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+    <!-- The engine is statically linked into the exe: don't ship its .pdb/.xml next to it. -->
+    <AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
+    <!-- PublishAot implies PublishTrimmed, and the SDK still refuses "trimmed WinForms" (NETSDK1175)
+         even though Windows Forms supports Native AOT since .NET 10. Suppress that check so that a
+         plain "dotnet build" of this project keeps working. -->
+    <_SuppressWinFormsTrimError>true</_SuppressWinFormsTrimError>
+    <!-- Publish profile used by "dotnet publish" and by the Visual Studio publish dialog
+         (Properties/PublishProfiles/win-x64.pubxml). -->
+    <PublishProfile>win-x64</PublishProfile>
   </PropertyGroup>
-
   <ItemGroup>
-    <ProjectReference Include="..\LumDbEngine\LumDbEngine.csproj" />
+    <!-- The engine is a library: it must not inherit PublishAot/RuntimeIdentifier, otherwise the
+         netstandard2.0 source generator is dragged into the native compile. -->
+    <ProjectReference Include="..\LumDbEngine\LumDbEngine.csproj" GlobalPropertiesToRemove="PublishAot;RuntimeIdentifier" />
   </ItemGroup>
 
 </Project>

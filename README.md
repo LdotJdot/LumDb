@@ -149,7 +149,7 @@ Zero-alloc predicate: `Where((ref RowView row) => row.GetInt(1) > 90)`. Entity c
 - Thread-safe: one writer (upgradeable) + concurrent readers
 - Source-generated entities; `GoThrough` / `RowView` scan without allocating entities
 - AOT publish supported (`PublishAot`); daily `dotnet build` still runs the generator
-- Tools: **LumDbExplorer** (WinForms) to create/copy databases, create tables, CRUD rows, inspect schema and stats
+- Tools: **LumDbExplorer** (WinForms) to create/copy databases, create tables, add/drop columns, CRUD rows, inspect schema and stats
 - `AddColumn` / `DropColumn` rewrite one table inside the current transaction (up to 100 columns, the slots already reserved on the table page)
 - `Vacuum` rebuilds the committed image and drops free pages, still in page format 1.3.9. The old file is replaced only after the new image is fully committed
 
@@ -194,6 +194,21 @@ using (var ts = eng.StartTransaction())
 1. Reference `LumDbEngine` (net10). For `[LumEntity]`, the analyzer is packed with the NuGet.
 2. `new DbEngine()` or `new DbEngine(path)`.
 3. `using var ts = engine.StartTransaction();` — dispose to commit, or `Discard()`.
+
+## LumDbExplorer (WinForms)
+
+`dotnet publish` produces a single native executable (Native AOT); no .NET runtime is needed on the target machine:
+
+```bash
+dotnet publish LumDbExplorer/LumDbExplorer.csproj -c Release
+```
+
+The AOT settings (`PublishAot`, `RuntimeIdentifier=win-x64`, `SelfContained`) live in `LumDbExplorer.csproj`, so a plain `dotnet build` keeps working as well and the Visual Studio publish dialog (which reads `Properties/PublishProfiles/win-x64.pubxml`) publishes the same native binary. The publish folder then holds only `LumDbExplorer.exe` (about 21.5 MB).
+
+Two things to know:
+
+- Do not publish with `-p:PublishAot=true`. That property becomes a global property and reaches `LumDbEngine.Generators` (netstandard2.0, a Roslyn analyzer), where the publish fails with NETSDK1207 ("the target framework does not support ahead-of-time compilation"). `PublishAot` is therefore deliberately kept out of the publish profile as well, because Visual Studio hands profile properties to MSBuild as global properties.
+- Publishing reports `IL3053` / `IL3000` AOT-analysis warnings for the Windows Forms framework assemblies. They come from the framework itself, not from Explorer or the engine.
 
 ## License
 

@@ -29,6 +29,8 @@
             mnuTable = new ToolStripMenuItem();
             mnuCreateTable = new ToolStripMenuItem();
             mnuDropTable = new ToolStripMenuItem();
+            mnuAddColumn = new ToolStripMenuItem();
+            mnuDropColumn = new ToolStripMenuItem();
             mnuTableProps = new ToolStripMenuItem();
             mnuRefresh = new ToolStripMenuItem();
             mnuData = new ToolStripMenuItem();
@@ -56,6 +58,8 @@
             treeMenu = new ContextMenuStrip(components);
             ctxCreateTable = new ToolStripMenuItem();
             ctxDropTable = new ToolStripMenuItem();
+            ctxAddColumn = new ToolStripMenuItem();
+            ctxDropColumn = new ToolStripMenuItem();
             ctxTableProps = new ToolStripMenuItem();
             ctxRefresh = new ToolStripMenuItem();
             grid = new DataGridView();
@@ -108,12 +112,16 @@
             //
             // Table
             //
-            mnuTable.DropDownItems.AddRange(new ToolStripItem[] { mnuCreateTable, mnuDropTable, mnuTableProps, new ToolStripSeparator(), mnuRefresh });
+            mnuTable.DropDownItems.AddRange(new ToolStripItem[] { mnuCreateTable, mnuDropTable, new ToolStripSeparator(), mnuAddColumn, mnuDropColumn, new ToolStripSeparator(), mnuTableProps, new ToolStripSeparator(), mnuRefresh });
             mnuTable.Text = "表";
             mnuCreateTable.Text = "新建表…";
             mnuCreateTable.Click += (_, _) => CreateTable();
             mnuDropTable.Text = "删除表";
             mnuDropTable.Click += (_, _) => DropTable();
+            mnuAddColumn.Text = "添加列…";
+            mnuAddColumn.Click += (_, _) => AddColumn();
+            mnuDropColumn.Text = "删除列…";
+            mnuDropColumn.Click += (_, _) => DropColumn();
             mnuTableProps.Text = "属性与统计…";
             mnuTableProps.Click += (_, _) => ShowTableProperties();
             mnuRefresh.ShortcutKeys = Keys.F5;
@@ -202,11 +210,15 @@
             ctxCreateTable.Click += (_, _) => CreateTable();
             ctxDropTable.Text = "删除表";
             ctxDropTable.Click += (_, _) => DropTable();
+            ctxAddColumn.Text = "添加列…";
+            ctxAddColumn.Click += (_, _) => AddColumn();
+            ctxDropColumn.Text = "删除列…";
+            ctxDropColumn.Click += (_, _) => DropColumn();
             ctxTableProps.Text = "属性与统计…";
             ctxTableProps.Click += (_, _) => ShowTableProperties();
             ctxRefresh.Text = "刷新";
             ctxRefresh.Click += (_, _) => RefreshAll();
-            treeMenu.Items.AddRange(new ToolStripItem[] { ctxCreateTable, ctxDropTable, ctxTableProps, new ToolStripSeparator(), ctxRefresh });
+            treeMenu.Items.AddRange(new ToolStripItem[] { ctxCreateTable, ctxDropTable, new ToolStripSeparator(), ctxAddColumn, ctxDropColumn, new ToolStripSeparator(), ctxTableProps, new ToolStripSeparator(), ctxRefresh });
             //
             // pager
             //
@@ -294,7 +306,7 @@
 
         private MenuStrip menuStrip;
         private ToolStripMenuItem mnuFile, mnuNew, mnuOpen, mnuSaveCopy, mnuClose, mnuExit;
-        private ToolStripMenuItem mnuTable, mnuCreateTable, mnuDropTable, mnuTableProps, mnuRefresh;
+        private ToolStripMenuItem mnuTable, mnuCreateTable, mnuDropTable, mnuAddColumn, mnuDropColumn, mnuTableProps, mnuRefresh;
         private ToolStripMenuItem mnuData, mnuInsert, mnuEdit, mnuDelete;
         private ToolStripMenuItem mnuHelp, mnuAbout;
         private ToolStrip toolStrip;
@@ -304,7 +316,7 @@
         private SplitContainer split;
         private TreeView tree;
         private ContextMenuStrip treeMenu;
-        private ToolStripMenuItem ctxCreateTable, ctxDropTable, ctxTableProps, ctxRefresh;
+        private ToolStripMenuItem ctxCreateTable, ctxDropTable, ctxAddColumn, ctxDropColumn, ctxTableProps, ctxRefresh;
         private DataGridView grid;
         private ContextMenuStrip gridMenu;
         private ToolStripMenuItem ctxInsert, ctxEdit, ctxDelete;

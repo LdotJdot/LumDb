@@ -261,15 +261,56 @@ namespace LumDbExplorer
             LoadGrid();
         }
 
+        void AddColumn()
+        {
+            if (db == null || currentTable == null) return;
+            var tableName = currentTable.Name;
+            var existing = currentTable.Columns.Select(c => c.columnName).ToArray();
+
+            using var dlg = new AddColumnDialog(tableName, existing, CountRows(tableName));
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+            DbCell? defaultValue;
+            try
+            {
+                defaultValue = CellCodec.ParseDefault(dlg.DefaultText, dlg.Type);
+            }
+            catch (Exception ex)
+            {
+                ShowError("默认值无效", ex);
+                return;
+            }
+
+            RunWrite(ts =>
+            {
+                var r = ts.AddColumn(tableName, dlg.ColumnName, dlg.Type, dlg.IsKey, defaultValue, dlg.Ordinal);
+                if (!r.IsSuccess) throw r.Exception ?? new Exception("添加列失败");
+            }, "添加列失败");
+
+            RefreshAll();
+        }
+
+        void DropColumn()
+        {
+            if (db == null || currentTable == null) return;
+            var tableName = currentTable.Name;
+
+            using var dlg = new DropColumnDialog(tableName, currentTable.Columns);
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+            RunWrite(ts =>
+            {
+                var r = ts.DropColumn(tableName, dlg.ColumnName);
+                if (!r.IsSuccess) throw r.Exception ?? new Exception("删除列失败");
+            }, "删除列失败");
+
+            RefreshAll();
+        }
+
         void ShowTableProperties()
         {
             if (db == null || currentTable == null) return;
-            uint rows = 0;
-            using (var ts = db.StartTransaction())
-            {
-                var c = ts.Count(currentTable.Name, static (ref RowView _) => true);
-                if (c.IsSuccess) rows = c.Value;
-            }
+            var rows = CountRows(currentTable.Name);
             long bytes = dbPath != null && File.Exists(dbPath) ? new FileInfo(dbPath).Length : -1;
             using var dlg = new TablePropertiesDialog(
                 dbPath ?? "(memory)",
@@ -279,6 +320,21 @@ namespace LumDbExplorer
                 currentTable.Columns.Select(c => (c.columnName, c.dataType, c.isKey)).ToArray(),
                 rows);
             dlg.ShowDialog(this);
+        }
+
+        uint CountRows(string table)
+        {
+            if (db == null) return 0;
+            try
+            {
+                using var ts = db.StartTransaction();
+                var c = ts.Count(table, static (ref RowView _) => true);
+                return c.IsSuccess ? c.Value : 0;
+            }
+            catch
+            {
+                return 0;
+            }
         }
 
         void InsertRow()
@@ -389,6 +445,8 @@ namespace LumDbExplorer
             mnuClose.Enabled = hasDb;
             mnuCreateTable.Enabled = btnCreateTable.Enabled = ctxCreateTable.Enabled = hasDb;
             mnuDropTable.Enabled = ctxDropTable.Enabled = hasTable;
+            mnuAddColumn.Enabled = ctxAddColumn.Enabled = hasTable;
+            mnuDropColumn.Enabled = ctxDropColumn.Enabled = hasTable;
             mnuTableProps.Enabled = ctxTableProps.Enabled = hasTable;
             mnuRefresh.Enabled = btnRefresh.Enabled = ctxRefresh.Enabled = hasDb;
             mnuInsert.Enabled = btnInsert.Enabled = ctxInsert.Enabled = hasTable;
@@ -412,7 +470,7 @@ namespace LumDbExplorer
         {
             MessageBox.Show(this,
                 "LumDb Explorer\n\n" +
-                "新建或打开 .db 文件，创建表，插入/编辑/删除行。\n" +
+                "新建或打开 .db 文件，创建表，添加/删除列，插入/编辑/删除行。\n" +
                 "另存副本写入已提交镜像（SaveTo），可用另一引擎打开。\n\n" +
                 $"引擎格式版本：{DbEngine.CurrentVersionString}",
                 "关于", MessageBoxButtons.OK, MessageBoxIcon.Information);
